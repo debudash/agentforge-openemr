@@ -1,0 +1,21 @@
+# Rounding-list seeder for the Clinical Co-Pilot demo, run by Railway's cron scheduler.
+#
+# Railway cron runs the container on a schedule and expects it to exit, so this image has
+# no server: it books the next few days of appointments and stops. Built from the
+# repository root because `railway up` uploads the repo root as the build context.
+FROM python:3.13-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+
+COPY scripts/requirements-seeder.txt ./
+RUN pip install --no-cache-dir -r requirements-seeder.txt
+
+COPY scripts/oe_api.py scripts/seed_appointments.py ./scripts/
+
+RUN useradd --create-home --uid 10001 seeder
+USER seeder
+
+# Options come from environment variables (SEED_DAYS, SEED_PER_DOCTOR, ...), so the
+# schedule needs no arguments. A non-zero exit marks the cron run failed in Railway.
+CMD ["python", "scripts/seed_appointments.py"]
