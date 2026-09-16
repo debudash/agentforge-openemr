@@ -28,8 +28,10 @@ def test_select_unknown_patient_is_denied_without_content(chart101, settings):
 
 
 def test_ask_requires_active_patient_and_clears_memory_on_switch(chart101, chart303, settings):
+    from langchain_core.messages import AIMessage
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_problems", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
     final = AnswerDraft(claims=[Claim(text="Essential hypertension is on the problem list.", source_ids=["problem:9001"])])
-    store = SessionStore(settings, lambda: ScriptedLLM([final, final]))
+    store = SessionStore(settings, lambda: ScriptedLLM([lookup, final, lookup, final]))   # each answer needs its own lookup
     store.open("s" * 32, user(8), [chart101, chart303], "cid")
 
     denied = asyncio.run(store.ask("s" * 32, 101, "hi", "cid"))

@@ -196,6 +196,16 @@ class BriefDraft(BaseModel):
     sections: list[BriefSection]
 
 
+class TopicCheck(BaseModel):
+    """Pre-check of a follow-up question on its own, without conversation history."""
+
+    about_patient_record: bool = Field(
+        description="True if the message asks about a patient's medical record or clinical care (labs, medications, "
+                    "problems, allergies, visits, vitals, a comparison with earlier values, a treatment or dosing question, "
+                    "another patient). False for anything unrelated: weather, greetings, small talk, general knowledge, "
+                    "questions about the assistant itself.")
+
+
 class AnswerDraft(BaseModel):
     """The model's draft answer to a follow-up question, before verification."""
 
@@ -204,6 +214,10 @@ class AnswerDraft(BaseModel):
     boundary: str | None = Field(
         default=None,
         description="Set when the question asks for a diagnosis, treatment, dose change or order: the product boundary statement",
+    )
+    off_topic: bool = Field(
+        default=False,
+        description="True when the question is not about the selected patient's record at all (weather, small talk, general knowledge); then give no claims and put the one-sentence reply in 'missing'",
     )
 
 
@@ -253,6 +267,7 @@ class AgentResponse(BaseModel):
     claims: list[VerifiedClaim] = Field(default_factory=list)
     missing: str | None = None
     boundary: str | None = None
+    off_topic: bool = False
     citations: list[Citation] = Field(default_factory=list)
     rule_outcomes: list[RuleOutcome] = Field(default_factory=list)
     removed_claims: list[RemovedClaim] = Field(default_factory=list)

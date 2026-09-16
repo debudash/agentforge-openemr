@@ -33,6 +33,22 @@ class ChartContext:
     calls: list[str] = field(default_factory=list)
     denials: list[dict[str, Any]] = field(default_factory=list)
     on_call: Callable[[str, dict[str, Any]], None] | None = None
+    # Every source_id a tool returned in this turn. A follow-up claim may cite only these:
+    # a fact restated from memory without a fresh lookup is not grounded in this turn.
+    returned_ids: set[str] = field(default_factory=set)
+
+    def note(self, payload: Any) -> Any:
+        """Record the source_ids in a tool result before it is returned to the model."""
+        if isinstance(payload, dict):
+            sid = payload.get("source_id")
+            if isinstance(sid, str):
+                self.returned_ids.add(sid)
+            for value in payload.values():
+                self.note(value)
+        elif isinstance(payload, list):
+            for item in payload:
+                self.note(item)
+        return payload
 
     @property
     def active_pid(self) -> int:
@@ -67,7 +83,9 @@ class ChartContext:
         return index
 
 
-def _dump(payload: dict[str, Any]) -> str:
+def _dump(payload: dict[str, Any], ctx: ChartContext | None = None) -> str:
+    if ctx is not None:
+        ctx.note(payload)
     return json.dumps(payload, ensure_ascii=False, default=str)
 
 
@@ -75,8 +93,12 @@ def _result(ctx: ChartContext, source_name: str, records: list[dict[str, Any]], 
     status = ctx.source(source_name)
     if status["status"] in ("error", "timeout"):
         return _dump({"result": "error", "source_status": status, "records": [],
-                      "note": f"{source_name} could not be retrieved from OpenEMR; do not infer its contents"})
-    return _dump({"result": "ok" if records else "empty", "source_status": status, "records": records, "note": note})
+                      "note": f"{source_name} could not be retrieved from OpenEMR; do not infer its contents"}, ctx)
+    payload: dict[str, Any] = {"result": "ok" if records else "empty", "source_status": status, "records": records, "note": note}
+    if not records:
+        # An absence is a citable fact: "none recorded" statements cite the empty result itself.
+        payload["source_id"] = f"empty:{source_name}"
+    return _dump(payload, ctx)
 
 
 def make_tools(ctx: ChartContext) -> list[BaseTool]:
@@ -99,7 +121,7 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
             "counts": {"problems": len(chart.problems), "medications": len(chart.medications),
                        "allergies": len(chart.allergies), "labs": len(chart.labs),
                        "encounters": len(chart.encounters), "immunizations": len(chart.immunizations)},
-        })
+        }, ctx)
 
     @tool
     def get_problems(pid: int, status: Literal["active", "all"] = "active",
@@ -219,7 +241,7 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         records = [{"source_id": f"signal:{n}", "kind": s.kind, "text": s.text, "based_on": s.source_ids}
                    for n, s in enumerate(signals, start=1)]
         return _dump({"result": "ok" if records else "empty", "records": records,
-                      "note": None if records else "no adherence signals found by the demo rules; this is not a statement that the patient is adherent"})
+                      "note": None if records else "no adherence signals found by the demo rules; this is not a statement that the patient is adherent"}, ctx)
 
     @tool
     def run_constraint_checks(pid: int) -> str:
@@ -228,7 +250,7 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         if denied:
             return denied
         outcomes = constraints.run_all(ctx.chart, ctx.today, ctx.recent_lab_days)
-        return _dump({"result": "ok", "records": [{"source_id": f"rule:{o.rule_id}", **o.model_dump()} for o in outcomes]})
+        return _dump({"result": "ok", "records": [{"source_id": f"rule:{o.rule_id}", **o.model_dump()} for o in outcomes]}, ctx)
 
     return [get_patient_context, get_problems, get_medications, get_allergies, get_labs,
             get_encounters, get_immunizations, get_vitals, get_compliance_signals, run_constraint_checks]

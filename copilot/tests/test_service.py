@@ -32,7 +32,9 @@ def test_full_flow_open_status_select_ask(chart101, monkeypatch):
     brief = BriefDraft(sections=[BriefSection(key="allergies", title="Allergies",
                                               claims=[Claim(text="Penicillin V allergy with rash recorded.", source_ids=["allergy:8001"])])])
     answer = AnswerDraft(claims=[Claim(text="Lisinopril 10 MG Oral Tablet is active.", source_ids=["prescription:7001"])])
-    service.store._llm = ScriptedLLM([brief, answer])
+    from langchain_core.messages import AIMessage
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_medications", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
+    service.store._llm = ScriptedLLM([brief, lookup, answer])   # a claim must be backed by a lookup in its own turn
 
     with TestClient(service.app) as client:
         opened = signed(client, "POST", "/session/open", {

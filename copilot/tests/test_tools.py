@@ -39,6 +39,33 @@ def test_allergies_empty_note_forbids_no_known_allergies(chart202, today):
     ctx = ChartContext(chart202, today)
     result = json.loads(tool(ctx, "get_allergies").invoke({"pid": 202}))
     assert result["result"] == "empty" and "never 'no known allergies'" in result["note"]
+    assert result["source_id"] == "empty:allergies" and "empty:allergies" in ctx.returned_ids
+
+
+def test_numbers_from_the_question_are_allowed_in_the_answer(chart101, settings, today):
+    """'Any labs in the last 30 days?' -> 'No lab results in the last 30 days' cites the empty lookup;
+    the 30 is the clinician's own number, not a chart value."""
+    from copilot.agent import answer_followup
+    from copilot.llm import ScriptedLLM
+    from copilot.schemas import AnswerDraft, Claim, ResponseState
+    from langchain_core.messages import AIMessage
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_labs", "args": {"pid": 101, "since_days": 30}, "id": "c1", "type": "tool_call"}])
+    final = AnswerDraft(claims=[Claim(text="No lab results are recorded in the last 30 days; the most recent is dated 2026-08-16.", source_ids=["empty:labs"])])
+    response, _ = answer_followup(chart101, "Any lab results in the last 30 days?", [], ScriptedLLM([lookup, final]), settings, "cid-30", __import__("datetime").date(2027, 9, 15))
+    assert response.state == ResponseState.COMPLETE and len(response.claims) == 1, response.removed_claims
+
+
+def test_none_recorded_claim_can_cite_the_empty_result(chart202, settings, today):
+    """'No allergies are recorded' cites empty:allergies and verifies; a fabricated id would not."""
+    from copilot.agent import answer_followup
+    from copilot.llm import ScriptedLLM
+    from copilot.schemas import AnswerDraft, Claim, ResponseState
+    from langchain_core.messages import AIMessage
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_allergies", "args": {"pid": 202}, "id": "c1", "type": "tool_call"}])
+    final = AnswerDraft(claims=[Claim(text="No allergies are recorded in this chart; absence of a record does not establish that he has none.", source_ids=["empty:allergies"])])
+    response, _ = answer_followup(chart202, "Does he have any documented allergies?", [], ScriptedLLM([lookup, final]), settings, "cid-empty", today)
+    assert response.state == ResponseState.COMPLETE and len(response.claims) == 1
+    assert response.citations[0].type == "empty" and "no allergies records" in response.citations[0].label
 
 
 def test_derived_records_carry_source_ids(chart101, today):

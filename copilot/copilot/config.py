@@ -35,6 +35,15 @@ class Settings:
     # The eval judge may use a different (usually stronger) model than the agent; same provider,
     # and it must be on the same allowlist. Empty means "same model as the agent".
     judge_model: str = os.environ.get("COPILOT_JUDGE_MODEL", "")
+    # OpenRouter reasoning models think before answering and count that against max_tokens;
+    # on structured, tool-grounded calls the thinking sometimes runs away until the cap and the
+    # answer is lost (measured: 185 hidden tokens normally, 3000+ when it spirals). Off by default.
+    openrouter_reasoning: str = os.environ.get("COPILOT_REASONING", "off")   # off | default | low | medium | high
+    # Classify each follow-up question on its own, with no conversation history, before any tool
+    # runs. A model's off-topic judgement degrades once earlier answers are in context (measured:
+    # "what is the weather" after a lab answer re-emitted the labs); the question alone classifies
+    # reliably. One small extra call per follow-up.
+    topic_check: bool = os.environ.get("COPILOT_TOPIC_CHECK", "1").lower() in ("1", "true", "yes")
     # The brief is a structured document with up to seven sections; 2000 tokens truncated it.
     max_output_tokens: int = int(os.environ.get("COPILOT_MAX_OUTPUT_TOKENS", "12000"))
     model_timeout_s: float = float(os.environ.get("COPILOT_MODEL_TIMEOUT_S", "40"))

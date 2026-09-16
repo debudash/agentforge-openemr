@@ -12,6 +12,9 @@ os.environ.setdefault("LANGSMITH_TRACING", "false")
 # Pin the provider configuration so the developer's .env (which load_dotenv reads, but never
 # overrides) cannot change what the tests assume. The key is never used: the model is scripted.
 os.environ.update({
+    # The topic pre-check is an extra structured call; unit tests script the model per test, so it is
+    # off here by default and switched on explicitly by the tests that cover it.
+    "COPILOT_TOPIC_CHECK": "0",
     "COPILOT_PROVIDER": "anthropic", "COPILOT_MODEL": "claude-sonnet-5",
     "COPILOT_ALLOWED_PROVIDERS": "anthropic", "COPILOT_ALLOWED_MODELS": "claude-sonnet-5",
     "COPILOT_ALLOWED_ENDPOINTS": "https://api.anthropic.com", "ANTHROPIC_API_KEY": "test-key-never-used",

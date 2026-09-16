@@ -26,7 +26,8 @@ class ProviderNotApproved(RuntimeError):
 
 
 class LLM(Protocol):
-    def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool]) -> AIMessage: ...
+    def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool],
+                          require_tool: bool = False) -> AIMessage: ...
     def structured(self, messages: Sequence[BaseMessage], schema: type[T]) -> T: ...
 
 
@@ -104,8 +105,10 @@ class LangChainLLM:
                     raise
                 time.sleep(_retry_after_seconds(exc, attempt))
 
-    def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool]) -> AIMessage:
-        bound = self.model.bind_tools(list(tools))
+    def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool],
+                          require_tool: bool = False) -> AIMessage:
+        # "any" forces a tool call on this round; LangChain maps it to each provider's spelling.
+        bound = self.model.bind_tools(list(tools), tool_choice="any") if require_tool else self.model.bind_tools(list(tools))
         response = self._with_rate_limit_retry(lambda: bound.invoke(list(messages)))
         if not isinstance(response, AIMessage):  # pragma: no cover - LangChain always returns AIMessage here
             raise TypeError("unexpected model response type")
@@ -126,8 +129,9 @@ class ScriptedLLM:
         self.responses = list(responses)
         self.calls: list[str] = []
 
-    def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool]) -> AIMessage:
-        self.calls.append("tools")
+    def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool],
+                          require_tool: bool = False) -> AIMessage:
+        self.calls.append("tools-required" if require_tool else "tools")
         if not self.responses:
             return AIMessage(content="")
         nxt = self.responses.pop(0)
@@ -138,12 +142,12 @@ class ScriptedLLM:
         return AIMessage(content="")
 
     def structured(self, messages: Sequence[BaseMessage], schema: type[T]) -> T:
+        """Return the first scripted instance of `schema`, leaving everything else in place."""
         self.calls.append("structured")
-        while self.responses:
-            nxt = self.responses.pop(0)
+        for position, nxt in enumerate(self.responses):
             if isinstance(nxt, schema):
-                return nxt
-        raise RuntimeError("scripted LLM has no structured response left")
+                return self.responses.pop(position)
+        raise RuntimeError(f"scripted LLM has no {schema.__name__} response")
 
 
 def build_llm(settings: Settings, model_name: str | None = None) -> LLM:
@@ -158,6 +162,12 @@ def build_llm(settings: Settings, model_name: str | None = None) -> LLM:
         # check a model's supported_parameters on openrouter.ai before adding it to the allowlist.
         from langchain_openai import ChatOpenAI
 
+        reasoning = settings.openrouter_reasoning.strip().lower()
+        extra_body = None
+        if reasoning == "off":
+            extra_body = {"reasoning": {"enabled": False}}
+        elif reasoning in ("low", "medium", "high"):
+            extra_body = {"reasoning": {"effort": reasoning}}
         model = ChatOpenAI(
             model=name,
             temperature=0,
@@ -168,6 +178,7 @@ def build_llm(settings: Settings, model_name: str | None = None) -> LLM:
             base_url=settings.openrouter_base_url,
             default_headers={"HTTP-Referer": "https://labs.gauntletai.com/debudash/openemragent",
                              "X-Title": "OpenEMR Clinical Co-Pilot"},
+            extra_body=extra_body,
         )
         return LangChainLLM(model)
 

@@ -63,8 +63,14 @@ def _record_numbers(record: dict[str, Any]) -> set[str]:
     return found
 
 
-def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers: set[str]) -> str | None:
-    """Return a removal reason, or None when the claim is supported."""
+def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers: set[str],
+                turn_ids: set[str] | None = None) -> str | None:
+    """Return a removal reason, or None when the claim is supported.
+
+    `index` is the active patient's whole chart. When `turn_ids` is given, a claim must also
+    cite only records that a tool returned in this turn: a fact restated from memory without
+    a fresh lookup is not grounded in this turn, even though the record is the patient's.
+    """
     text = (claim.text or "").strip()
     if not text:
         return "empty claim"
@@ -73,6 +79,10 @@ def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers:
     missing = [sid for sid in claim.source_ids if sid not in index]
     if missing:
         return f"cites records that are not in this patient's chart: {', '.join(missing)}"
+    if turn_ids is not None:
+        stale = [sid for sid in claim.source_ids if sid not in turn_ids]
+        if stale:
+            return f"cites records no tool returned in this turn (restated without a lookup): {', '.join(stale)}"
     if _RECOMMENDATION.search(text):
         return "phrases a clinical recommendation or diagnosis (product boundary)"
     evidence: set[str] = set()
@@ -95,12 +105,13 @@ def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers:
 
 
 def verify_claims(claims: list[Claim], index: dict[str, dict[str, Any]],
-                  allowed_numbers: set[str] | None = None) -> tuple[list[VerifiedClaim], list[RemovedClaim]]:
+                  allowed_numbers: set[str] | None = None,
+                  turn_ids: set[str] | None = None) -> tuple[list[VerifiedClaim], list[RemovedClaim]]:
     kept: list[VerifiedClaim] = []
     removed: list[RemovedClaim] = []
     allowed = allowed_numbers or set()
     for claim in claims:
-        reason = check_claim(claim, index, allowed)
+        reason = check_claim(claim, index, allowed, turn_ids)
         if reason is None:
             kept.append(VerifiedClaim(text=claim.text.strip(), source_ids=list(dict.fromkeys(claim.source_ids))))
         else:
@@ -139,6 +150,12 @@ def _label(kind: str, record: dict[str, Any]) -> str:
             return "patient record"
         case "appointment":
             return str(record.get("title") or "appointment")
+        case "empty":
+            return f"no {record.get('source', '')} records returned"
+        case "rule":
+            return f"{record.get('rule_id', '')}: {record.get('outcome', '')}"
+        case "signal":
+            return str(record.get("text", ""))[:80]
         case _:
             return kind
 
