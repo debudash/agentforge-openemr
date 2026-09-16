@@ -165,7 +165,11 @@ python -m venv .venv
 .venv\Scripts\python -m pytest
 ```
 
-It needs the stack running. By default it targets `https://localhost:9300` as `admin` / `pass`; override with `OPENEMR_BASE_URL`, `OE_USER` and `OE_PASS`. The suite registers a temporary OAuth client, enables it directly in the database, and deletes it at the end. **Last run: 18/18 passed (2026-09-15).**
+It needs the stack running. By default it targets `https://localhost:9300` as `admin` / `pass`; override with `OPENEMR_BASE_URL`, `OE_USER` and `OE_PASS`. The suite registers a temporary OAuth client, enables it directly in the database, and deletes it at the end.
+
+It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_PASS` so its database queries go through `railway ssh` instead of the local docker stack (see [usecases/USECASES.md](usecases/USECASES.md)).
+
+**Last runs: 18/18 local and 18/18 against Railway (2026-09-15).**
 
 ## What this fork adds
 
