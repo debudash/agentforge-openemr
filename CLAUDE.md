@@ -1,17 +1,28 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # OpenEMR Development Guide
 
 ## Project Structure
 
 ```
-/src/              - Modern PSR-4 code (OpenEMR\ namespace)
-/library/          - Legacy procedural PHP code
-/interface/        - Web UI controllers and templates
-/templates/        - Smarty/Twig templates
-/tests/            - Test suite (unit, e2e, api, services)
-/sql/              - Database schema and migrations
-/public/           - Static assets
-/docker/           - Docker configurations
-/modules/          - Custom and third-party modules
+/src/                - Modern PSR-4 code (OpenEMR\ namespace)
+/library/            - Legacy procedural PHP code
+/interface/          - Web UI page controllers and templates (legacy entry points)
+/interface/modules/  - custom_modules/ (event-bootstrapped) and zend_modules/ (Laminas MVC)
+/apis/               - REST/FHIR/portal API front controller + route tables
+/oauth2/             - OAuth2 / SMART-on-FHIR authorization endpoint
+/portal/             - Patient portal
+/sites/<site>/       - Per-site config: sqlconf.php, documents/, LBF layouts (multisite)
+/templates/          - Smarty/Twig templates
+/tests/              - Test suite (unit, e2e, api, services)
+/sql/                - Install schema (database.sql) + versioned *_upgrade.sql
+/db/Migrations/      - Doctrine Migrations (new schema changes go here)
+/ccdaservice/        - Separate Node service: C-CDA generation, CQM, schematron
+/gacl/               - phpGACL engine backing all ACL checks
+/public/             - Static assets
+/docker/             - Docker configurations
 ```
 
 ## Technology Stack
@@ -37,6 +48,62 @@ docker compose up --detach --wait
 - **App URL:** http://localhost:8300/ or https://localhost:9300/
 - **Login:** `admin` / `pass`
 - **phpMyAdmin:** http://localhost:8310/
+
+### This checkout: Windows host + Docker Desktop
+
+This fork (`labs.gauntletai.com/debudash/openemragent`) is developed on Windows
+with **Docker Desktop only** — there is no host PHP/Composer, and host Node (22)
+is below the `package.json` requirement (>=24). Run every PHP, Composer, npm,
+PHPUnit, and PHPStan command inside the `openemr` container.
+
+- `openemr-cmd` is bash and does not run from PowerShell. Use it from WSL, or use
+  the equivalent `docker compose exec openemr /root/devtools <cmd>` from
+  `docker/development-easy/`.
+- Line endings must be LF: the repo is set to `core.autocrlf=input`,
+  `core.eol=lf`. CRLF files bind-mounted into the Linux container break shell
+  scripts (`/bin/sh^M`), fail phpcs, and make in-container git show every file
+  as modified.
+- From Git Bash, prefix container commands with `MSYS_NO_PATHCONV=1`
+  (e.g. `MSYS_NO_PATHCONV=1 docker compose exec openemr /root/devtools ...`);
+  otherwise `/root/...` is rewritten to `C:/Program Files/Git/root/...` and
+  the exec fails. Don't pipe these through `grep` without `pipefail` — the
+  pipe masks the failure as exit 0.
+- Local tweaks go in `docker/development-easy/docker-compose.override.yml`
+  (gitignored, auto-merged). It currently sets `XDEBUG_PROFILER_ON: 0`.
+- **Don't recreate containers without a reason.** `docker compose up`
+  recreates any service whose settings no longer match the compose or override
+  files. Changed caller-set variables (`HOST_UID`, `HOST_GID`, `OPENEMR_DIR`,
+  `WT_*`) count too. The named volumes keep the data, but a recreate
+  re-runs the entrypoint.
+  - Resume day to day: `docker compose up --detach --no-recreate --wait`
+    (or `start` / `stop` for pauses). This never recreates existing containers.
+  - Apply a deliberate settings change: run `docker compose up --detach --dry-run`
+    first. If it shows `Recreate` and you don't know which change caused it,
+    find out before running it for real.
+  - Don't use `down`, `--force-recreate` or `--build` unless asked.
+  - `--no-recreate` also skips intended changes, so run a plain `up` after
+    editing the compose files.
+- First `up` takes 10-20 minutes (composer install, theme build, DB install);
+  the openemr healthcheck has a 3-minute start period. Watch with
+  `docker compose logs -f openemr` until `Starting apache!`.
+- No `GITHUB_COMPOSER_TOKEN` is set in the tracked compose files (the upstream
+  values were revoked and have been removed), so composer downloads
+  anonymously and can hit GitHub `HTTP/2 504` / rate limits. A failed install then dies with
+  `Could not delete .../vendor` (it's a volume mount) and the container
+  restarts and retries — usually succeeding from composer's cache. If it keeps
+  failing, set your own token as `GITHUB_COMPOSER_TOKEN` in the override file.
+  `docker compose up --wait` exits 1 when the first attempt goes unhealthy even
+  though the restart may recover; check `docker compose ps` before assuming
+  failure.
+- `/meta/health/readyz` reports `"status":"setup_required"` / `installed:false`
+  on a working install. `meta/health/index.php` sees `$config === 1`, but
+  `library/sql.inc.php:59` (included by `globals.php` at file scope) reassigns
+  the global `$config` to a `DatabaseConnectionOptions` object, so
+  `InstallationCheck` then fails. It always returns HTTP 200, so the container
+  healthcheck (`curl --fail`) still passes. Verify an install by logging in or
+  checking `sites/default/sqlconf.php` has `$config = 1`, not by `readyz`.
+  `oauth_keys:false` just means `sites/default/documents/certificates/oa*.key`
+  haven't been generated yet (first OAuth/API use).
 
 ## Working in a git worktree
 
@@ -146,6 +213,20 @@ no host PHP toolchain needed) and on the host directly:
 ```bash
 openemr-cmd phpunit-isolated        # in container (alias: pit)
 composer phpunit-isolated           # on host (requires PHP + Composer + vendor/)
+```
+
+### Running a single test or suite
+
+The app root inside the container is `/var/www/localhost/htdocs/openemr`.
+Suites defined in `phpunit.xml`: `unit`, `api`, `e2e`, `services`,
+`validators`, `controllers`, `common`, `fixtures`, `ECQM`, `email`,
+`certification`, `redis-sentinel`.
+
+```bash
+# from docker/development-easy/
+docker compose exec openemr sh -c "cd /var/www/localhost/htdocs/openemr && vendor/bin/phpunit --testsuite services"
+docker compose exec openemr sh -c "cd /var/www/localhost/htdocs/openemr && vendor/bin/phpunit --filter PatientServiceTest"
+docker compose exec openemr sh -c "cd /var/www/localhost/htdocs/openemr && vendor/bin/phpunit -c phpunit-isolated.xml tests/Tests/Isolated/ExampleIsolatedTest.php"
 ```
 
 ### Data providers: mark as `@codeCoverageIgnore`
@@ -326,6 +407,71 @@ npm run build:webpack:dev   # Webpack development build
 npm run build:sync        # Sync static CSS to public/themes/
 npm run dev               # Dev theme build, static CSS sync, then webpack watch
 ```
+
+## Architecture
+
+### Four entry points, one service layer
+
+- **Legacy pages** (`interface/**/*.php`, `portal/`): each script includes
+  `interface/globals.php`, which loads the autoloader and `.env`, installs the
+  error handler, picks the site from `sites/`, connects the DB, populates
+  globals, and boots `ModulesApplication` (the module/event kernel). Auth is
+  the PHP cookie session.
+- **REST / FHIR / portal API** (`apis/dispatch.php`): wraps the request in
+  `HttpRestRequest` and runs `OpenEMR\RestControllers\ApiApplication`, a Symfony
+  `HttpKernel` (`OEHttpKernel`) whose behavior lives entirely in subscribers in
+  `src/RestControllers/Subscriber/`, registered in this order:
+  ExceptionHandler → Telemetry → ApiResponseLogger → SessionCleanup →
+  **SiteSetup** (site, DB, globals) → CORS → **OAuth2Authorization** (Bearer
+  token) → **Authorization** (scopes, user/patient context) →
+  **RoutesExtension** (route match + dispatch) → ViewRenderer (JSON/FHIR JSON).
+  Anything needing the DB or globals must run after SiteSetup.
+- **OAuth2 / SMART** (`oauth2/authorize.php`): client registration, SMART
+  launch, token issuance (league/oauth2-server). Scopes use SMART v2 form,
+  e.g. `user/Patient.rs`.
+
+All of them converge on `src/Services` (`BaseService` subclasses; FHIR mappers in
+`src/Services/FHIR`).
+
+### Route → controller → service
+
+Routes are closures in `apis/routes/_rest_routes_standard.inc.php` (`/api`),
+`_rest_routes_fhir_r4_us_core_3_1_0.inc.php` (`/fhir`, US Core 3.1.0), and
+`_rest_routes_portal.inc.php`. Each closure performs a gacl check, then calls a
+controller, which calls a service:
+
+```php
+"GET /api/patient/:puuid" => function ($puuid, HttpRestRequest $request) {
+    RestConfig::request_authorization_check($request, "patients", "demo");
+    return (new PatientRestController())->getOne($puuid, $request);
+},
+```
+
+API authorization is therefore two-layered: OAuth scopes (listener) *and* the
+same gacl section/value ACLs the UI uses (inside the route). Adding an endpoint
+means adding the route closure, a RestController method, and scope
+registration.
+
+### Identity and data access
+
+- Internal integer keys (`pid`, `encounter`) stay internal; APIs expose UUIDs
+  from `UuidRegistry` (`:puuid`, `:euuid`). Some older nested routes
+  (`/encounter/:eid/vital`, `soap_note`) still take integer IDs.
+- Services write through `QueryUtils` or legacy `sqlStatement()`; both sit on
+  Doctrine DBAL with an ADODB-compatible surface.
+- Services dispatch `Before*Event` / `*CreatedEvent` / `*UpdatedEvent` around
+  writes (e.g. `PatientService` → `BeforePatientCreatedEvent`) via the kernel's
+  EventDispatcher. Bypassing services (raw SQL) skips validation, UUID
+  assignment, events, and audit logging.
+
+### Extension points
+
+- **Events** (`src/Events/`): Symfony EventDispatcher; includes
+  `RestApiExtend\RestApiCreateEvent` for modules to add API routes/scopes.
+- **Custom modules**: `interface/modules/custom_modules/<name>/openemr.bootstrap.php`
+  is loaded by `ModulesApplication` with the EventDispatcher injected.
+- **Laminas modules**: `interface/modules/zend_modules/module/` — older MVC apps
+  (Carecoordination, Immunization, Syndromicsurveillance, …).
 
 ## Coding Standards
 
@@ -634,3 +780,17 @@ Preserve existing authors/copyrights when editing files.
 - `API_README.md` - REST API docs
 - `FHIR_README.md` - FHIR implementation
 - `tests/Tests/README.md` - Testing guide
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown files under `.scratch/<feature-slug>/` (spec.md + one file per ticket in `issues/`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix), recorded as a `Status:` line in each ticket file. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
