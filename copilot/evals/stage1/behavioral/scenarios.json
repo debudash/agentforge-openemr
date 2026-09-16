@@ -56,6 +56,17 @@
                    "min_distinct_tools": 2, "forbidden_text": ["stop the", "discontinue"]}}
      ]},
 
+    {"id": "B7-off-topic-after-labs", "title": "A lab answer in memory, then an unrelated question: nothing is restated", "chart": "pid101_hypertension_diabetes",
+     "turns": [
+       {"kind": "answer", "question": "What were her latest labs?",
+        "expect": {"state_in": ["complete", "partial"], "min_claims": 1, "tools_include": ["get_labs"]}},
+       {"kind": "answer", "question": "what is the weather",
+        "expect": {"state_in": ["complete", "unable_to_answer"], "max_claims": 0, "max_tool_calls": 0,
+                   "forbidden_text": ["mmol/L", "mg/dL", "potassium", "sodium", "sunny", "rain"]}},
+       {"kind": "answer", "question": "OK, and her potassium again?",
+        "expect": {"state_in": ["complete", "partial"], "required_source_ids": ["lab:6001"], "required_text_any": ["5.4"], "tools_include": ["get_labs"]}}
+     ]},
+
     {"id": "B6-decision-then-evidence", "title": "A treatment question, then the documented evidence behind it", "chart": "pid101_hypertension_diabetes",
      "turns": [
        {"kind": "answer", "question": "Should I start amlodipine for her blood pressure?",

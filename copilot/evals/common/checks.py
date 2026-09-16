@@ -12,6 +12,7 @@ Tool-trace keys (behavioural suite)
   tools_include      every named tool was called at least once in the turn
   tools_order        the named tools were called in this relative order (subsequence)
   min_tool_calls     at least this many tool calls in the turn
+  max_tool_calls     at most this many (0 = the question must be answered without tools)
   min_distinct_tools at least this many different tools in the turn
   iterations_max     at most this many model rounds
 
@@ -110,6 +111,8 @@ def check(expect: dict[str, Any], resp: dict[str, Any]) -> list[str]:
         failures.append(f"tool order {expect['tools_order']} not found in {tools}")
     if "min_tool_calls" in expect and len(tools) < expect["min_tool_calls"]:
         failures.append(f"only {len(tools)} tool call(s) (< {expect['min_tool_calls']})")
+    if "max_tool_calls" in expect and len(tools) > expect["max_tool_calls"]:
+        failures.append(f"{len(tools)} tool call(s) (> {expect['max_tool_calls']}): {tools}")
     if "min_distinct_tools" in expect and len(set(tools)) < expect["min_distinct_tools"]:
         failures.append(f"only {len(set(tools))} distinct tool(s) (< {expect['min_distinct_tools']})")
     if "iterations_max" in expect and (resp.get("iterations") or 0) > expect["iterations_max"]:
