@@ -335,7 +335,7 @@ The dataset was measured on 2026-09-15 against the 50-patient Synthea import. Op
 |---|---|---|---|
 | REQ-LAT-1 | UC-1 briefs (and UC-2 for new admits) are **pre-computed before 06:55** for the whole rounding list; if the chart changes after that, the brief is refreshed on open | UC-1, UC-2 | P1–P3: ≈11.4 s per patient for sequential FHIR reads, ≈2.3 min for 12 |
 | REQ-LAT-2 | Interactive answers: **median ≤ 5 s, p95 ≤ 10 s**, measured from question to first complete answer | UC-4, UC-5 | P1 (1–2.7 s per call), so parallel filtered reads and a per-session cache are required |
-| REQ-SCOPE-1 | The agent can only access patients on the authenticated hospitalist's rounding list for today | NG-3, all UCs | S3, C4c |
+| REQ-SCOPE-1 | The agent can only access patients on the authenticated hospitalist's rounding list for today. **The agent's tool layer is the only enforcement point** — see below | NG-3, all UCs | S3, C4c |
 | REQ-CITE-1 | Every clinical value in output carries source resource type, ID and timestamp | NG-4, all UCs | — |
 | REQ-NORM-1 | Tools normalize before the LLM sees data: medication status from dates, cross-store de-duplication, SNOMED semantic-tag separation, dated vitals, "none recorded" semantics | UC-1, UC-2, UC-5 | D1, D2, D3, D4, D7 |
 | REQ-MIN-1 | Tools return compact, field-limited summaries, never raw FHIR bundles | UC-1, UC-2, UC-4 | P4 (a 475 KB Condition bundle), C4c |
@@ -344,6 +344,25 @@ The dataset was measured on 2026-09-15 against the 50-patient Synthea import. Op
 | REQ-FMT-1 | Patient cards ≤ 8 lines with flags first; bedside answers of 1–3 sentences; both readable on a phone | UC-1, UC-4 | — |
 | REQ-DATA-1 | A current-admission overlay for the 12-patient demo list, loaded through the API or services and resettable for evaluations | UC-1, UC-3, UC-6 | C1b, D9 |
 | REQ-PHI-1 | With real PHI, the model endpoint and tracing must be under a BAA or receive de-identified data | All UCs | C4a, C4b |
+
+### OpenEMR does not enforce per-provider scoping (measured 2026-09-15)
+
+Assigning each patient a provider does **not** restrict anyone. OpenEMR's authorization is role-based (gacl: "may this role read demographics?"), never patient-based ("which patients are mine?"), and `providerID` is a demographic field.
+
+Verified on the Railway deployment with the panel split 25/25 between `doctor1` and `doctor2`:
+
+| Signed in as | FHIR `/Patient` | REST `/api/patient` | Assigned in the database |
+|---|---:|---:|---:|
+| `admin` | 50 | 50 | — |
+| `doctor1` | **50** | **50** | 25 |
+
+The only built-in restrictions are facility-based (`restrict_user_facility`, facility/warehouse permissions), and every provider here shares one facility. OpenEMR's patient-filter events (`PatientFinderFilterEvent`, `AppointmentsFilterEvent`, demographics view/update) can hide patients in the **UI**, but no equivalent hook exists in `apis/` or `src/Services`, so they cannot constrain the REST/FHIR path the agent uses.
+
+**Consequences for Stage 5:**
+1. The agent resolves the clinician's panel (patients whose `providerID` matches the signed-in user) and filters **every** read to it.
+2. A request for a patient outside the panel is refused (NG-3) and logged, never silently answered.
+3. Scoping is an agent-layer guarantee, so it must be covered by evaluations — a "can you tell me about <patient not on my list>?" case belongs in the eval set.
+4. Anyone testing `doctor1` in the OpenEMR UI still sees all 50 patients. That is expected, not a defect.
 
 ---
 
@@ -369,3 +388,4 @@ The dataset was measured on 2026-09-15 against the 50-patient Synthea import. Op
 3. Which rounding-order signals matter beyond vitals (UC-3), and whether a local early-warning score exists to display.
 4. Whether bedside questions happen on the phone often enough to make REQ-FMT-1's phone layout a P0.
 5. Where the rounding list actually comes from in a real deployment (census or assignment system), since OpenEMR has none (§5).
+6. **Token model for agent reads** (for `ARCHITECTURE.md`): user-level tokens plus agent-layer filtering, or SMART EHR-launch tokens scoped to one patient (`patient/*.read`), which OpenEMR enforces itself. Patient-scoped tokens are stronger — a leaked token reads one chart rather than all 50 — but need a launch context and a different authentication flow, and they don't cover the panel-wide UC-1 brief.

@@ -22,6 +22,8 @@ A public deployment on Railway, so you can look around without installing anythi
 
 **What's loaded:** 50 Synthea patients, ~2,800 encounters, ~1,400 problems, ~300 prescriptions, ~9,900 lab results and ~700 immunizations. Every patient has one assigned provider, split evenly between the two doctors.
 
+**Expect `doctor1` to see all 50 patients**, not just their 25. OpenEMR's permissions are role-based, so an assigned provider is a data attribute, not an access restriction — see [AUDIT.md](AUDIT.md) S3. Restricting a clinician to their own panel is the agent's job, specified as REQ-SCOPE-1 in [USERS.md](USERS.md).
+
 **A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters. As `admin`, **Admin → Users** shows the two provider accounts.
 
 **The API is open too** (OAuth2 + FHIR R4, US Core 3.1.0):
