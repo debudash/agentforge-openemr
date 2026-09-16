@@ -44,7 +44,7 @@ The **CopilotAgent** tab in the top menu opens a two-pane page: the signed-in ph
 - Built to [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf), within [USERS.md](USERS.md) §4 boundaries and [AUDIT.md](AUDIT.md) findings.
 - Agent code, evals and grounding rules: [copilot/](copilot/) ([README](copilot/README.md), [GROUNDING_RULES.md](copilot/evals/GROUNDING_RULES.md)).
 - OpenEMR module (gateway, scope, UI): [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/).
-- Design and evidence: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY_TESTS.md](SECURITY_TESTS.md).
+- Design and evidence: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY_TESTS.md](SECURITY_TESTS.md), [KEY_METRICS.md](KEY_METRICS.md).
 
 Who can use it: providers in the **Physicians** group (`doctor1`, `doctor2`). `admin` is denied by design. The list is *today's appointments booked for that provider, limited to their assigned patients*; book them with `scripts/seed_appointments.py`.
 
@@ -229,6 +229,7 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 | [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/) | OpenEMR module: CopilotAgent tab, role and patient-scope enforcement, chart reader, signed proxy to the agent |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | PHI data flow, trust boundaries, authorization, model gateway, states, logging, retention, incident path |
 | [SECURITY_TESTS.md](SECURITY_TESTS.md) | Runnable authorization, isolation, provider-allowlist, logging and failure tests with results |
+| [KEY_METRICS.md](KEY_METRICS.md) | The five success metrics from the PRD, why those measures, what the runs produced, and the declared gaps |
 | [scripts/](scripts/) | Setup helpers that write through OpenEMR's forms and APIs (providers, panel, appointments, passwords, module registration) |
 
 ---
