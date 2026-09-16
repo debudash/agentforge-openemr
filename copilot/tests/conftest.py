@@ -22,7 +22,7 @@ import pytest  # noqa: E402
 from copilot.config import Settings  # noqa: E402
 from copilot.schemas import Chart  # noqa: E402
 
-FIXTURES = Path(__file__).resolve().parent.parent / "evals" / "fixtures" / "charts"
+FIXTURES = Path(__file__).resolve().parent.parent / "evals" / "stage1" / "fixtures" / "charts"
 TODAY = date(2026, 9, 15)
 
 

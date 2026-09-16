@@ -49,6 +49,27 @@ def test_followup_boundary_answer_is_complete_without_claims(chart101, settings,
     assert response.boundary and response.state == ResponseState.COMPLETE
 
 
+def test_followup_retries_a_malformed_tool_round_once(chart101, settings, today):
+    """First tool round raises (unparsable tool call), the retry succeeds, the answer completes."""
+    final = AnswerDraft(claims=[Claim(text="Essential hypertension is on the active problem list.", source_ids=["problem:9001"])])
+
+    class Flaky(ScriptedLLM):
+        def __init__(self):
+            super().__init__([tool_call("get_problems", {"pid": 101}), final])
+            self.failed_once = False
+
+        def invoke_with_tools(self, messages, tools):
+            if not self.failed_once:
+                self.failed_once = True
+                raise ValueError("Function get_problems arguments are not valid JSON")
+            return super().invoke_with_tools(messages, tools)
+
+    llm = Flaky()
+    response, _ = answer_followup(chart101, "What problems does she have?", [], llm, settings, "cid-retry", today)
+    assert response.state == ResponseState.COMPLETE and response.tool_calls == ["get_problems"]
+    assert response.iterations == 2   # the failed round and its retry count as one iteration; the final round is the second
+
+
 def test_followup_model_failure_is_unable_to_answer(chart101, settings, today):
     class Broken:
         def invoke_with_tools(self, *_):

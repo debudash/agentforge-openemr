@@ -32,6 +32,9 @@ class Settings:
     anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
     openrouter_base_url: str = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
     openrouter_api_key: str = os.environ.get("OPENROUTER_API_KEY", "")
+    # The eval judge may use a different (usually stronger) model than the agent; same provider,
+    # and it must be on the same allowlist. Empty means "same model as the agent".
+    judge_model: str = os.environ.get("COPILOT_JUDGE_MODEL", "")
     # The brief is a structured document with up to seven sections; 2000 tokens truncated it.
     max_output_tokens: int = int(os.environ.get("COPILOT_MAX_OUTPUT_TOKENS", "12000"))
     model_timeout_s: float = float(os.environ.get("COPILOT_MODEL_TIMEOUT_S", "40"))
@@ -65,14 +68,15 @@ class Settings:
     def api_key(self) -> str:
         return self.openrouter_api_key if self.provider == "openrouter" else self.anthropic_api_key
 
-    def provider_approved(self) -> tuple[bool, str]:
+    def provider_approved(self, model: str | None = None) -> tuple[bool, str]:
         """PHI1: allowlisted provider, model and endpoint; fail closed otherwise."""
+        model = model or self.model
         if self.provider not in ("anthropic", "openrouter"):
             return False, f"provider '{self.provider}' is not supported"
         if self.provider not in self.allowed_providers:
             return False, f"provider '{self.provider}' is not on the allowlist"
-        if self.model not in self.allowed_models:
-            return False, f"model '{self.model}' is not on the allowlist"
+        if model not in self.allowed_models:
+            return False, f"model '{model}' is not on the allowlist"
         if self.endpoint().rstrip("/") not in [e.rstrip("/") for e in self.allowed_endpoints]:
             return False, "model endpoint is not on the allowlist"
         if not self.api_key():

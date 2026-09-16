@@ -20,6 +20,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 
 from . import constraints, normalize
 from .config import Settings
+from .llm import classify_model_error, error_excerpt
 from .prompts import BRIEF_SYSTEM, FINALIZE_INSTRUCTION, FOLLOWUP_SYSTEM
 from .schemas import AgentResponse, AnswerDraft, BriefDraft, Chart, RemovedClaim, ResponseState, RuleOutcome, VerifiedClaim
 from .telemetry import emit, traced
@@ -76,16 +77,29 @@ def decide_state(chart: Chart, kept: int, removed: list[RemovedClaim], *, model_
     return ResponseState.COMPLETE, "all sources for the requested scope were retrieved and every claim was verified"
 
 
+_ERROR_WORDING = {
+    "rate_limit": "the model provider rate-limited the request",
+    "provider_unavailable": "the model provider was unavailable or overloaded",
+    "other": "the model did not return a valid response",
+}
+
+
+def _describe(exc: BaseException) -> str:
+    return f"{_ERROR_WORDING[classify_model_error(exc)]} ({type(exc).__name__})"
+
+
 def _draft_with_one_retry(fn, correlation_id: str, kind: str):
     """FR12: bounded retry. One retry on a model or schema failure; then give up with a reason."""
-    last: str | None = None
+    last: BaseException | None = None
     for attempt in (1, 2):
         try:
             return fn(), None
         except Exception as exc:  # noqa: BLE001 - reported as a state, not raised
-            last = f"{type(exc).__name__}"
-            emit("model_draft_failed", correlation_id, kind=kind, attempt=attempt, failure_category="model_or_schema", error_type=last)
-    return None, f"the model did not return a valid {kind} after 2 attempts ({last})"
+            last = exc
+            emit("model_draft_failed", correlation_id, kind=kind, attempt=attempt,
+                 failure_category=classify_model_error(exc), error_type=type(exc).__name__,
+                 debug_excerpt=error_excerpt(exc))
+    return None, f"{_describe(last)} for the {kind} after 2 attempts" if last else f"no {kind} produced"
 
 
 # ---------------------------------------------------------------------------
@@ -194,11 +208,20 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
         model_failure: str | None = None
         for _ in range(settings.max_iterations):          # the loop cap the brief asks for
             iterations += 1
-            try:
-                ai = llm.invoke_with_tools(messages, tools)
-            except Exception as exc:  # noqa: BLE001
-                model_failure = f"the model was unavailable during tool use ({type(exc).__name__})"
-                emit("model_tool_round_failed", correlation_id, iteration=iterations, failure_category="model", error_type=type(exc).__name__)
+            ai = None
+            # FR12: one bounded retry of a tool round on malformed model output (for example
+            # unparsable tool-call arguments); rate limits are already retried inside the wrapper.
+            for attempt in (1, 2):
+                try:
+                    ai = llm.invoke_with_tools(messages, tools)
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    emit("model_tool_round_failed", correlation_id, iteration=iterations, attempt=attempt,
+                         failure_category=classify_model_error(exc), error_type=type(exc).__name__,
+                         debug_excerpt=error_excerpt(exc))
+                    if attempt == 2:
+                        model_failure = f"{_describe(exc)} during tool use"
+            if ai is None:
                 break
             messages.append(ai)
             if not ai.tool_calls:
