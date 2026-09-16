@@ -169,6 +169,85 @@ module change, disable it first and diagnose afterwards:
 railway ssh --service openemr sh -c "mariadb -h mysql.railway.internal -uopenemr -p<pw> openemr -e \"UPDATE modules SET mod_active=0 WHERE mod_directory='oe-module-copilot-agent'\""
 ```
 
+## Agent service (Clinical Co-Pilot)
+
+The co-pilot's agent runs as a third service built from `copilot/Dockerfile`. It has
+**no public domain**: OpenEMR reaches it over the private network and the browser only
+ever talks to OpenEMR (PRD PHI4). See `ARCHITECTURE.md` and `copilot/README.md`.
+
+Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
+
+1. Create the service and set its variables. Generate the shared secret once
+   (`python -c "import secrets; print(secrets.token_hex(32))"`) and keep it out of git.
+   **Note:** `railway add` echoes every variable it sets, keys included, to the terminal.
+   ```powershell
+   railway add --service copilot-agent `
+     --variables "PORT=8600" `
+     --variables "COPILOT_SHARED_SECRET=<secret>" `
+     --variables "COPILOT_PROVIDER=openrouter" `
+     --variables "COPILOT_MODEL=anthropic/claude-sonnet-5" `
+     --variables "COPILOT_ALLOWED_PROVIDERS=openrouter" `
+     --variables "COPILOT_ALLOWED_MODELS=anthropic/claude-sonnet-5" `
+     --variables "COPILOT_ALLOWED_ENDPOINTS=https://openrouter.ai/api/v1" `
+     --variables "OPENROUTER_API_KEY=<key>" `
+     --variables "LANGSMITH_TRACING=true" `
+     --variables "LANGSMITH_API_KEY=<key>" `
+     --variables "LANGSMITH_PROJECT=openemr-copilot-railway" `
+     --variables "COPILOT_TRACE_REDACT=false"
+   railway variable set "RAILWAY_DOCKERFILE_PATH=Dockerfile.copilot" --service copilot-agent --skip-deploys
+   ```
+   (For Anthropic directly: `COPILOT_PROVIDER=anthropic`, `COPILOT_MODEL=claude-sonnet-5`,
+   allowlists to match, and `ANTHROPIC_API_KEY`.)
+2. Deploy **from the repository root**. `railway up` uploads the linked directory (the repo),
+   so the build context is the root; without `RAILWAY_DOCKERFILE_PATH` Railway's builder finds
+   `composer.json` and tries to build OpenEMR instead. `Dockerfile.copilot` at the root is the
+   same image as `copilot/Dockerfile` with root-relative COPY paths.
+   ```powershell
+   railway up --service copilot-agent -c       # streams the build; ends with "Deploy complete"
+   ```
+   Do **not** generate a public domain for this service. Check readiness from the openemr
+   container over the private network:
+   ```powershell
+   railway ssh --service openemr sh -c "curl -s http://copilot-agent.railway.internal:8600/readyz"
+   ```
+   It is 503 until the model key and secret are set (fail closed).
+3. Point OpenEMR at it without redeploying it (a redeploy would drop the module symlink):
+   write the config onto the persistent volume.
+   ```powershell
+   $cfg = @"
+   <?php
+   return [
+       'COPILOT_AGENT_URL' => 'http://copilot-agent.railway.internal:8600',
+       'COPILOT_SHARED_SECRET' => '<same secret>',
+   ];
+   "@
+   $cfg | railway ssh --service openemr sh -c "cat > /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php && chown apache:apache /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php && chmod 640 /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php"
+   ```
+   Variables on the openemr service (`COPILOT_AGENT_URL`, `COPILOT_SHARED_SECRET`) work too and
+   win over the file, but setting them triggers a redeploy.
+4. Ship the module files to the volume (they are symlinked into `custom_modules`, see
+   "Custom modules on Railway"). `railway ssh` forwards stdin, so a tarball goes straight in:
+   ```bash
+   # Git Bash, from the repo root
+   tar -C interface/modules/custom_modules -cf - oe-module-copilot-agent | base64 -w0 | \
+     railway ssh --service openemr sh -c "cd /var/www/localhost/htdocs/openemr/sites/default && base64 -d > /tmp/m.tar && rm -rf copilot-module.new && mkdir copilot-module.new && tar -C copilot-module.new --strip-components=1 -xf /tmp/m.tar && rm -rf copilot-module.old && mv copilot-module copilot-module.old && mv copilot-module.new copilot-module && chown -R apache:apache copilot-module && rm -f /tmp/m.tar"
+   ```
+   Repeat after every module change. The previous version stays in `copilot-module.old`.
+5. Book today's rounding list (12 appointments per doctor) before a demo. The list is for
+   the **server's** date (UTC), which the script uses by default:
+   ```powershell
+   cd usecases
+   $env:OPENEMR_BASE_URL="https://<app>.up.railway.app"; $env:OE_PASS="<admin pw>"
+   $env:OE_DB_VIA="railway"; $env:OE_DB_PASS="<openemr db pw>"
+   .venv\Scripts\python ..\scripts\seed_appointments.py
+   ```
+6. Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied by
+   design and the denial is written to the audit log. Traces appear in the LangSmith project
+   named in `LANGSMITH_PROJECT`.
+
+`COPILOT_TRACE_REDACT=true` hides prompts and outputs in LangSmith; use it whenever the data
+is not synthetic (AUDIT.md C4b).
+
 ## Cost control between demos
 
 - **Pause:** in the dashboard, remove the deployment or scale the service to zero replicas. Volumes keep their data and cost $0.15/GB/month.
