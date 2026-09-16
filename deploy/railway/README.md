@@ -233,7 +233,7 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
      railway ssh --service openemr sh -c "cd /var/www/localhost/htdocs/openemr/sites/default && base64 -d > /tmp/m.tar && rm -rf copilot-module.new && mkdir copilot-module.new && tar -C copilot-module.new --strip-components=1 -xf /tmp/m.tar && rm -rf copilot-module.old && mv copilot-module copilot-module.old && mv copilot-module.new copilot-module && chown -R apache:apache copilot-module && rm -f /tmp/m.tar"
    ```
    Repeat after every module change. The previous version stays in `copilot-module.old`.
-5. Book today's rounding list (12 appointments per doctor) before a demo. The list is for
+5. Book today's rounding list (five appointments per doctor) before a demo. The list is for
    the **server's** date (UTC), which the script uses by default:
    ```powershell
    cd usecases
@@ -271,7 +271,7 @@ railway variable set "OPENEMR_BASE_URL=https://<app>.up.railway.app" --service c
 railway variable set "OE_USER=admin"          --service copilot-seeder --skip-deploys
 railway variable set "OE_PASS=<admin pw>"     --service copilot-seeder --skip-deploys
 railway variable set "SEED_DAYS=5"            --service copilot-seeder --skip-deploys
-railway variable set "SEED_PER_DOCTOR=12"     --service copilot-seeder --skip-deploys
+railway variable set "SEED_PER_DOCTOR=5"      --service copilot-seeder --skip-deploys
 railway up --service copilot-seeder -c        # builds Dockerfile.seeder from the repo root
 ```
 

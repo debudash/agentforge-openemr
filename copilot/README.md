@@ -28,6 +28,8 @@ copilot/copilot/service/app.py                                             Pytho
    └─ telemetry.py   PHI-free JSON events with correlation ids
 ```
 
+Each follow-up question is first classified on its own, with no conversation history, by one small structured call (`COPILOT_TOPIC_CHECK`, on by default): a question that is not about a patient's chart or clinical care gets the fixed scope sentence and never reaches the tools. The judgement is made before the history is in play because a model's off-topic judgement degrades once earlier answers are in context. Two structural rules back it up: a follow-up may cite only records a tool returned in that same turn (memory keeps text, not ids), and a turn with no lookup, no claims and no boundary is treated as off-topic whatever the model wrote.
+
 The browser never talks to the agent service or the model. The service holds charts only in memory, only for the session, and only for patients the gateway already authorised; it re-checks the assignment itself and refuses anything else.
 
 ## The initial brief
@@ -69,7 +71,7 @@ Get-Content ..\..\sites\default\copilot-config.php -Raw | docker compose exec -T
 
 It survives container restarts and recreates (the volume persists); redo it only after a `down -v`.
 
-Book today's rounding list (12 appointments per doctor, through the REST API):
+Book today's rounding list (five appointments per doctor, through the REST API):
 
 ```powershell
 cd usecases
@@ -80,6 +82,28 @@ $env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
 Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied by design (PRD RBAC matrix).
 
 Health: `GET /healthz` (process), `GET /readyz` (model provider allowlisted and keyed, secret set, tracing state; 503 otherwise). The service refuses to open sessions while not ready.
+
+## Testing locally, and the gate in front of Railway
+
+Everything below runs against your laptop only. Nothing in this repository publishes to Railway
+except `deploy\railway\deploy_agent.ps1`, and that script refuses to run unless the local checks
+have passed on exactly the tree it would upload, and then still asks you to type `DEPLOY`.
+
+```powershell
+cd copilot
+.\check_local.ps1                 # unit tests + the golden gate against the live model
+.\check_local.ps1 -WithGateway    # also the OpenEMR gateway tests (local stack + service up)
+.\check_local.ps1 -SkipGolden     # unit tests only, no model calls
+```
+
+On success it writes `.local-checks-passed` (gitignored) with the commit and a hash of the
+uncommitted `copilot/` diff. To try a change by hand: restart the service on port 8600, sign in
+as `doctor1` at https://localhost:9300 and use the tab; the local site config already points at
+the laptop service. When you are satisfied:
+
+```powershell
+.\deploy\railway\deploy_agent.ps1   # verifies the marker matches, asks for DEPLOY, runs railway up
+```
 
 ## Tests and evals
 
@@ -129,7 +153,7 @@ OpenRouter is OpenAI-compatible; the gateway uses `ChatOpenAI` against it. Any m
 
 **Free-tier models** (`:free` slugs) work with three adjustments, all in `.env.example`:
 
-- OpenRouter's free tier allows roughly 20 requests a minute, so `COPILOT_PREFETCH_CONCURRENCY=3` (from 12); the prefetch takes longer than the 90 s budget but still completes.
+- OpenRouter's free tier allows roughly 20 requests a minute, so prefetch concurrency is lowered from the code default of 12. With the five-patient demo list, `COPILOT_PREFETCH_CONCURRENCY=5` fits the whole list in one batch and inside the 90 s budget; raise the list size and the concurrency has to come down again.
 - The model wrapper retries HTTP 429 up to three times (Retry-After or 8/16/32 s), then the agent reports "unable to answer" rather than hanging (NFR5). Evals run with `--pace 12` so the judge does not starve the agent of requests.
 - `COPILOT_JUDGE_MODEL` lets the evals grade with a different allowlisted model than the agent uses; the judge schema tolerates the spelling variants of yes/no/na that smaller models produce.
 - Free routes may log prompts on the provider side. Acceptable for synthetic data only; it is recorded as an accepted finding in `SECURITY_TESTS.md`.
