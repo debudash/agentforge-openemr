@@ -17,7 +17,6 @@
 require_once __DIR__ . "/../../../../globals.php";
 
 use OpenEMR\Common\Acl\AclMain;
-use OpenEMR\Common\Session\SessionWrapperFactory;
 use OpenEMR\Common\Twig\TwigContainer;
 use OpenEMR\Core\Header;
 use OpenEMR\Services\UserService;
@@ -30,9 +29,10 @@ if (!AclMain::aclCheckCore('patients', 'demo')) {
     exit;
 }
 
-$session = SessionWrapperFactory::getInstance()->getActiveSession();
+// Note: UserService is used rather than the session wrapper, whose API differs
+// between the flex (master) and stable OpenEMR images.
 $user = (new UserService())->getCurrentlyLoggedInUser();
-$username = $user['username'] ?? (string) $session->get('authUser');
+$username = $user['username'] ?? '';
 $displayName = trim(($user['fname'] ?? '') . ' ' . ($user['lname'] ?? '')) ?: $username;
 
 // The clinician's panel: patients whose assigned provider is this user.
