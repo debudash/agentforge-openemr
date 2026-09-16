@@ -129,6 +129,39 @@ To restore it after a redeploy, recreate the symlink and re-run
 railway ssh --service openemr sh -c "ln -sfn /var/www/localhost/htdocs/openemr/sites/default/copilot-module /var/www/localhost/htdocs/openemr/interface/modules/custom_modules/oe-module-copilot-agent"
 ```
 
+## Today's rounding list (co-pilot)
+
+The co-pilot lists *today's appointments booked for the signed-in provider, restricted to
+that provider's assigned patients*. Synthea data has no calendar events, so book them:
+
+```powershell
+cd usecases
+$env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
+.venv\Scripts\python ..\scripts\seed_appointments.py               # 12 per doctor, 08:00 onwards
+.venv\Scripts\python ..\scripts\seed_appointments.py --per-doctor 6 --date 2026-09-16
+```
+
+Writes go through `POST /api/patient/:pid/appointment`. Re-running on the same date first
+removes that day's `Rounding (co-pilot demo)` bookings, so the list can be moved day to day.
+Add `OE_DB_VIA=railway` and `OE_DB_PASS` for the Railway deployment.
+
+## Changing a user's password
+
+`set_user_password.py` posts the user-administration *update* form with the admin's
+re-authentication, so the password policy and audit logging apply. Passwords come from
+environment variables, never argv:
+
+```powershell
+cd usecases
+$env:OE_PASS="<admin pw>"; $env:OE_DOCTOR_PASS="<new pw>"
+.venv\Scripts\python ..\scripts\set_user_password.py https://localhost:9300 doctor1 OE_PASS OE_DOCTOR_PASS
+```
+
+**Gotcha found the hard way:** the update handler replaces ACL group membership with the
+`access_group[]` values in the POST. Omit them and the user is removed from every group, and
+OpenEMR then refuses the login with "user not in any phpGACL groups". The script re-sends
+the current groups and prints them afterwards; `fix_acl.php` repairs an account that lost them.
+
 ## Why this matters
 
 `USERS.md` scopes the agent to one clinician's patients, and `AUDIT.md` S3 notes
