@@ -18,7 +18,6 @@
 
 namespace OpenEMR\Modules\CopilotAgent;
 
-use OpenEMR\Core\OEGlobalsBag;
 use OpenEMR\Menu\MenuEvent;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -32,12 +31,12 @@ class Bootstrap
     /** Menu target: the iframe tab the main screen opens the URL in. */
     private const MENU_TARGET = "cpa";
 
-    public string $installPath;
-
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
     ) {
-        $this->installPath = OEGlobalsBag::getInstance()->getWebRoot() . self::MODULE_INSTALLATION_PATH;
+        // Deliberately no OEGlobalsBag calls here: getWebRoot()/getKernel() exist
+        // only on master, and this module must also load on the stable image.
+        // Menu URLs are site-root relative, so no web root prefix is needed.
     }
 
     public function subscribeToEvents(): void
