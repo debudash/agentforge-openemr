@@ -1,0 +1,197 @@
+"""Per-user session memory (PRD FR5, conversation-state requirements).
+
+A session is bound to one OpenEMR user and holds the charts the gateway prefetched for
+that user's rounding list. Conversation memory exists only for the *active* patient
+and is cleared whenever the active patient changes. Sessions expire after an idle
+period and can be closed explicitly. Everything lives in process memory: nothing is
+written to disk.
+
+Prefetch: when a session opens, a brief is generated for every patient in the
+background (bounded concurrency) so selecting a patient is instant once ready.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from typing import Any, Callable
+
+from langchain_core.messages import BaseMessage
+
+from .agent import answer_followup, generate_brief
+from .config import Settings
+from .schemas import AgentResponse, Chart, ResponseState
+from .telemetry import emit, new_correlation_id
+
+
+@dataclass
+class PatientState:
+    chart: Chart
+    status: str = "queued"            # queued | generating | ready | failed
+    brief: AgentResponse | None = None
+    error: str | None = None
+    history: list[BaseMessage] = field(default_factory=list)
+    queued_at: float = field(default_factory=time.perf_counter)
+    ready_at: float | None = None
+
+
+@dataclass
+class Session:
+    sid: str
+    user: dict[str, Any]
+    patients: dict[int, PatientState]
+    created: datetime
+    last_seen: datetime
+    active_pid: int | None = None
+    opened_at: float = field(default_factory=time.perf_counter)
+
+    def touch(self) -> None:
+        self.last_seen = datetime.now(timezone.utc)
+
+
+def denied(correlation_id: str, pid: int, reason: str) -> AgentResponse:
+    """The access-denied response: no patient content, no hint whether the patient exists."""
+    return AgentResponse(correlation_id=correlation_id, state=ResponseState.DENIED, state_reason=reason, pid=pid,
+                         kind="answer", comparison_window="", generated_at=datetime.now(timezone.utc).isoformat())
+
+
+class SessionStore:
+    def __init__(self, settings: Settings, llm_factory: Callable[[], Any]) -> None:
+        self.settings = settings
+        self._llm_factory = llm_factory
+        self._llm: Any = None
+        self.sessions: dict[str, Session] = {}
+        self._semaphore = asyncio.Semaphore(settings.prefetch_concurrency)
+
+    # -- model -------------------------------------------------------------
+    def llm(self) -> Any:
+        if self._llm is None:
+            self._llm = self._llm_factory()      # raises ProviderNotApproved: fail closed
+        return self._llm
+
+    # -- lifecycle ---------------------------------------------------------
+    def open(self, sid: str, user: dict[str, Any], charts: list[Chart], correlation_id: str) -> tuple[Session, list[dict[str, Any]]]:
+        """Create (or replace) the session. Charts not assigned to this user are refused (defence in depth)."""
+        self.sweep()
+        rejected: list[dict[str, Any]] = []
+        patients: dict[int, PatientState] = {}
+        for chart in charts:
+            if chart.patient.provider_id != int(user["id"]):
+                rejected.append({"pid": chart.patient.pid, "reason": "not assigned to this user"})
+                emit("scope_rejected_at_open", correlation_id, pid=chart.patient.pid, user_id=user["id"], failure_category="authorization")
+                continue
+            patients[chart.patient.pid] = PatientState(chart=chart)
+        now = datetime.now(timezone.utc)
+        session = Session(sid=sid, user=user, patients=patients, created=now, last_seen=now)
+        self.sessions[sid] = session
+        emit("session_opened", correlation_id, session=sid[:8], user_id=user["id"], patients=len(patients), rejected=len(rejected))
+        return session, rejected
+
+    async def prefetch(self, sid: str, correlation_id: str) -> None:
+        session = self.sessions.get(sid)
+        if session is None:
+            return
+        try:
+            llm = self.llm()
+        except Exception as exc:  # noqa: BLE001 - provider not approved / not configured
+            for state in session.patients.values():
+                state.status, state.error = "failed", "model provider not approved or not configured"
+            emit("prefetch_failed", correlation_id, session=sid[:8], failure_category="model_provider", error_type=type(exc).__name__)
+            return
+
+        async def one(state: PatientState) -> None:
+            async with self._semaphore:
+                if self.sessions.get(sid) is not session:
+                    return  # session was closed or replaced while queued
+                state.status = "generating"
+                cid = new_correlation_id()
+                try:
+                    state.brief = await asyncio.to_thread(generate_brief, state.chart, llm, self.settings, cid)
+                    state.status, state.ready_at = "ready", time.perf_counter()
+                except Exception as exc:  # noqa: BLE001
+                    state.status, state.error = "failed", f"brief generation failed ({type(exc).__name__})"
+                    emit("brief_failed", cid, pid=state.chart.patient.pid, failure_category="agent", error_type=type(exc).__name__)
+
+        started = time.perf_counter()
+        await asyncio.gather(*(one(s) for s in session.patients.values()))
+        emit("prefetch_finished", correlation_id, session=sid[:8], patients=len(session.patients),
+             ready=sum(1 for s in session.patients.values() if s.status == "ready"),
+             duration_ms=int((time.perf_counter() - started) * 1000), budget_s=self.settings.prefetch_budget_s)
+
+    def get(self, sid: str) -> Session | None:
+        self.sweep()
+        session = self.sessions.get(sid)
+        if session:
+            session.touch()
+        return session
+
+    def status(self, sid: str) -> dict[str, Any] | None:
+        session = self.get(sid)
+        if session is None:
+            return None
+        return {
+            "elapsed_ms": int((time.perf_counter() - session.opened_at) * 1000),
+            "active_pid": session.active_pid,
+            "patients": [{
+                "pid": pid, "status": s.status, "error": s.error,
+                "state": s.brief.state.value if s.brief else None,
+                "ready_in_ms": int((s.ready_at - s.queued_at) * 1000) if s.ready_at else None,
+            } for pid, s in session.patients.items()],
+        }
+
+    def select(self, sid: str, pid: int, correlation_id: str) -> tuple[str, AgentResponse | None, str | None]:
+        """Make pid the active patient; returns (status, brief, error). Conversation memory for other patients is dropped."""
+        session = self.get(sid)
+        if session is None:
+            return "no_session", None, "session expired"
+        state = session.patients.get(pid)
+        if state is None:
+            emit("scope_denied", correlation_id, session=sid[:8], pid=pid, action="select", failure_category="authorization")
+            return "denied", denied(correlation_id, pid, "patient is not on this user's authorized rounding list"), None
+        if session.active_pid != pid:
+            for other_pid, other in session.patients.items():
+                if other_pid != pid:
+                    other.history.clear()      # FR5: state cannot cross into another patient
+            session.active_pid = pid
+            emit("patient_selected", correlation_id, session=sid[:8], pid=pid)
+        return state.status, state.brief, state.error
+
+    async def ask(self, sid: str, pid: int, question: str, correlation_id: str) -> AgentResponse:
+        session = self.get(sid)
+        if session is None:
+            return denied(correlation_id, pid, "session expired; open the co-pilot again")
+        state = session.patients.get(pid)
+        if state is None or session.active_pid != pid:
+            emit("scope_denied", correlation_id, session=sid[:8], pid=pid, action="ask", failure_category="authorization")
+            return denied(correlation_id, pid, "patient is not the active, authorized patient")
+        try:
+            llm = self.llm()
+        except Exception as exc:  # noqa: BLE001
+            emit("ask_failed", correlation_id, pid=pid, failure_category="model_provider", error_type=type(exc).__name__)
+            return AgentResponse(correlation_id=correlation_id, state=ResponseState.UNABLE, pid=pid, kind="answer",
+                                 state_reason="model provider not approved or not configured", comparison_window="",
+                                 generated_at=state.chart.generated_at)
+        try:
+            response, turn = await asyncio.wait_for(
+                asyncio.to_thread(answer_followup, state.chart, question, list(state.history), llm, self.settings, correlation_id),
+                timeout=self.settings.answer_deadline_s)
+        except asyncio.TimeoutError:
+            emit("ask_timeout", correlation_id, pid=pid, failure_category="deadline", timeout_s=self.settings.answer_deadline_s)
+            return AgentResponse(correlation_id=correlation_id, state=ResponseState.UNABLE, pid=pid, kind="answer",
+                                 state_reason=f"response deadline of {self.settings.answer_deadline_s:g} s exceeded; retry or review the chart directly",
+                                 comparison_window="", generated_at=state.chart.generated_at)
+        state.history.extend(turn)
+        state.history[:] = state.history[-12:]   # six exchanges of memory is enough for bedside follow-ups
+        return response
+
+    def close(self, sid: str) -> bool:
+        return self.sessions.pop(sid, None) is not None
+
+    def sweep(self) -> int:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=self.settings.session_idle_minutes)
+        stale = [sid for sid, s in self.sessions.items() if s.last_seen < cutoff]
+        for sid in stale:
+            del self.sessions[sid]
+        return len(stale)

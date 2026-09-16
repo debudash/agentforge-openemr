@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-15T12:00:00Z",
+  "patient": {"pid": 202, "uuid": "00000000-0000-4000-8000-000000000202", "name": "Marcus12 Okafor88", "dob": "1970-07-19", "age": 56, "sex": "Male", "pubpid": "SYN-202", "provider_id": 9, "source_id": "patient:202"},
+  "appointment": null,
+  "sources": {
+    "problems": {"status": "ok", "count": 1, "ms": 5},
+    "medications": {"status": "ok", "count": 1, "ms": 4},
+    "allergies": {"status": "empty", "count": 0, "ms": 2},
+    "labs": {"status": "ok", "count": 1, "ms": 9},
+    "encounters": {"status": "ok", "count": 1, "ms": 3},
+    "immunizations": {"status": "empty", "count": 0, "ms": 2},
+    "vitals": {"status": "empty", "count": 0, "ms": 2}
+  },
+  "problems": [
+    {"source_id": "problem:9101", "uuid": "p-9101", "title": "Asthma (disorder)", "code": "SNOMED-CT:195967001", "begdate": "2005-02-14", "enddate": null, "date": "2005-02-14", "comments": ""}
+  ],
+  "medications": [
+    {"source_id": "prescription:7101", "uuid": "rx-7101", "drug": "Albuterol 0.09 MG/ACTUAT Metered Dose Inhaler", "rxnorm": "745752", "dosage": "1.00", "unit": null, "interval": "17", "route": null, "start_date": null, "end_date": null, "active": 1, "date_added": "2020-01-01", "note": ""}
+  ],
+  "allergies": [],
+  "labs": [
+    {"source_id": "lab:6101", "uuid": "lab-6101", "code": "718-7", "test": "Hemoglobin [Mass/volume] in Blood", "value": "15.0", "units": "g/dL", "range": "", "abnormal": "", "date": "2026-07-01", "status": "final", "order_name": "CBC"}
+  ],
+  "encounters": [
+    {"source_id": "encounter:3101", "uuid": "enc-3101", "date": "2026-07-01", "reason": "Asthma", "category": "Encounter for problem (procedure)", "class_code": "AMB", "provider": "doctor2", "facility": "Your Clinic Name Here"}
+  ],
+  "immunizations": [],
+  "vitals": []
+}

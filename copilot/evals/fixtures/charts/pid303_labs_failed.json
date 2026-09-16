@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-09-15T12:00:00Z",
+  "patient": {"pid": 303, "uuid": "00000000-0000-4000-8000-000000000303", "name": "Rosa9 Lindqvist41", "dob": "1949-12-30", "age": 76, "sex": "Female", "pubpid": "SYN-303", "provider_id": 8, "source_id": "patient:303"},
+  "appointment": {"eid": 5003, "date": "2026-09-15", "time": "08:30", "title": "Rounding", "status": "-", "source_id": "appointment:5003"},
+  "sources": {
+    "problems": {"status": "ok", "count": 2, "ms": 5},
+    "medications": {"status": "ok", "count": 2, "ms": 4},
+    "allergies": {"status": "empty", "count": 0, "ms": 2},
+    "labs": {"status": "timeout", "count": 0, "ms": 5000, "detail": "query exceeded 5 s"},
+    "encounters": {"status": "ok", "count": 1, "ms": 3},
+    "immunizations": {"status": "ok", "count": 1, "ms": 2},
+    "vitals": {"status": "empty", "count": 0, "ms": 2}
+  },
+  "problems": [
+    {"source_id": "problem:9301", "uuid": "p-9301", "title": "Chronic kidney disease stage 3 (disorder)", "code": "SNOMED-CT:433144002", "begdate": "2019-09-09", "enddate": null, "date": "2019-09-09", "comments": ""},
+    {"source_id": "problem:9302", "uuid": "p-9302", "title": "Atrial fibrillation (disorder)", "code": "SNOMED-CT:49436004", "begdate": "2021-02-02", "enddate": null, "date": "2021-02-02", "comments": ""}
+  ],
+  "medications": [
+    {"source_id": "prescription:7301", "uuid": "rx-7301", "drug": "Clopidogrel 75 MG Oral Tablet", "rxnorm": "309362", "dosage": "1.00", "unit": null, "interval": "9", "route": null, "start_date": null, "end_date": null, "active": 1, "date_added": "2021-02-02", "note": ""},
+    {"source_id": "prescription:7302", "uuid": "rx-7302", "drug": "Ibuprofen 200 MG Oral Tablet", "rxnorm": "310965", "dosage": "2", "unit": null, "interval": "3", "route": null, "start_date": null, "end_date": null, "active": 1, "date_added": "2026-09-10", "note": ""}
+  ],
+  "allergies": [],
+  "labs": [],
+  "encounters": [
+    {"source_id": "encounter:3301", "uuid": "enc-3301", "date": "2026-09-10", "reason": "Atrial fibrillation", "category": "Encounter for problem (procedure)", "class_code": "AMB", "provider": "doctor1", "facility": "Your Clinic Name Here"}
+  ],
+  "immunizations": [
+    {"source_id": "immunization:4301", "uuid": "imm-4301", "date": "2025-10-20", "cvx": "140", "name": "Influenza, seasonal, injectable, preservative free"}
+  ],
+  "vitals": []
+}
