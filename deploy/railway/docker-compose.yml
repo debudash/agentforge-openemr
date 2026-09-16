@@ -1,0 +1,69 @@
+# OpenEMR on Railway — importable Compose file (drag onto the project canvas).
+#
+# Railway does NOT run this file. Each service below becomes a separate Railway
+# service; volumes, variables and domains still need setting in the dashboard.
+# See README.md in this directory for the full procedure.
+#
+# Differences from deploy/digitalocean/docker-compose.yml, and why:
+#   - No DOMAIN/EMAIL: Railway terminates TLS at its edge, so the container
+#     serves plain HTTP on $PORT (80). Setting DOMAIN would make the image run
+#     certbot, which cannot answer the ACME challenge from behind Railway's proxy.
+#   - One volume per service (a Railway limit): OpenEMR keeps only `sites/`
+#     (site config, documents, OAuth keys). Log and Let's Encrypt volumes are dropped;
+#     logs go to Railway's log view.
+#   - No `ports: 443`: Railway routes one target port per domain.
+#   - No `depends_on`: unsupported. The image's own wait_for_mysql() retries
+#     until MariaDB answers, so ordering takes care of itself.
+#   - No healthcheck block: Railway healthchecks are configured per service
+#     (path /meta/health/readyz), and only run at deploy time.
+services:
+  # Prefer Railway's MariaDB template instead of this service (it generates
+  # credentials and attaches the volume for you). This entry exists so the
+  # Compose import creates something sane if you drag this file in.
+  mysql:
+    image: mariadb:11.8.8
+    command: ['mariadbd', '--character-set-server=utf8mb4']
+    volumes:
+      - databasevolume:/var/lib/mysql
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASS:?set in Railway variables}
+
+  openemr:
+    image: openemr/openemr:latest@sha256:faf0b8386895ed7ab1891bb7c94012e50a91917113e3ae7111b5287d28546b38
+    ports:
+      - '80:80'
+    volumes:
+      - sitevolume:/var/www/localhost/htdocs/openemr/sites
+    environment:
+      # Railway routes public traffic to $PORT; the image's Apache already serves
+      # HTTP on 80 and its HTTPS redirect is commented out by default.
+      PORT: '80'
+
+      # Private networking: <service-name>.railway.internal. Rename if your
+      # MariaDB service is not called "mysql".
+      MYSQL_HOST: mysql.railway.internal
+      MYSQL_PORT: '3306'
+      MYSQL_ROOT_PASS: ${MYSQL_ROOT_PASS:?set in Railway variables}
+      MYSQL_USER: openemr
+      MYSQL_PASS: ${MYSQL_PASS:?set in Railway variables}
+      OE_USER: admin
+      OE_PASS: ${OE_PASS:?set in Railway variables}
+
+      # First install takes ~5-10 minutes; Railway's healthcheck default is 300 s.
+      RAILWAY_HEALTHCHECK_TIMEOUT_SEC: '900'
+
+      # Must be the public Railway URL, or OAuth/SMART issuer URLs come out wrong.
+      OPENEMR_SETTING_site_addr_oath: https://${PUBLIC_DOMAIN:?set in Railway variables}
+      OPENEMR_SETTING_rest_api: '1'
+      OPENEMR_SETTING_rest_fhir_api: '1'
+      OPENEMR_SETTING_rest_system_scopes_api: '1'
+      # Minimal API logging: the default (2) stores full PHI response bodies in
+      # api_log with no retention. See AUDIT.md S7 / C2b.
+      OPENEMR_SETTING_api_log_option: '1'
+      # Needed by the usecases suite and the agent's token flow. Security tradeoff
+      # recorded in AUDIT.md S1; drop to 0 once SMART authorization-code is in place.
+      OPENEMR_SETTING_oauth_password_grant: '3'
+
+volumes:
+  databasevolume: {}
+  sitevolume: {}

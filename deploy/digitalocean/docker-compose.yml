@@ -1,0 +1,80 @@
+# OpenEMR on a DigitalOcean droplet: stable production image, hardened.
+#
+# Based on docker/production/docker-compose.yml, with these changes:
+#   - Every password comes from .env (gitignored, generated on the droplet), not hardcoded.
+#   - MariaDB publishes no ports; only OpenEMR's 80/443 are published.
+#   - No phpMyAdmin, Xdebug, Selenium, CouchDB, LDAP or Mailpit.
+#   - DOMAIN makes the image request a Let's Encrypt certificate (docker/release/ssl.sh).
+#   - REST, FHIR and OAuth password grant are enabled so the usecases suite and the agent can connect.
+#
+# Run on the droplet from this directory:  docker compose up --detach --wait
+services:
+  mysql:
+    restart: always
+    image: mariadb:11.8.8@sha256:be1ef4fe5f14589325c08a41c76334097ce66c86264b75e1d28342c742782a61
+    command: ['mariadbd', '--character-set-server=utf8mb4']
+    volumes:
+    - databasevolume:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASS:?set in .env}
+    healthcheck:
+      test:
+      - CMD
+      - /usr/local/bin/healthcheck.sh
+      - --su-mysql
+      - --connect
+      - --innodb_initialized
+      start_period: 1m
+      start_interval: 10s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+  openemr:
+    restart: always
+    image: openemr/openemr:latest@sha256:faf0b8386895ed7ab1891bb7c94012e50a91917113e3ae7111b5287d28546b38
+    ports:
+    - 80:80
+    - 443:443
+    volumes:
+    - logvolume01:/var/log
+    - sitevolume:/var/www/localhost/htdocs/openemr/sites
+    - letsencryptvolume:/etc/letsencrypt
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_ROOT_PASS: ${MYSQL_ROOT_PASS:?set in .env}
+      MYSQL_USER: openemr
+      MYSQL_PASS: ${MYSQL_PASS:?set in .env}
+      OE_USER: admin
+      OE_PASS: ${OE_PASS:?set in .env}
+      DOMAIN: ${DOMAIN:?set in .env}
+      EMAIL: ${LE_EMAIL:-}
+      OPENEMR_SETTING_site_addr_oath: https://${DOMAIN}
+      OPENEMR_SETTING_rest_api: 1
+      OPENEMR_SETTING_rest_fhir_api: 1
+      OPENEMR_SETTING_rest_system_scopes_api: 1
+      # Password grant lets the usecases suite and a server-side agent get tokens with a username and password.
+      # It weakens security on a public host; turn it off once the agent uses SMART launch.
+      OPENEMR_SETTING_oauth_password_grant: 3
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - /usr/bin/curl
+      - --fail
+      - --insecure
+      - --location
+      - --show-error
+      - --silent
+      - https://localhost/meta/health/readyz
+      start_period: 3m
+      start_interval: 10s
+      interval: 1m
+      timeout: 5s
+      retries: 3
+volumes:
+  logvolume01: {}
+  sitevolume: {}
+  databasevolume: {}
+  letsencryptvolume: {}
