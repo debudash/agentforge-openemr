@@ -248,6 +248,57 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
 `COPILOT_TRACE_REDACT=true` hides prompts and outputs in LangSmith; use it whenever the data
 is not synthetic (AUDIT.md C4b).
 
+## Nightly rounding-list seeding (cron)
+
+The co-pilot's list is *today's* appointments, so it empties at midnight. A third service,
+`copilot-seeder`, rebooks it every night. It is a one-shot container: it seeds, prints a
+verification table and exits, which is what Railway's cron scheduler expects.
+
+Set up 2026-09-16. It runs at **01:00 UTC**, shortly after the server's date rolls over, and
+each run books `SEED_DAYS` days starting from that new date, so a missed night self-heals.
+
+```powershell
+railway add --service copilot-seeder          # choose "Empty Service"
+# Set variables individually: `railway add --variables` echoes values to the terminal.
+railway variable set "RAILWAY_DOCKERFILE_PATH=Dockerfile.seeder" --service copilot-seeder --skip-deploys
+railway variable set "OE_DB_VIA=mysql"        --service copilot-seeder --skip-deploys
+railway variable set "MYSQL_HOST=mysql.railway.internal" --service copilot-seeder --skip-deploys
+railway variable set "MYSQL_PORT=3306"        --service copilot-seeder --skip-deploys
+railway variable set "MYSQL_USER=openemr"     --service copilot-seeder --skip-deploys
+railway variable set "MYSQL_DATABASE=openemr" --service copilot-seeder --skip-deploys
+railway variable set "MYSQL_PASSWORD=<openemr db pw>" --service copilot-seeder --skip-deploys
+railway variable set "OPENEMR_BASE_URL=https://<app>.up.railway.app" --service copilot-seeder --skip-deploys
+railway variable set "OE_USER=admin"          --service copilot-seeder --skip-deploys
+railway variable set "OE_PASS=<admin pw>"     --service copilot-seeder --skip-deploys
+railway variable set "SEED_DAYS=5"            --service copilot-seeder --skip-deploys
+railway variable set "SEED_PER_DOCTOR=12"     --service copilot-seeder --skip-deploys
+railway up --service copilot-seeder -c        # builds Dockerfile.seeder from the repo root
+```
+
+Then attach the schedule. The CLI has no cron flag, so use the GraphQL API with the
+service's own id (`railway variable list --service copilot-seeder --json` shows
+`RAILWAY_SERVICE_ID` and `RAILWAY_ENVIRONMENT_ID`):
+
+```powershell
+railway api 'mutation SetCron($serviceId: String!, $environmentId: String, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }' --variables '{\"serviceId\":\"<service id>\",\"environmentId\":\"<environment id>\",\"input\":{\"cronSchedule\":\"0 1 * * *\"}}'
+```
+
+Read it back, including when it next fires:
+
+```powershell
+railway api 'query Check($serviceId: String!, $environmentId: String!) { serviceInstance(serviceId: $serviceId, environmentId: $environmentId) { cronSchedule nextCronRunAt } }' --variables '{\"serviceId\":\"<service id>\",\"environmentId\":\"<environment id>\"}'
+```
+
+Notes:
+
+- The container reaches MariaDB directly over the private network (`OE_DB_VIA=mysql`),
+  because `railway ssh` needs the CLI and a login that a container does not have. Railway's
+  private network is IPv6 and takes a moment to come up, so the connection retries briefly.
+- Appointments are still written through the REST API, so validation and audit logging run
+  (AUDIT.md C1b). Only the reads and the cleanup of its own previous bookings use SQL.
+- `railway logs --service copilot-seeder` shows the last run's verification table.
+- To seed a different window, change `SEED_DAYS`; to pause it, set `cronSchedule` to `null`.
+
 ## Cost control between demos
 
 - **Pause:** in the dashboard, remove the deployment or scale the service to zero replicas. Volumes keep their data and cost $0.15/GB/month.

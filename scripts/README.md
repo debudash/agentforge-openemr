@@ -137,13 +137,40 @@ that provider's assigned patients*. Synthea data has no calendar events, so book
 ```powershell
 cd usecases
 $env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
-.venv\Scripts\python ..\scripts\seed_appointments.py               # 12 per doctor, 08:00 onwards
-.venv\Scripts\python ..\scripts\seed_appointments.py --per-doctor 6 --date 2026-09-16
+.venv\Scripts\python ..\scripts\seed_appointments.py                 # 12 per doctor, today, 08:00 onwards
+.venv\Scripts\python ..\scripts\seed_appointments.py --days 5        # today and the next four days
+.venv\Scripts\python ..\scripts\seed_appointments.py --per-doctor 6 --date 2026-09-20
 ```
 
-Writes go through `POST /api/patient/:pid/appointment`. Re-running on the same date first
-removes that day's `Rounding (co-pilot demo)` bookings, so the list can be moved day to day.
-Add `OE_DB_VIA=railway` and `OE_DB_PASS` for the Railway deployment.
+Writes go through `POST /api/patient/:pid/appointment`. Re-running a date first removes that
+day's `Rounding (co-pilot demo)` bookings, so it never duplicates and the list can be moved
+day to day. One OAuth client covers the whole run, however many days it books. The script
+exits non-zero if any date ends up short, so a scheduler can detect a partial run.
+
+Dates default to the **server's** date, which is UTC in the containers and can already be
+tomorrow late in your evening. That default is the correct one, because it is the date the
+co-pilot itself reads.
+
+For the Railway deployment add `OE_DB_VIA=railway` and `OE_DB_PASS`. On Railway this runs
+nightly on its own; see "Nightly rounding-list seeding" in
+[deploy/railway/README.md](../deploy/railway/README.md).
+
+### Shared access module
+
+`oe_api.py` holds the configuration, `db_query` and the temporary-OAuth-client helper that
+the scripts, the test suite and the Railway cron container all use, so there is one code
+path rather than three. `usecases/conftest.py` re-exports its names, so
+`from conftest import db_query` keeps working everywhere it was already used.
+
+`db_query` reaches MariaDB three ways, chosen by `OE_DB_VIA`:
+
+| mode | how | used by |
+|---|---|---|
+| `docker` (default) | `docker compose exec` | the local stack |
+| `railway` | `railway ssh` into the openemr service | a laptop with the Railway CLI |
+| `mysql` | a direct connection (PyMySQL) | the Railway cron container |
+
+Only `mysql` mode needs PyMySQL, and it is imported lazily, so the other two run without it.
 
 ## Changing a user's password
 
