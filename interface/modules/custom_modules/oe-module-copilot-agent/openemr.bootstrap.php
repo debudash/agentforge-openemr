@@ -26,8 +26,19 @@ try {
     $classLoader = new ModulesClassLoader($projectDir);
     $classLoader->registerNamespaceIfNotExists('OpenEMR\\Modules\\CopilotAgent\\', __DIR__ . DIRECTORY_SEPARATOR . 'src');
 
-    $eventDispatcher = OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher();
-    $bootstrap = new Bootstrap($eventDispatcher);
+    // Reaching the kernel differs by image: master exposes OEGlobalsBag::getKernel(),
+    // while the stable release only sets $GLOBALS['kernel']. Try both.
+    $globalsBag = OEGlobalsBag::getInstance();
+    $kernel = method_exists($globalsBag, 'getKernel')
+        ? $globalsBag->getKernel()
+        : ($GLOBALS['kernel'] ?? null);
+
+    if ($kernel === null) {
+        error_log('oe-module-copilot-agent: no kernel available; menu tab not registered');
+        return;
+    }
+
+    $bootstrap = new Bootstrap($kernel->getEventDispatcher());
     $bootstrap->subscribeToEvents();
 } catch (\Throwable $e) {
     // Log and carry on: a broken menu tab must never break the application.
