@@ -22,7 +22,18 @@ use OpenEMR\Modules\CopilotAgent\Bootstrap;
 // images — getProjectDir() exists only on master — so resolve the project root
 // from this file's own location and guard the whole bootstrap.
 try {
-    $projectDir = dirname(__DIR__, 4);
+    // Walk up to the OpenEMR root rather than counting levels: the module may be
+    // symlinked in from elsewhere (on Railway it lives on the sites volume), so
+    // __DIR__'s real depth is not fixed.
+    $projectDir = __DIR__;
+    while (!is_file($projectDir . '/interface/globals.php') && dirname($projectDir) !== $projectDir) {
+        $projectDir = dirname($projectDir);
+    }
+    if (!is_file($projectDir . '/interface/globals.php')) {
+        error_log('oe-module-copilot-agent: could not locate the OpenEMR root; menu tab not registered');
+        return;
+    }
+
     $classLoader = new ModulesClassLoader($projectDir);
     $classLoader->registerNamespaceIfNotExists('OpenEMR\\Modules\\CopilotAgent\\', __DIR__ . DIRECTORY_SEPARATOR . 'src');
 

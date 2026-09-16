@@ -14,7 +14,14 @@
  * @license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
  */
 
-require_once __DIR__ . "/../../../../globals.php";
+// Locate interface/globals.php by walking up, not by counting levels: this file
+// may be reached through a symlink (on Railway the module lives on the sites
+// volume), so its real depth in the tree is not fixed.
+$openemrRoot = __DIR__;
+while (!is_file($openemrRoot . "/interface/globals.php") && dirname($openemrRoot) !== $openemrRoot) {
+    $openemrRoot = dirname($openemrRoot);
+}
+require_once $openemrRoot . "/interface/globals.php";
 
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Twig\TwigContainer;
