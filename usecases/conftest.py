@@ -4,88 +4,29 @@ Targets the local docker/development-easy stack. The dev stack uses a
 self-signed certificate, so TLS verification is off (local only).
 """
 
-import base64
-import os
-import re
-import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 import requests
 
-BASE_URL = os.environ.get("OPENEMR_BASE_URL", "https://localhost:9300")
-OE_USER = os.environ.get("OE_USER", "admin")
-OE_PASS = os.environ.get("OE_PASS", "pass")
-
-OAUTH = f"{BASE_URL}/oauth2/default"
-FHIR = f"{BASE_URL}/apis/default/fhir"
-REST = f"{BASE_URL}/apis/default/api"
-
-COMPOSE_DIR = Path(__file__).resolve().parent.parent / "docker" / "development-easy"
-
-# Read-only scopes: the suite never needs to write.
-READ_SCOPES = [
-    "openid",
-    "api:fhir",
-    "api:oemr",
-    "user/Patient.read",
-    "user/Condition.read",
-    "user/MedicationRequest.read",
-    "user/AllergyIntolerance.read",
-    "user/Observation.read",
-    "user/Encounter.read",
-    "user/Immunization.read",
-    "user/patient.read",
-]
-
-
-# Where the database lives: the local docker stack, or the Railway deployment.
-#   OE_DB_VIA=railway  OE_DB_PASS=<openemr db password>  OPENEMR_BASE_URL=https://<app>.up.railway.app
-DB_VIA = os.environ.get("OE_DB_VIA", "docker")
-RAILWAY_SERVICE = os.environ.get("RAILWAY_SERVICE", "openemr")
-RAILWAY_DB_HOST = os.environ.get("OE_DB_HOST", "mysql.railway.internal")
-RAILWAY_DB_USER = os.environ.get("OE_DB_USER", "openemr")
-
-# `railway ssh` writes a key-usage banner to stdout on some platforms; drop it.
-_BANNER_PREFIXES = ("Using SSH key", "Connecting to", "Connection to")
-
-
-def db_query(sql: str) -> list[list[str]]:
-    """Run SQL against the OpenEMR database; return rows as lists of strings."""
-    env = {**os.environ, "MSYS_NO_PATHCONV": "1"}
-
-    if DB_VIA == "railway":
-        password = os.environ.get("OE_DB_PASS")
-        assert password, "set OE_DB_PASS (the openemr database user password) for OE_DB_VIA=railway"
-        # Base64 keeps the SQL free of spaces and quotes: `railway ssh` passes the
-        # command as argv, so an unencoded statement gets word-split before sh sees it.
-        encoded = base64.b64encode(sql.encode()).decode()
-        remote = (
-            f"echo {encoded} | base64 -d | "
-            f"mariadb -h {RAILWAY_DB_HOST} -u{RAILWAY_DB_USER} -p{password} openemr -N -B"
-        )
-        command = ["railway", "ssh", "--service", RAILWAY_SERVICE, "sh", "-c", remote]
-        cwd = Path(__file__).resolve().parent.parent  # the railway-linked project directory
-    else:
-        command = ["docker", "compose", "exec", "-T", "mysql",
-                   "mariadb", "-uroot", "-proot", "-N", "-B", "openemr", "-e", sql]
-        cwd = COMPOSE_DIR
-
-    result = subprocess.run(
-        command, cwd=cwd, env=env, capture_output=True, text=True, check=True,
-        shell=(os.name == "nt" and DB_VIA == "railway"),  # railway is a .cmd shim on Windows
-    )
-    return [
-        line.split("\t") for line in result.stdout.splitlines()
-        if line and not line.startswith(_BANNER_PREFIXES)
-    ]
-
-
-def _safe_id(value: str) -> str:
-    # client_id is interpolated into SQL; only allow the characters OpenEMR issues.
-    if not re.fullmatch(r"[A-Za-z0-9_\-]+", value):
-        raise ValueError(f"unexpected client_id format: {value!r}")
-    return value
+# Configuration and database access live in scripts/oe_api.py so the setup scripts and the
+# Railway cron container can share them without depending on pytest. They are re-exported
+# here, so `from conftest import db_query` (and the rest) keeps working across the suite.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+from oe_api import (  # noqa: E402,F401
+    BASE_URL,
+    COMPOSE_DIR,
+    DB_VIA,
+    FHIR,
+    OAUTH,
+    OE_PASS,
+    OE_USER,
+    READ_SCOPES,
+    REST,
+    _safe_id,
+    db_query,
+)
 
 
 @pytest.fixture(scope="session")

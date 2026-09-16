@@ -1,20 +1,34 @@
-"""Book today's rounding list: N appointments per doctor, through the REST API.
+"""Book the co-pilot's rounding list: N appointments per doctor, for one or more days.
 
-The co-pilot's rounding list is "today's appointments booked for the signed-in
-provider, restricted to that provider's assigned patients". The Synthea dataset has
-no calendar events, so this books them. Writes go through
-POST /api/patient/:pid/appointment so validation and audit logging run (AUDIT C1b).
+The co-pilot's rounding list is "today's appointments booked for the signed-in provider,
+restricted to that provider's assigned patients". The Synthea dataset has no calendar
+events, so this creates them. Writes go through POST /api/patient/:pid/appointment, so
+OpenEMR's validation and audit logging run (AUDIT.md C1b).
 
-Idempotent per day: existing co-pilot appointments for today are deleted first
-(only those titled "Rounding (co-pilot demo)"), then re-created at 08:00, 08:15, ...
+Idempotent per day: this script's own bookings for each target date are removed first
+(only those titled "Rounding (co-pilot demo)"), then recreated from 08:00 at 15-minute
+intervals. Re-running never duplicates.
 
-Usage (local):
+Dates default to the **server's** current date, which is UTC in the containers and can
+differ from the host's local date late in the day.
+
+Laptop use, local stack:
     cd usecases
     $env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
-    .venv\\Scripts\\python ..\\scripts\\seed_appointments.py            # 12 per doctor
-    .venv\\Scripts\\python ..\\scripts\\seed_appointments.py --per-doctor 6
+    .venv\\Scripts\\python ..\\scripts\\seed_appointments.py
 
-Usage (Railway): add $env:OE_DB_VIA="railway"; $env:OE_DB_PASS="<openemr db pw>"
+Laptop use, Railway:
+    $env:OPENEMR_BASE_URL="https://<app>.up.railway.app"; $env:OE_PASS="<admin pw>"
+    $env:OE_DB_VIA="railway"; $env:OE_DB_PASS="<openemr db pw>"
+    .venv\\Scripts\\python ..\\scripts\\seed_appointments.py --days 5
+
+Inside the Railway cron container: OE_DB_VIA=mysql with MYSQL_* set; every option also
+reads an environment variable, so no arguments are needed.
+
+@package   OpenEMR
+@author    Debu Dash
+@copyright Copyright (c) 2026 Debu Dash
+@license   https://github.com/openemr/openemr/blob/master/LICENSE GNU General Public License 3
 """
 
 import argparse
@@ -22,83 +36,94 @@ import datetime as dt
 import sys
 from pathlib import Path
 
-import requests
-import urllib3
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from oe_api import READ_SCOPES, REST, api_session, db_query  # noqa: E402
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "usecases"))
-from conftest import OAUTH, OE_PASS, OE_USER, READ_SCOPES, REST, _safe_id, db_query  # noqa: E402
-
-urllib3.disable_warnings()
 TITLE = "Rounding (co-pilot demo)"
-SCOPES = READ_SCOPES + ["user/appointment.read", "user/appointment.write"]
+WRITE_SCOPES = READ_SCOPES + ["user/appointment.read", "user/appointment.write"]
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--per-doctor", type=int, default=12)
-parser.add_argument("--date", default=None, help="YYYY-MM-DD; default is the OpenEMR server's current date")
-parser.add_argument("--category", type=int, default=5, help="pc_catid (5 = Office Visit)")
-args = parser.parse_args()
-if args.date is None:
-    # The co-pilot lists appointments for the *server's* today (the container runs on UTC),
-    # which can differ from the host's local date late in the day.
-    args.date = db_query("SELECT CURDATE()")[0][0]
-    print(f"server date: {args.date}")
 
-doctors = {row[1]: int(row[0]) for row in db_query(
-    "SELECT id, username FROM users WHERE username IN ('doctor1','doctor2') ORDER BY username")}
-assert set(doctors) == {"doctor1", "doctor2"}, f"expected both doctors, got {doctors}"
-facility = int(db_query("SELECT id FROM facility ORDER BY id LIMIT 1")[0][0])
+def parse_args() -> argparse.Namespace:
+    import os
 
-# Remove this script's earlier bookings for the date, so re-running moves the list to today.
-removed = db_query(
-    f"SELECT COUNT(*) FROM openemr_postcalendar_events WHERE pc_title = '{TITLE}' AND pc_eventDate = '{args.date}'")[0][0]
-db_query(f"DELETE FROM openemr_postcalendar_events WHERE pc_title = '{TITLE}' AND pc_eventDate = '{args.date}'")
-print(f"removed {removed} existing '{TITLE}' appointment(s) on {args.date}")
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--per-doctor", type=int, default=int(os.environ.get("SEED_PER_DOCTOR", "12")))
+    parser.add_argument("--days", type=int, default=int(os.environ.get("SEED_DAYS", "1")),
+                        help="how many consecutive days to seed, starting at --date")
+    parser.add_argument("--date", default=os.environ.get("SEED_START_DATE") or None,
+                        help="YYYY-MM-DD; default is the OpenEMR server's current date")
+    parser.add_argument("--category", type=int, default=int(os.environ.get("SEED_CATEGORY", "5")),
+                        help="pc_catid (5 = Office Visit)")
+    parser.add_argument("--start-time", default=os.environ.get("SEED_START_TIME", "08:00"))
+    parser.add_argument("--slot-minutes", type=int, default=int(os.environ.get("SEED_SLOT_MINUTES", "15")))
+    return parser.parse_args()
 
-client = requests.post(f"{OAUTH}/registration", verify=False, timeout=60, json={
-    "application_type": "private", "redirect_uris": ["https://client.example.org/callback"],
-    "client_name": "copilot-appointment-seeder", "token_endpoint_auth_method": "client_secret_post",
-    "contacts": ["admin@example.org"], "scope": " ".join(SCOPES),
-}).json()
-cid = _safe_id(client["client_id"])
-db_query(f"UPDATE oauth_clients SET is_enabled = 1 WHERE client_id = '{cid}'")
 
-try:
-    token = requests.post(f"{OAUTH}/token", verify=False, timeout=60, data={
-        "grant_type": "password", "client_id": cid, "client_secret": client.get("client_secret", ""),
-        "user_role": "users", "username": OE_USER, "password": OE_PASS, "scope": " ".join(SCOPES),
-    }).json()["access_token"]
-    session = requests.Session()
-    session.verify = False
-    session.headers.update({"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+def seed_one_day(session, date: str, doctors: dict[str, int], facility: int, args: argparse.Namespace) -> int:
+    removed = db_query(
+        f"SELECT COUNT(*) FROM openemr_postcalendar_events WHERE pc_title = '{TITLE}' AND pc_eventDate = '{date}'"
+    )[0][0]
+    db_query(f"DELETE FROM openemr_postcalendar_events WHERE pc_title = '{TITLE}' AND pc_eventDate = '{date}'")
+    print(f"{date}: removed {removed} existing booking(s)")
 
-    total = 0
-    for username, uid in doctors.items():
-        pids = [int(r[0]) for r in db_query(
-            f"SELECT pid FROM patient_data WHERE providerID = {uid} ORDER BY pid LIMIT {args.per_doctor}")]
-        slot = dt.datetime.fromisoformat(f"{args.date}T08:00")
-        booked = 0
+    booked = 0
+    for username, user_id in doctors.items():
+        pids = [int(row[0]) for row in db_query(
+            f"SELECT pid FROM patient_data WHERE providerID = {user_id} ORDER BY pid LIMIT {args.per_doctor}")]
+        slot = dt.datetime.fromisoformat(f"{date}T{args.start_time}")
         for pid in pids:
-            resp = session.post(f"{REST}/patient/{pid}/appointment", timeout=60, json={
-                "pc_catid": args.category, "pc_title": TITLE, "pc_duration": 900,
+            response = session.post(f"{REST}/patient/{pid}/appointment", timeout=90, json={
+                "pc_catid": args.category, "pc_title": TITLE,
+                "pc_duration": args.slot_minutes * 60,
                 "pc_hometext": "Booked by scripts/seed_appointments.py for the co-pilot demo",
-                "pc_apptstatus": "-", "pc_eventDate": args.date, "pc_startTime": slot.strftime("%H:%M"),
-                "pc_facility": facility, "pc_billing_location": facility, "pc_aid": uid,
+                "pc_apptstatus": "-", "pc_eventDate": date,
+                "pc_startTime": slot.strftime("%H:%M"),
+                "pc_facility": facility, "pc_billing_location": facility, "pc_aid": user_id,
             })
-            if resp.status_code == 200:
+            if response.status_code == 200:
                 booked += 1
             else:
-                print(f"  FAILED pid={pid}: {resp.status_code} {resp.text[:160]}")
-            slot += dt.timedelta(minutes=15)
-        print(f"{username} (id {uid}): booked {booked}/{len(pids)}")
-        total += booked
-    print(f"total booked: {total}")
-finally:
-    db_query(f"DELETE FROM api_token WHERE client_id = '{cid}'")
-    db_query(f"DELETE FROM api_refresh_token WHERE client_id = '{cid}'")
-    db_query(f"DELETE FROM oauth_clients WHERE client_id = '{cid}'")
+                print(f"  FAILED {username} pid={pid}: {response.status_code} {response.text[:160]}")
+            slot += dt.timedelta(minutes=args.slot_minutes)
+        print(f"  {username} (id {user_id}): {len(pids)} patient(s)")
+    return booked
 
-print("--- verification ---")
-for row in db_query(
-    f"SELECT u.username, COUNT(*) FROM openemr_postcalendar_events e JOIN users u ON u.id = e.pc_aid "
-    f"WHERE e.pc_eventDate = '{args.date}' AND e.pc_title = '{TITLE}' GROUP BY u.username ORDER BY 1"):
-    print(f"  {row[0]}: {row[1]} appointment(s) on {args.date}")
+
+def main() -> int:
+    args = parse_args()
+
+    doctors = {row[1]: int(row[0]) for row in db_query(
+        "SELECT id, username FROM users WHERE username IN ('doctor1','doctor2') ORDER BY username")}
+    assert set(doctors) == {"doctor1", "doctor2"}, f"expected both doctors, got {doctors}"
+    facility = int(db_query("SELECT id FROM facility ORDER BY id LIMIT 1")[0][0])
+
+    start = dt.date.fromisoformat(args.date) if args.date else dt.date.fromisoformat(db_query("SELECT CURDATE()")[0][0])
+    dates = [(start + dt.timedelta(days=offset)).isoformat() for offset in range(max(1, args.days))]
+    print(f"seeding {len(dates)} day(s) from {dates[0]} ({args.per_doctor} per doctor)")
+
+    total = 0
+    # One OAuth client for every day, rather than one per day.
+    with api_session(WRITE_SCOPES, client_name="copilot-appointment-seeder") as session:
+        for date in dates:
+            total += seed_one_day(session, date, doctors, facility, args)
+    print(f"total booked: {total}")
+
+    print("--- verification ---")
+    rows = db_query(
+        f"SELECT e.pc_eventDate, COUNT(DISTINCT e.pc_aid), COUNT(*) FROM openemr_postcalendar_events e "
+        f"WHERE e.pc_title = '{TITLE}' AND e.pc_eventDate BETWEEN '{dates[0]}' AND '{dates[-1]}' "
+        f"GROUP BY e.pc_eventDate ORDER BY 1")
+    expected = args.per_doctor * len(doctors)
+    ok = True
+    for date, doctor_count, appointment_count in rows:
+        flag = "" if int(appointment_count) == expected else "  <-- INCOMPLETE"
+        ok = ok and not flag
+        print(f"  {date}: {doctor_count} doctor(s), {appointment_count} appointment(s){flag}")
+    if len(rows) != len(dates):
+        print(f"  WARNING: expected {len(dates)} dates, found {len(rows)}")
+        ok = False
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
