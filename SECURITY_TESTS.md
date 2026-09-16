@@ -5,10 +5,23 @@ Runnable authorization, patient-isolation, provider-allowlist, PHI-logging, sess
 How to run everything (local stack up, agent service running):
 
 ```powershell
-cd copilot;  .venv\Scripts\python -m pytest                     # unit + service tests (no key)
-cd copilot;  .venv\Scripts\python -m evals.run_evals            # harness evals (no key)
+cd copilot;  .venv\Scripts\python -m pytest                                          # unit + service tests (no key)
+cd copilot;  .venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden   # golden gate (live model)
+cd copilot;  .venv\Scripts\python -m evals.run_evals --stage stage1 --judge          # + behavioural scenarios + judge
 cd usecases; $env:OE_DOCTOR_PASS="<doctor1 pw>"; .venv\Scripts\python -m pytest test_uc_copilot.py   # live gateway
 ```
+
+Eval case ids below refer to `copilot/evals/stage1/golden/cases.json` (G1-G8) and
+`copilot/evals/stage1/behavioral/scenarios.json` (B1-B6); the former 31-case set was retired on
+2026-09-16 in favour of these two suites, with its harness cases living on as unit tests.
+
+Stage 1 on the free tier (2026-09-16, `nvidia/nemotron-3-super-120b-a12b:free`, judge
+`google/gemma-4-31b-it:free`): golden 8/8 pass, behavioural 5/6 pass, golden claim precision
+1.0. The one failure is B3: on a mid-conversation question about another patient, Nemotron gives
+the correct refusal but also repeats the active patient's diagnoses from the previous turn
+(Sonnet gave the refusal alone). Provider outages and rate limits are recorded as not applicable,
+not as failures; the judge was not applicable on most turns because Gemma's free route throttled.
+Golden snapshots are not yet frozen: freeze them on the Haiku reference run.
 
 Last run: 2026-09-16 (local stack, `openemr/openemr:flex`, agent service 0.1.0, model `anthropic/claude-sonnet-5` via OpenRouter). Unit 51/51; evals **31/31 with the LLM judge** (16 harness + 15 live; supported-claim precision 0.988 on live output, the one removed claim being caught by the verifier; wrong-patient citations 0; state accuracy 1.0; LangSmith project `copilot-evals-20260916-071932`, dataset `openemr-copilot-evals`); gateway tests 4 passed + 1 skipped in the keyless run and observed passing with the key (A-3). Live round trip as `doctor1`: 12 patients, charts read in 2.8-3.8 s, all 12 briefs prefetched in 86 s (33-78 s each, concurrency 12), follow-up answers 10-14 s.
 
@@ -46,6 +59,7 @@ Last run: 2026-09-16 (local stack, `openemr/openemr:flex`, agent service 0.1.0, 
 | M-3 | Browser never reaches the service: no public domain (Railway), signed requests only | `test_service.py::test_unsigned_requests_are_rejected`; deployment shape in `ARCHITECTURE.md` §1 | pass (unit); Railway deployment of the service **pending** |
 | M-4 | Request signing: round trip, tampered body, wrong secret, stale timestamp, missing secret | `test_session_and_auth.py::test_signature_roundtrip_skew_and_mismatch` | pass |
 | M-5 | Temperature 0, output cap, one retry, timeout | `copilot/copilot/llm.py` (configuration) | by inspection |
+| M-6 | Rate-limited provider (HTTP 429): at most three retries honouring Retry-After, then the request fails closed to `unable_to_answer`; never an unbounded wait | `copilot/copilot/llm.py` `LangChainLLM._with_rate_limit_retry`; observed on the free tier 2026-09-16 (unpaced run: agent and judge both hit 429s; paced run below) | pass (observed) |
 
 ## 4. PHI in logs and telemetry (PHI7, FR14, C1c)
 
@@ -95,6 +109,7 @@ Last run: 2026-09-16 (local stack, `openemr/openemr:flex`, agent service 0.1.0, 
 | Agent service not yet deployed on Railway (M-3) | Public demo has the tab but no agent | Debu Dash | Follow `deploy/railway/README.md` "Agent service" |
 | Latency above PRD NFR1 on the live path (brief 33-78 s, hidden by prefetch; follow-ups 10-14 s against a p95 target of 8 s) | Bedside answers slower than target | Debu Dash | Measured through OpenRouter; options are a direct Anthropic endpoint, a faster model for follow-ups, or merging the finalise call into the tool loop |
 | OpenRouter sits between the service and the model vendor | A second business associate for real PHI (PHI9) | Debu Dash | Demo data only; for real PHI use the direct provider or a BAA covering OpenRouter |
+| Free-tier models in use since 2026-09-16 (`nvidia/nemotron-3-super-120b-a12b:free` agent, `google/gemma-4-31b-it:free` judge) | Free routes may log prompts provider-side; rate limits (~20 req/min) make prefetch exceed the 90 s budget | Debu Dash | Demo data only; prefetch concurrency lowered to 3; 429 responses retried three times then fail closed (M-6); switch back to Sonnet is a one-line allowlist change |
 | Nurse role has no account to test (A-9) | Low: default-deny | Debu Dash | Create a nurse account via `scripts/create_doctors.py` pattern with the Clinicians group |
 | F-5, F-6, L-3 exercised by inspection only | Low: simple code paths | Debu Dash | Add fault-injection tests |
 | OpenEMR REST/FHIR still expose all patients to any user token (AUDIT S3); password grant enabled (S1) | Out of the co-pilot's path, but present on the same deployment | Debu Dash | Documented; disable the grant when SMART launch replaces it |

@@ -85,17 +85,28 @@ Health: `GET /healthz` (process), `GET /readyz` (model provider allowlisted and 
 
 ```powershell
 cd copilot
-.venv\Scripts\python -m pytest                       # 48 unit tests, no key, ~1 s
-.venv\Scripts\python -m evals.run_evals              # harness cases (16), no key
-.venv\Scripts\python -m evals.run_evals --live       # + live cases against the allowlisted model
-.venv\Scripts\python -m evals.run_evals --live --judge --langsmith   # + LLM judge, upload to LangSmith
+.venv\Scripts\python -m pytest                                        # 52 unit tests, no key, ~2 s
+.venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden # the every-run gate (8 cases)
+.venv\Scripts\python -m evals.run_evals --stage stage1                # golden + behavioural (6 scenarios)
+.venv\Scripts\python -m evals.run_evals --stage stage1 --judge --langsmith --pace 12   # + judge, upload
+.venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden --freeze         # record snapshots
 ```
 
-- `evals/GROUNDING_RULES.md` defines what "grounded" means and how each rule is enforced (prompt, verifier, evals).
-- `evals/cases.json` holds the cases by PRD category: boundary, invariant, authorization, conflict, prompt injection, clinical constraints, completeness, failure mode.
-- `evals/fixtures/charts/` holds three synthetic charts in the gateway's schema, so evals run without OpenEMR.
-- `evals/results/` receives one JSON per run (gitignored).
-- Role enforcement and gateway behaviour are tested against a live OpenEMR by `usecases/test_uc_copilot.py`.
+Evals are organised per project stage so later stages never mix with this one:
+
+```
+evals/common/                 runner, deterministic checks, LLM judge (shared by every stage)
+evals/stage1/GROUNDING_RULES.md
+evals/stage1/fixtures/charts/ three synthetic charts in the gateway's schema; no OpenEMR needed
+evals/stage1/golden/          8 single-turn cases with one right answer: the regression gate
+evals/stage1/golden/expected/ frozen snapshots (state, cited records, flags) diffed on every run
+evals/stage1/behavioral/      6 multi-turn scenarios graded on tool trace, memory and content
+evals/stage1/results/         one JSON per run (gitignored)
+```
+
+Verdicts are **pass**, **fail** or **not applicable**: a case whose model call died on a provider rate limit or outage is reported apart and excluded from the pass rate, because it measures the endpoint, not the agent. Golden snapshots should be frozen on the strongest model you run (a reference run) and then compared on every later run; a drift is a regression until someone re-freezes deliberately.
+
+Failure modes, scope denials and verifier removals are covered by the unit tests under `tests/`, which is what they are. Role enforcement and gateway behaviour are tested against a live OpenEMR by `usecases/test_uc_copilot.py`.
 
 Last recorded run (2026-09-16, `anthropic/claude-sonnet-5` via OpenRouter): 31/31 with the judge, supported-claim precision 0.988 on live output, zero wrong-patient citations, state accuracy 1.0. Live round trip: 12 briefs prefetched in 86 s, follow-ups 10-14 s. See `SECURITY_TESTS.md` for the per-control table and open findings.
 
@@ -114,7 +125,16 @@ Two providers are supported and selected with `COPILOT_PROVIDER`:
 | `anthropic` | `ANTHROPIC_API_KEY` | `claude-sonnet-5` | `https://api.anthropic.com` |
 | `openrouter` | `OPENROUTER_API_KEY` | `anthropic/claude-sonnet-5` (vendor prefix) | `https://openrouter.ai/api/v1` |
 
-OpenRouter is OpenAI-compatible; the gateway uses `ChatOpenAI` against it, and the Claude slugs there list tool calling and structured outputs. Keep `COPILOT_ALLOWED_MODELS` and `COPILOT_ALLOWED_ENDPOINTS` in step with the provider, as in `.env.example`. Note for a real deployment: the BAA assumption in the PRD (D003) then has to cover OpenRouter as a subprocessor as well as the model vendor (PHI9).
+OpenRouter is OpenAI-compatible; the gateway uses `ChatOpenAI` against it. Any model on the allowlist must support **tool calling and structured output** (check `supported_parameters` on openrouter.ai), or the follow-up loop and the brief schema fail. Keep `COPILOT_ALLOWED_MODELS` and `COPILOT_ALLOWED_ENDPOINTS` in step with the provider, as in `.env.example`. Note for a real deployment: the BAA assumption in the PRD (D003) then has to cover OpenRouter as a subprocessor as well as the model vendor (PHI9).
+
+**Free-tier models** (`:free` slugs) work with three adjustments, all in `.env.example`:
+
+- OpenRouter's free tier allows roughly 20 requests a minute, so `COPILOT_PREFETCH_CONCURRENCY=3` (from 12); the prefetch takes longer than the 90 s budget but still completes.
+- The model wrapper retries HTTP 429 up to three times (Retry-After or 8/16/32 s), then the agent reports "unable to answer" rather than hanging (NFR5). Evals run with `--pace 12` so the judge does not starve the agent of requests.
+- `COPILOT_JUDGE_MODEL` lets the evals grade with a different allowlisted model than the agent uses; the judge schema tolerates the spelling variants of yes/no/na that smaller models produce.
+- Free routes may log prompts on the provider side. Acceptable for synthetic data only; it is recorded as an accepted finding in `SECURITY_TESTS.md`.
+
+Current configuration: agent `nvidia/nemotron-3-super-120b-a12b:free`, judge `google/gemma-4-31b-it:free`, with `anthropic/claude-sonnet-5` kept on the allowlist so switching back is a one-line change.
 
 ## Deploying on Railway
 
