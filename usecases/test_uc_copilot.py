@@ -19,6 +19,8 @@ from conftest import BASE_URL, OE_PASS
 
 MODULE = f"{BASE_URL}/interface/modules/custom_modules/oe-module-copilot-agent/public"
 DOCTOR_PASS = os.environ.get("OE_DOCTOR_PASS")
+# The demo books this many patients per doctor per day (scripts/seed_appointments.py).
+DEMO_LIST_SIZE = int(os.environ.get("SEED_PER_DOCTOR", "5"))
 
 
 def ui_login(username: str, password: str) -> requests.Session:
@@ -91,7 +93,7 @@ def test_physician_open_returns_only_todays_scoped_list(doctor):
         pytest.skip(f"agent refused the session (fail closed): {body.get('reason')}")
     assert resp.status_code == 200, body
     assert body["patients"], "no appointments booked for doctor1 today; run scripts/seed_appointments.py"
-    assert len(body["patients"]) <= 12
+    assert len(body["patients"]) <= DEMO_LIST_SIZE, f"the demo rounding list is {DEMO_LIST_SIZE} patients per doctor"
     for patient in body["patients"]:
         assert set(patient["sources"]) >= {"problems", "medications", "allergies", "labs", "encounters"}
         assert not re.search(r"\d", patient["name"]), "Synthea numeric suffixes must be stripped"

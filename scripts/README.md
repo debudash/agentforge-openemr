@@ -137,7 +137,7 @@ that provider's assigned patients*. Synthea data has no calendar events, so book
 ```powershell
 cd usecases
 $env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
-.venv\Scripts\python ..\scripts\seed_appointments.py                 # 12 per doctor, today, 08:00 onwards
+.venv\Scripts\python ..\scripts\seed_appointments.py                 # 5 per doctor, today, 08:00 onwards
 .venv\Scripts\python ..\scripts\seed_appointments.py --days 5        # today and the next four days
 .venv\Scripts\python ..\scripts\seed_appointments.py --per-doctor 6 --date 2026-09-20
 ```

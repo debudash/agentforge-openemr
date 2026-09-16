@@ -47,7 +47,9 @@ def parse_args() -> argparse.Namespace:
     import os
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--per-doctor", type=int, default=int(os.environ.get("SEED_PER_DOCTOR", "12")))
+    # Five per doctor is the demo list size (USERS.md §1.1): a real hospitalist carries 12-18,
+    # but each patient costs a prefetched brief, so the demo trades census for time and cost.
+    parser.add_argument("--per-doctor", type=int, default=int(os.environ.get("SEED_PER_DOCTOR", "5")))
     parser.add_argument("--days", type=int, default=int(os.environ.get("SEED_DAYS", "1")),
                         help="how many consecutive days to seed, starting at --date")
     parser.add_argument("--date", default=os.environ.get("SEED_START_DATE") or None,

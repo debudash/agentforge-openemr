@@ -10,14 +10,15 @@
 
 ### 1.1 Who
 
-**A day-shift hospitalist rounding on twelve admitted patients before noon.**
+**A day-shift hospitalist rounding on a ward census before noon.**
 
 | Attribute | Definition |
 |---|---|
 | Role | Attending physician, internal medicine, adult inpatient ward, community hospital. Non-teaching service, so there are no residents to pre-round for them. |
 | Shift | 07:00–19:00, on a block schedule, often a stretch of days in a row. Day one of a block means inheriting patients they have never met. |
-| Census | **12 patients**: about 9 carried over from yesterday and about 3 new admissions taken overnight by the nocturnist. |
-| Morning goal | See and examine all 12 and decide each patient's plan, get the likely discharges out **before noon**, then write notes and take new admissions in the afternoon. |
+| Census | A real hospitalist carries **12–18 patients**, roughly three quarters carried over from yesterday and the rest admitted overnight by the nocturnist. |
+| **Demo census** | **5 patients per doctor per day.** Each patient costs a pre-computed brief, so the demo deliberately trades census size for time and cost (see §1.5). The workflow, the scoping boundary and every use case are unchanged by the smaller number. |
+| Morning goal | See and examine every patient and decide each one's plan, get the likely discharges out **before noon**, then write notes and take new admissions in the afternoon. |
 | Tools today | The EHR (chart review, flowsheets, results, medication lists), a written or verbal sign-out from the night team, a paper or printed rounding list, pages and secure chat from nursing. |
 | Devices | A workstation (primary) and a hospital phone between rooms (secondary). |
 
@@ -26,7 +27,7 @@
 | Tolerates / wants | Will not tolerate |
 |---|---|
 | "Not recorded" or "I can't tell from the chart" | A number, medication or result that isn't in the chart (fabrication) |
-| Short, scannable output with the important items first | Paragraphs of prose to read for 12 patients |
+| Short, scannable output with the important items first | Paragraphs of prose to read for every patient on the list |
 | Every claim linked to its source and time | Unsourced summaries they would have to re-verify anyway |
 | Being told what changed since yesterday | A re-summary of the whole 20-year history every morning |
 | A read-only assistant | Anything that places orders, writes to the chart or messages staff on its own |
@@ -44,10 +45,16 @@ Choosing the hospitalist means this document optimizes for **change since last r
 
 The workflow figures below are **assumptions** drawn from common descriptions of hospitalist practice. They are not measured here. Validate them with at least one practicing hospitalist before Stage 5 locks targets (see §7).
 
-- Pre-round chart review takes about 4–6 minutes per patient, roughly 50–70 minutes for 12.
+- Pre-round chart review takes about 4–6 minutes per patient: roughly 50–70 minutes for a real census of 12, and about 20–30 minutes for the demo's 5.
 - Interdisciplinary rounds with nursing and case management happen mid-morning.
 - A new admission from overnight gets the longest review of the morning.
 - Most chart-review time goes to navigating between screens (vitals, labs, medications, notes), not to thinking.
+
+### 1.5 Demo scope: five patients per doctor
+
+The demo books **5 patients per doctor per day** rather than a full census. The reason is cost and time, not clinical: every patient on the list gets a brief pre-computed by a language model, so the list size sets the money and the minutes each demo run costs, and the free-tier endpoint used for development rate-limits concurrent requests.
+
+What this changes: the wall-clock figures in §2 and UC-1, and the size of the seeded rounding list (`scripts/seed_appointments.py`, `SEED_PER_DOCTOR`). What it does not change: the workflow, the authorization boundary, the use cases, the agent's behaviour, or any requirement below. Raising it back is one variable, and the per-patient timings in UC-1's success criteria are the ones that scale.
 
 ---
 
@@ -56,8 +63,8 @@ The workflow figures below are **assumptions** drawn from common descriptions of
 | Time | What the hospitalist is doing | Pain today | Where the agent enters |
 |---|---|---|---|
 | 06:45 | Arrives and takes sign-out from the nocturnist (verbal plus a written sheet): who was admitted, who had events overnight | Sign-out is compressed; details ("what was the potassium?") live in the chart | — |
-| **06:55** | **The 30 seconds before:** sits at a workstation with coffee and the sign-out sheet. Knows *that* bed 7 had a fever and there are three new admits, but not the details. Opens the rounding list. | Twelve charts, each needing 6–8 screens | **Opens the co-pilot: the morning brief for all 12 is already waiting (UC-1)** |
-| 07:00–07:45 | Pre-rounds: reviews every patient's overnight changes and writes a to-do list | 50–70 min of clicking; changes get missed when a result is on page 3 | UC-1 overnight change brief · UC-2 new-admission catch-up |
+| **06:55** | **The 30 seconds before:** sits at a workstation with coffee and the sign-out sheet. Knows *that* bed 7 had a fever and there are new admits, but not the details. Opens the rounding list. | Every chart needs 6–8 screens | **Opens the co-pilot: the morning brief for the whole list is already waiting (UC-1)** |
+| 07:00–07:45 | Pre-rounds: reviews every patient's overnight changes and writes a to-do list | 4–6 min of clicking per patient; changes get missed when a result is on page 3 | UC-1 overnight change brief · UC-2 new-admission catch-up |
 | 07:45 | Decides rounding order: unstable patients first, likely discharges early, new admits | Done from memory plus sign-out; easy to under-prioritize a quiet deterioration | UC-3 rounding order with reasons |
 | 08:00–11:30 | Bedside rounds, interdisciplinary rounds, family calls, orders, pages | Ad hoc questions mean walking back to the workstation and re-opening charts | UC-4 bedside follow-up questions · UC-5 medication discrepancy check |
 | 10:30–11:45 | Discharge push for 2–4 patients: reconcile medications, check pending results, arrange follow-up | Pending items get discovered late, delaying discharge past noon | UC-6 discharge-readiness check |
@@ -79,7 +86,7 @@ MVP priority: **P0** = build first · **P1** = build if P0 meets its targets · 
 
 **Moment:** 06:55–07:45, pre-rounds at the workstation.
 
-**The ask:** "What changed for each of my 12 patients since yesterday's review, and what needs my attention?"
+**The ask:** "What changed for each patient on my list since yesterday's review, and what needs my attention?"
 
 **The agent returns** one card per patient, in list order, each **at most 8 lines**:
 1. **Flags first:** new abnormal-trending vitals, new results since the last review, medications started or stopped, new problems. Each flag has a one-line reason.
@@ -87,7 +94,7 @@ MVP priority: **P0** = build first · **P1** = build if P0 meets its targets · 
 3. **Explicitly nothing:** "No new labs since 07:00 yesterday" or "Vitals not recorded overnight". Silence is never left to be interpreted.
 4. Every item links to its source resource and timestamp.
 
-**The user then** scans all 12 cards in about 10 minutes instead of 50–70, writes the to-do list, and opens the full chart only for flagged patients.
+**The user then** scans every card at well under a minute each instead of 4–6 minutes of chart navigation, writes the to-do list, and opens the full chart only for flagged patients. On the demo's five-patient list that is about 4 minutes instead of 20–30.
 
 **Data needed:** encounters (current admission), vital-sign observations with timestamps, lab results with collection times, medication requests with start and end dates, new or changed problems, and overnight nursing or sign-out notes.
 
@@ -159,7 +166,7 @@ MVP priority: **P0** = build first · **P1** = build if P0 meets its targets · 
 
 **The ask:** "Who should I see first?"
 
-**The agent returns** the 12 patients grouped as **See first** (possible instability), **Likely discharge today** (see early to start paperwork) and **Routine**. Each has a **one-line reason tied to data**, e.g. "HR trending 88→112 overnight; new lactate pending", and each placement can be overridden.
+**The agent returns** the whole list grouped as **See first** (possible instability), **Likely discharge today** (see early to start paperwork) and **Routine**. Each has a **one-line reason tied to data**, e.g. "HR trending 88→112 overnight; new lactate pending", and each placement can be overridden.
 
 **The user then** accepts or reorders the list and starts rounds. The agent never reorders silently later.
 
@@ -168,7 +175,7 @@ MVP priority: **P0** = build first · **P1** = build if P0 meets its targets · 
 **Success criteria:**
 - Every group placement has a data-cited reason.
 - On seeded scenarios, every patient seeded as "deteriorating" appears in *See first*.
-- The hospitalist overrides the order ≤ 3 of 12 times in pilot feedback.
+- The hospitalist overrides the order in at most a quarter of placements in pilot feedback.
 
 **Why an agent:**
 - **A fixed acuity score can't use the sign-out.** An early-warning score (NEWS2-style) sorts on vitals alone. The hospitalist's real ordering also depends on the sign-out ("family meeting at 10", "surgery wants to see her first") and on discharge readiness. The agent combines the structured signals with free-text context the user provides, and explains the result.
@@ -314,13 +321,13 @@ The dataset was measured on 2026-09-15 against the 50-patient Synthea import. Op
 | Patient history (problems, medications, allergies) | 1,750 problems (100% SNOMED), 306 prescriptions (100% RxNorm), 59 allergies across 7 patients | UC-2, UC-4, UC-5 ✅ |
 | Prior hospital use | 87 admission-type encounters (49 ED admissions, 12 hospital admissions, 9 surgical, 9 obstetric …) across 34 patients; 36 in the last 2 years; hospital admissions average 7.6 days | UC-2 ✅ |
 | Lab history and baselines | 16,783 results, 111 distinct tests (e.g. BMP components ×381), collection dates 2016-10-04..2026-08-26 on 651 days; FHIR `effectiveDateTime` comes from the report date. No reference ranges or abnormal flags (D5) | UC-2, UC-4 ✅ (history) |
-| **A current admission ("today's 12")** | None. All 2,128 encounters are class `AMB`; no calendar events, patient tracker, care teams or assigned providers | UC-1, UC-3, UC-6 ❌ |
+| **A current admission ("today's list")** | None. All 2,128 encounters are class `AMB`; no calendar events, patient tracker, care teams or assigned providers | UC-1, UC-3, UC-6 ❌ |
 | **Overnight vitals series** | One vitals form per patient; BP, weight and SpO₂ empty for all 50 (D4); none in the last 7 days | UC-1, UC-3 ❌ |
 | **Recent results (last 24 h)** | None in the last 30 days | UC-1, UC-4 (current) ❌ |
 | **Nursing, progress, consult and sign-out notes** | None (`pnotes`, `form_soap`, `form_clinical_notes`, `documents` all 0) | UC-1, UC-3 ❌ |
 | Inpatient medication orders or administration | None (OpenEMR has no medication administration record) | UC-5 (home vs inpatient) ❌ |
 
-**Requirement for Stage 5 (REQ-DATA-1):** build a **current-admission overlay** for the demo rounding list. It needs 12 patients with an open inpatient encounter, overnight vitals and lab results timestamped relative to "today", medication changes, and short overnight nursing and sign-out notes.
+**Requirement for Stage 5 (REQ-DATA-1):** build a **current-admission overlay** for the demo rounding list. It needs each patient on the list (5 per doctor, §1.5) to have an open inpatient encounter, overnight vitals and lab results timestamped relative to "today", medication changes, and short overnight nursing and sign-out notes.
 - **Every scripted patient maps to a UC-1 flag** (deterioration, new result, medication change, stable), so evaluations have known answers.
 - **Load it through the OpenEMR API or service layer, never raw SQL**, so UUIDs, events and audit logging apply (AUDIT C1b).
 - **Record in `ARCHITECTURE.md`** how the overlay is produced and how it is reset for evaluations (D9).
@@ -333,7 +340,7 @@ The dataset was measured on 2026-09-15 against the 50-patient Synthea import. Op
 
 | ID | Requirement | Derived from | Constraint from AUDIT |
 |---|---|---|---|
-| REQ-LAT-1 | UC-1 briefs (and UC-2 for new admits) are **pre-computed before 06:55** for the whole rounding list; if the chart changes after that, the brief is refreshed on open | UC-1, UC-2 | P1–P3: ≈11.4 s per patient for sequential FHIR reads, ≈2.3 min for 12 |
+| REQ-LAT-1 | UC-1 briefs (and UC-2 for new admits) are **pre-computed before 06:55** for the whole rounding list; if the chart changes after that, the brief is refreshed on open | UC-1, UC-2 | P1–P3: ≈11.4 s per patient for sequential FHIR reads, so ≈1 min for the demo's 5 and ≈2.3 min for a real 12 |
 | REQ-LAT-2 | Interactive answers: **median ≤ 5 s, p95 ≤ 10 s**, measured from question to first complete answer | UC-4, UC-5 | P1 (1–2.7 s per call), so parallel filtered reads and a per-session cache are required |
 | REQ-SCOPE-1 | The agent can only access patients on the authenticated hospitalist's rounding list for today. **The agent's tool layer is the only enforcement point** — see below | NG-3, all UCs | S3, C4c |
 | REQ-CITE-1 | Every clinical value in output carries source resource type, ID and timestamp | NG-4, all UCs | — |
@@ -342,7 +349,7 @@ The dataset was measured on 2026-09-15 against the 50-patient Synthea import. Op
 | REQ-RO-1 | Read-only: no write tools in v1 | NG-1 | C1b |
 | REQ-AUDIT-1 | Every agent data access is attributable to the agent client, the hospitalist and the originating question | All UCs | C1c |
 | REQ-FMT-1 | Patient cards ≤ 8 lines with flags first; bedside answers of 1–3 sentences; both readable on a phone | UC-1, UC-4 | — |
-| REQ-DATA-1 | A current-admission overlay for the 12-patient demo list, loaded through the API or services and resettable for evaluations | UC-1, UC-3, UC-6 | C1b, D9 |
+| REQ-DATA-1 | A current-admission overlay for the demo rounding list (5 patients per doctor, §1.5), loaded through the API or services and resettable for evaluations | UC-1, UC-3, UC-6 | C1b, D9 |
 | REQ-PHI-1 | With real PHI, the model endpoint and tracing must be under a BAA or receive de-identified data | All UCs | C4a, C4b |
 
 ### OpenEMR does not enforce per-provider scoping (measured 2026-09-15)
@@ -383,7 +390,7 @@ The only built-in restrictions are facility-based (`restrict_user_facility`, fac
 
 ### 7.2 Assumptions to validate before Stage 5 locks targets
 
-1. Pre-round chart review really is ~4–6 min per patient and dominated by navigation (§1.4). This decides whether UC-1's "≈10 min for 12" is a meaningful improvement.
+1. Pre-round chart review really is ~4–6 min per patient and dominated by navigation (§1.4). This decides whether UC-1's per-patient saving is a meaningful improvement.
 2. Hospitalists would trust a pre-computed brief, or would insist on re-checking the chart (affects REQ-LAT-1's refresh-on-open design).
 3. Which rounding-order signals matter beyond vitals (UC-3), and whether a local early-warning score exists to display.
 4. Whether bedside questions happen on the phone often enough to make REQ-FMT-1's phone layout a P0.
