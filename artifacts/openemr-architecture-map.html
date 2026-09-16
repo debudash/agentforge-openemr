@@ -1,0 +1,342 @@
+<title>OpenEMR Architecture Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F4F7F6; --surface:#FFFFFF; --ink:#16211F; --muted:#56655F; --rule:#D3DDDA;
+  --accent:#0C6A70; --accent-soft:#DCEDEC; --legacy:#A8671A; --legacy-soft:#F5E8D6;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1413; --surface:#151D1C; --ink:#E2EBE8; --muted:#95A6A1; --rule:#2A3634;
+    --accent:#5FC2C7; --accent-soft:#16312F; --legacy:#E3A95C; --legacy-soft:#33281A;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1413; --surface:#151D1C; --ink:#E2EBE8; --muted:#95A6A1; --rule:#2A3634;
+  --accent:#5FC2C7; --accent-soft:#16312F; --legacy:#E3A95C; --legacy-soft:#33281A;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;padding-inline:20px;padding-block:0 64px}
+.wrap{max-width:1040px;margin-inline:auto}
+header{padding-block:48px 28px;border-bottom:1px solid var(--rule);display:grid;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(34px,5vw,50px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:28px;font-weight:700}
+h3{font-size:19px;font-weight:600}
+p{margin:0;max-width:68ch}
+.lede{font-size:19px;color:var(--muted)}
+code,.mono{font-family:var(--mono);font-size:.82em}
+code{background:var(--accent-soft);padding:1px 5px;border-radius:3px;color:var(--ink)}
+.facts{display:flex;flex-wrap:wrap;gap:8px 28px;margin:6px 0 0;padding:0;list-style:none;font-size:15px}
+.facts li{display:flex;gap:8px;align-items:baseline}
+.facts b{font-family:var(--mono);font-weight:500;font-size:14px;font-variant-numeric:tabular-nums;color:var(--accent)}
+section{padding-block:44px 8px;display:grid;gap:18px}
+.sec-head{display:grid;gap:8px}
+.key{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--muted)}
+.key span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:12px;height:12px;border-radius:2px;display:inline-block}
+.sw.m{background:var(--accent)} .sw.l{background:var(--legacy)} .sw.x{background:var(--muted)}
+figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:18px}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px;max-width:none}
+.scroll{overflow-x:auto}
+svg{display:block;max-width:100%;height:auto;font-family:var(--body)}
+svg text{fill:var(--ink);font-size:13px}
+svg .sm{font-size:11.5px;fill:var(--muted)}
+svg .mn{font-family:var(--mono);font-size:11.5px}
+svg .box{fill:var(--surface);stroke:var(--rule);stroke-width:1.2}
+svg .zone{fill:var(--ground);stroke:var(--muted);stroke-width:1;stroke-dasharray:5 4}
+svg .modern{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+svg .legacy{fill:var(--legacy-soft);stroke:var(--legacy);stroke-width:1.4}
+svg .ln{stroke:var(--muted);stroke-width:1.3;fill:none}
+svg .ln.hot{stroke:var(--accent);stroke-width:2}
+svg .ln.old{stroke:var(--legacy)}
+svg .ah{fill:var(--muted)} svg .ah.hot{fill:var(--accent)} svg .ah.old{fill:var(--legacy)}
+svg .lbl{font-size:11px;fill:var(--muted);font-family:var(--mono)}
+/* pipeline */
+.pipe{list-style:none;margin:0;padding:0;counter-reset:step;display:grid;gap:0}
+.pipe li{counter-increment:step;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:baseline;padding:11px 0;border-top:1px solid var(--rule)}
+.pipe li:first-child{border-top:0}
+.pipe li::before{content:counter(step,decimal-leading-zero);font-family:var(--mono);font-size:13px;color:var(--accent);font-variant-numeric:tabular-nums}
+.pipe .nm{font-family:var(--mono);font-size:14px;font-weight:500}
+.pipe .ds{display:block;font-size:15px;color:var(--muted)}
+.pipe .ev{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.pipe li.gate .nm{color:var(--accent)}
+@media (max-width:620px){.pipe li{grid-template-columns:34px minmax(0,1fr)}.pipe .ev{grid-column:2}}
+/* code map bars */
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:128px minmax(0,1fr) 56px;gap:12px;align-items:center;font-size:15px}
+.bar .p{font-family:var(--mono);font-size:13.5px}
+.bar .t{height:18px;background:var(--ground);border-radius:2px;overflow:hidden}
+.bar .f{height:100%;background:var(--accent)}
+.bar .f.l{background:var(--legacy)} .bar .f.x{background:var(--muted)}
+.bar .n{font-family:var(--mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.bar small{display:block;grid-column:2 / 4;margin-top:-6px;font-size:13.5px;color:var(--muted)}
+/* two-col prose */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px 36px}
+.cols > div{display:grid;gap:8px;align-content:start}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;justify-self:start}
+.tag.m{background:var(--accent-soft);color:var(--accent)} .tag.l{background:var(--legacy-soft);color:var(--legacy)}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:4px;max-width:68ch}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:560px}
+th,td{text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num{font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.callout{background:var(--accent-soft);border-radius:6px;padding:20px 22px;display:grid;gap:10px}
+.callout h3{color:var(--accent)}
+footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--rule);font-size:14px;color:var(--muted)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">debudash/openemragent · main @ 7b887fb</div>
+  <h1>OpenEMR Architecture Map</h1>
+  <p class="lede">A PHP 8.2 electronic health record that has two codebases in one: a procedural legacy app that renders pages, and a typed <code>OpenEMR\</code> core that serves REST and FHIR. Both use the same service layer and the same MySQL schema.</p>
+  <ul class="facts">
+    <li><b>281</b> tables in <span class="mono">sql/database.sql</span></li>
+    <li><b>96</b> REST routes</li>
+    <li><b>71</b> FHIR R4 routes · US Core 3.1.0</li>
+    <li><b>132</b> service classes</li>
+    <li><b>80</b> event classes</li>
+  </ul>
+</header>
+
+<section>
+  <div class="sec-head">
+    <h2>System context</h2>
+    <p>Everything runs inside one <code>openemr</code> container (Apache + PHP). It has four entry points. The three auxiliary services it calls are what the dev stack starts next to it.</p>
+    <div class="key"><span><i class="sw m"></i>Modern core (<span class="mono">src/</span>, PSR-4)</span><span><i class="sw l"></i>Legacy procedural (<span class="mono">interface/</span>, <span class="mono">library/</span>)</span><span><i class="sw x"></i>External / infrastructure</span></div>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 980 470" role="img" aria-label="Clinicians, patients and third-party apps enter the openemr container through legacy pages, the patient portal, or the REST/FHIR dispatcher; all converge on the src/Services layer, which reads and writes MariaDB and calls CouchDB, the ccdaservice Node process, LDAP and SMTP.">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah hot" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah old" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+
+      <!-- actors -->
+      <rect class="box" x="10" y="52" width="150" height="54" rx="4"/>
+      <text x="85" y="75" text-anchor="middle">Clinician / staff</text>
+      <text x="85" y="93" text-anchor="middle" class="sm">browser</text>
+
+      <rect class="box" x="10" y="162" width="150" height="54" rx="4"/>
+      <text x="85" y="185" text-anchor="middle">Patient</text>
+      <text x="85" y="203" text-anchor="middle" class="sm">browser</text>
+
+      <rect class="box" x="10" y="292" width="150" height="54" rx="4"/>
+      <text x="85" y="315" text-anchor="middle">SMART / API client</text>
+      <text x="85" y="333" text-anchor="middle" class="sm">app, script, agent</text>
+
+      <!-- container zone -->
+      <rect class="zone" x="228" y="14" width="492" height="440" rx="6"/>
+      <text x="244" y="36" class="mn">openemr container · Apache + PHP 8.2</text>
+
+      <!-- doors -->
+      <rect class="legacy" x="248" y="54" width="226" height="50" rx="4"/>
+      <text x="262" y="75" class="mn">interface/*.php</text>
+      <text x="262" y="93" class="sm">boots via globals.php · Twig/Smarty</text>
+
+      <rect class="legacy" x="248" y="164" width="226" height="50" rx="4"/>
+      <text x="262" y="185" class="mn">portal/</text>
+      <text x="262" y="203" class="sm">patient portal pages</text>
+
+      <rect class="modern" x="248" y="274" width="226" height="50" rx="4"/>
+      <text x="262" y="295" class="mn">apis/dispatch.php</text>
+      <text x="262" y="313" class="sm">ApiApplication · /api /fhir /portal</text>
+
+      <rect class="modern" x="248" y="374" width="226" height="50" rx="4"/>
+      <text x="262" y="395" class="mn">oauth2/authorize.php</text>
+      <text x="262" y="413" class="sm">OAuth2 + SMART launch, tokens</text>
+
+      <!-- core -->
+      <rect class="modern" x="530" y="54" width="170" height="370" rx="4"/>
+      <text x="615" y="84" text-anchor="middle" class="mn">src/Services</text>
+      <text x="615" y="104" text-anchor="middle" class="sm">83 domain + 49 FHIR</text>
+      <text x="615" y="160" text-anchor="middle" class="sm">validators</text>
+      <text x="615" y="180" text-anchor="middle" class="sm">ACL checks (gacl)</text>
+      <text x="615" y="200" text-anchor="middle" class="sm">UuidRegistry</text>
+      <text x="615" y="220" text-anchor="middle" class="sm">EventDispatcher</text>
+      <text x="615" y="240" text-anchor="middle" class="sm">EventAuditLogger</text>
+      <line x1="548" y1="266" x2="682" y2="266" class="ln"/>
+      <text x="615" y="292" text-anchor="middle" class="mn">QueryUtils</text>
+      <text x="615" y="310" text-anchor="middle" class="sm">sqlStatement() / ADODB</text>
+      <text x="615" y="328" text-anchor="middle" class="sm">over Doctrine DBAL 4</text>
+
+      <!-- actor -> door -->
+      <line x1="160" y1="79" x2="244" y2="79" class="ln old" marker-end="url(#ao)"/>
+      <text x="202" y="71" text-anchor="middle" class="lbl">session</text>
+      <line x1="160" y1="189" x2="244" y2="189" class="ln old" marker-end="url(#ao)"/>
+      <text x="202" y="181" text-anchor="middle" class="lbl">session</text>
+      <line x1="160" y1="312" x2="244" y2="300" class="ln hot" marker-end="url(#ah)"/>
+      <text x="200" y="296" text-anchor="middle" class="lbl">Bearer</text>
+      <path d="M160,330 C200,340 210,398 244,399" class="ln hot" marker-end="url(#ah)"/>
+      <text x="186" y="384" text-anchor="middle" class="lbl">authorize</text>
+
+      <!-- door -> services -->
+      <line x1="474" y1="79" x2="526" y2="79" class="ln old" marker-end="url(#ao)"/>
+      <line x1="474" y1="189" x2="526" y2="189" class="ln old" marker-end="url(#ao)"/>
+      <line x1="474" y1="299" x2="526" y2="299" class="ln hot" marker-end="url(#ah)"/>
+      <line x1="474" y1="399" x2="526" y2="399" class="ln hot" marker-end="url(#ah)"/>
+      <text x="500" y="392" text-anchor="middle" class="lbl">scopes</text>
+
+      <!-- stores -->
+      <rect class="box" x="782" y="54" width="188" height="60" rx="4"/>
+      <text x="796" y="78">MariaDB 11.8</text>
+      <text x="796" y="97" class="sm">281 tables · :3306</text>
+
+      <rect class="box" x="782" y="150" width="188" height="60" rx="4"/>
+      <text x="796" y="174">CouchDB 3.5</text>
+      <text x="796" y="193" class="sm">optional document store</text>
+
+      <rect class="box" x="782" y="246" width="188" height="60" rx="4"/>
+      <text x="796" y="270">ccdaservice (Node)</text>
+      <text x="796" y="289" class="sm">C-CDA · CQM · schematron</text>
+
+      <rect class="box" x="782" y="342" width="188" height="82" rx="4"/>
+      <text x="796" y="366">OpenLDAP · SMTP</text>
+      <text x="796" y="385" class="sm">login bind · reminders</text>
+      <text x="796" y="404" class="sm">(mailpit in dev)</text>
+
+      <line x1="700" y1="84" x2="778" y2="84" class="ln hot" marker-end="url(#ah)"/>
+      <text x="739" y="76" text-anchor="middle" class="lbl">SQL</text>
+      <line x1="700" y1="180" x2="778" y2="180" class="ln" marker-end="url(#a)"/>
+      <text x="739" y="172" text-anchor="middle" class="lbl">docs</text>
+      <line x1="700" y1="276" x2="778" y2="276" class="ln" marker-end="url(#a)"/>
+      <text x="739" y="268" text-anchor="middle" class="lbl">socket</text>
+      <line x1="700" y1="383" x2="778" y2="383" class="ln" marker-end="url(#a)"/>
+      <text x="739" y="375" text-anchor="middle" class="lbl">bind/mail</text>
+    </svg>
+    </div>
+    <figcaption>The path in teal is the typed, token-authenticated route through the system. The amber doors use cookie sessions, and each page includes <code>interface/globals.php</code>, which sets up the autoloader, <code>.env</code>, the error handler, the site's database connection and the module kernel.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>How an API request is handled</h2>
+    <p><code>apis/dispatch.php</code> wraps the request in <code>HttpRestRequest</code> and passes it to <code>ApiApplication</code>. That is a Symfony <code>HttpKernel</code> (<code>OEHttpKernel</code>) with these subscribers registered in this order. The order matters: the site and database have to exist before auth runs, and auth has to pass before a route is resolved.</p>
+  </div>
+  <figure>
+    <ol class="pipe">
+      <li><div><span class="nm">ExceptionHandlerListener</span><span class="ds">Turns any throwable into a JSON error response.</span></div><span class="ev">kernel.exception</span></li>
+      <li><div><span class="nm">TelemetryListener</span><span class="ds">Records usage data once the request finishes.</span></div><span class="ev">kernel.terminate</span></li>
+      <li><div><span class="nm">ApiResponseLoggerListener</span><span class="ds">Writes the API audit log (skipped for local API calls).</span></div><span class="ev">kernel.response</span></li>
+      <li><div><span class="nm">SessionCleanupListener</span><span class="ds">Destroys the temporary PHP session made for a stateless call.</span></div><span class="ev">kernel.finish_request</span></li>
+      <li><div><span class="nm">SiteSetupListener</span><span class="ds">Resolves the site ID, opens <span class="mono">sites/&lt;site&gt;/sqlconf.php</span>, loads globals.</span></div><span class="ev">kernel.request</span></li>
+      <li><div><span class="nm">CORSListener</span><span class="ds">Adds CORS headers and answers preflight requests.</span></div><span class="ev">kernel.request</span></li>
+      <li class="gate"><div><span class="nm">OAuth2AuthorizationListener</span><span class="ds">Validates the Bearer token (league/oauth2-server) and loads its scopes.</span></div><span class="ev">kernel.request</span></li>
+      <li class="gate"><div><span class="nm">AuthorizationListener</span><span class="ds">Checks scopes against the route and sets the user or patient context.</span></div><span class="ev">kernel.request</span></li>
+      <li><div><span class="nm">RoutesExtensionListener</span><span class="ds">Matches the request against the three route files and runs the closure.</span></div><span class="ev">kernel.controller</span></li>
+      <li><div><span class="nm">ViewRendererListener</span><span class="ds">Serializes the controller's result to JSON or FHIR JSON.</span></div><span class="ev">kernel.view</span></li>
+    </ol>
+  </figure>
+  <p>Each route is a closure that does an ACL check and then calls a controller, which calls a service. For example, <code>"GET /api/patient/:puuid"</code> calls <code>RestConfig::request_authorization_check($request, "patients", "demo")</code> and then <code>PatientRestController::getOne()</code>, which calls <code>PatientService::getOne()</code>. The <code>patients / demo</code> pair is a gacl section and value, so every API path is still checked against the same role-based ACL that the UI uses.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Where the code lives</h2>
+    <p>File counts per top-level directory, on one scale. New code is supposed to go in <code>src/</code>. The legacy trees are still large and still used on every page load.</p>
+  </div>
+  <figure>
+    <div class="bars" role="img" aria-label="File counts: src 2115, interface 1828, tests 750, library 617, portal 198, gacl 139, ccdaservice 97.">
+      <div class="bar"><span class="p">src/</span><span class="t"><span class="f" style="width:100%"></span></span><span class="n">2,115</span><small>Services, RestControllers, FHIR, Common (Acl, Auth, Database, Session, Crypto), Events, Validators</small></div>
+      <div class="bar"><span class="p">interface/</span><span class="t"><span class="f l" style="width:86.4%"></span></span><span class="n">1,828</span><small>Page controllers for patient_file, billing, forms, reports, main/calendar, and the Laminas and custom modules</small></div>
+      <div class="bar"><span class="p">tests/</span><span class="t"><span class="f x" style="width:35.5%"></span></span><span class="n">750</span><small>PHPUnit 11 (isolated, unit, api, services, e2e via Selenium), Jest, custom PHPStan rules</small></div>
+      <div class="bar"><span class="p">library/</span><span class="t"><span class="f l" style="width:29.2%"></span></span><span class="n">617</span><small>Procedural helpers: sql.inc, options.inc (layout field rendering), ESign, edihistory, js</small></div>
+      <div class="bar"><span class="p">portal/</span><span class="t"><span class="f l" style="width:9.4%"></span></span><span class="n">198</span><small>Patient portal: messaging, payments (Stripe, Authorize.net, Rainforest), signing, questionnaires</small></div>
+      <div class="bar"><span class="p">gacl/</span><span class="t"><span class="f l" style="width:6.6%"></span></span><span class="n">139</span><small>phpGACL access-control engine that the ACL checks run on</small></div>
+      <div class="bar"><span class="p">ccdaservice/</span><span class="t"><span class="f x" style="width:4.6%"></span></span><span class="n">97</span><small>Node workspace that generates C-CDA documents and runs CQM and schematron services</small></div>
+    </div>
+    <figcaption>Counts are tracked files (<code>git ls-files</code> equivalent) at <span class="mono">7b887fb</span>. Teal = modern, amber = legacy, grey = tooling or a separate runtime.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Data layer</h2>
+  </div>
+  <div class="cols">
+    <div>
+      <span class="tag l">Schema, as installed</span>
+      <p><code>sql/database.sql</code> creates 281 tables, and versioned <code>sql/*_upgrade.sql</code> files move old installs forward (starting at 2.6.0). The central tables are <code>patient_data</code>, <code>form_encounter</code>, <code>forms</code>, <code>lists</code> (problems, allergies, medications), <code>prescriptions</code>, <code>billing</code> and <code>openemr_postcalendar_events</code>.</p>
+    </div>
+    <div>
+      <span class="tag m">Access, going forward</span>
+      <p>Services go through <code>QueryUtils</code> (or legacy <code>sqlStatement()</code>) using bound parameters. Both sit on Doctrine DBAL 4, with an ADODB-compatible interface kept for old code. New schema changes use Doctrine Migrations in <code>db/Migrations/</code>. Connections come only from <code>DatabaseConnectionFactory</code>.</p>
+    </div>
+    <div>
+      <span class="tag m">Identity</span>
+      <p>Internal integer keys (<code>pid</code>, <code>encounter</code>) stay internal. APIs expose UUIDs from <code>UuidRegistry</code>, so most routes use <code>:puuid</code> and <code>:euuid</code>. A few older nested routes, like <code>…/encounter/:eid/vital</code>, still take integer IDs.</p>
+    </div>
+    <div>
+      <span class="tag m">Multi-site</span>
+      <p>Each directory under <code>sites/</code> is its own site: <code>sqlconf.php</code> for database credentials, <code>config.php</code>, <code>documents/</code> and LBF layouts. <code>SiteSetupListener</code> and <code>globals.php</code> pick one per request.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Extension points</h2>
+    <p>Three ways to add behavior without changing core files, from loosest to most tightly coupled.</p>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Mechanism</th><th>How it attaches</th><th>Examples in this repo</th></tr></thead>
+    <tbody>
+      <tr><td><b>Events</b></td><td>Symfony EventDispatcher from the kernel. Services fire <code>Before…</code> and <code>…Created/Updated</code> events around writes.</td><td><span class="mono">BeforePatientCreatedEvent</span>, <span class="mono">PatientUpdatedEvent</span>, <span class="mono">RestApiCreateEvent</span>, menu and page-render events (80 event classes)</td></tr>
+      <tr><td><b>Custom modules</b></td><td><code>interface/modules/custom_modules/&lt;name&gt;/openemr.bootstrap.php</code>, loaded by <code>ModulesApplication</code> with the dispatcher injected. Can add routes, menus, scopes and listeners.</td><td>comlink-telehealth, dashboard-context, dorn (labs), ehi-exporter, faxsms, prior-authorizations, weno (eRx)</td></tr>
+      <tr><td><b>Laminas modules</b></td><td>Older Zend/Laminas MVC apps under <code>zend_modules/module</code>, each with its own controllers and views.</td><td>Carecoordination, Ccr, Immunization, Syndromicsurveillance, PatientFlowBoard, Acl, Installer</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Local dev stack</h2>
+    <p><code>docker/development-easy</code> runs the app in the <code>openemr/openemr:flex</code> image, with the repo bind-mounted into it. Sign in as <code>admin</code> / <code>pass</code>. The dev stack turns on REST, FHIR, portal API and the OAuth password grant through <code>OPENEMR_SETTING_*</code> environment variables.</p>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Service</th><th>Image</th><th>Host port</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><b>openemr</b></td><td class="mono">openemr/openemr:flex</td><td class="num">8300 · 9300</td><td>App over HTTP / HTTPS, Xdebug on. <span class="mono">/meta/health/readyz</span> always returns 200, but it reports <span class="mono">setup_required</span> even on a working install, because <span class="mono">library/sql.inc.php</span> overwrites the global <span class="mono">$config</span>. Check by logging in instead.</td></tr>
+      <tr><td><b>mysql</b></td><td class="mono">mariadb:11.8.8</td><td class="num">8320</td><td>Main database, with TLS certificates mounted</td></tr>
+      <tr><td><b>phpmyadmin</b></td><td class="mono">phpmyadmin:5.2.3</td><td class="num">8310</td><td>Browse the database</td></tr>
+      <tr><td><b>couchdb</b></td><td class="mono">couchdb:3.5.2</td><td class="num">5984 · 6984</td><td>Optional document storage</td></tr>
+      <tr><td><b>selenium</b></td><td class="mono">standalone-chromium</td><td class="num">4444 · 7900</td><td>E2E tests and live browser debugging (VNC)</td></tr>
+      <tr><td><b>openldap</b></td><td class="mono">openemr/dev-ldap</td><td class="num">—</td><td>LDAP login testing</td></tr>
+      <tr><td><b>mailpit</b></td><td class="mono">axllent/mailpit</td><td class="num">8025 · 1025</td><td>Captures outgoing email</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="callout">
+    <h3>Where an agent plugs in</h3>
+    <p>This repo is named <span class="mono">openemragent</span>, so here are the integration options, from least to most invasive. This is a reading of the architecture, not something the repo already does.</p>
+    <ul class="plain">
+      <li><b>FHIR R4 over OAuth2 (preferred).</b> Register a client, request narrow SMART scopes (SMART v2 form, for example <span class="mono">user/Patient.rs</span>, <span class="mono">user/Observation.rs</span>), and call <span class="mono">/apis/default/fhir/*</span>. Tokens, scopes, ACLs and the API audit log all apply automatically.</li>
+      <li><b>Standard REST API.</b> <span class="mono">/apis/default/api/*</span> covers writes that FHIR here doesn't: appointments, encounters, SOAP notes and vitals. It is protected by the same pipeline.</li>
+      <li><b>Custom module.</b> Use this when the agent needs a panel inside the UI or needs to react to events, such as <span class="mono">PatientUpdatedEvent</span>. It runs in the same process with full access, so any guardrails have to be written by you.</li>
+      <li><b>Direct SQL (avoid).</b> It skips ACLs, UUIDs, events and audit logging. At most, use a read-only replica for analytics.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  Built from a scan of <span class="mono">openemr-base-clean</span> (commit 7b887fb): <span class="mono">apis/</span>, <span class="mono">src/RestControllers/ApiApplication.php</span>, <span class="mono">interface/globals.php</span>, <span class="mono">src/Services</span>, <span class="mono">src/Core/ModulesApplication.php</span>, <span class="mono">docker/development-easy</span>, and the repo's CLAUDE.md.
+</footer>
+</div>
