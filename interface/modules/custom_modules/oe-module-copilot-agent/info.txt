@@ -1,0 +1,2 @@
+Clinical Co-Pilot Agent
+Adds a CopilotAgent tab to the main menu for the hospitalist clinical co-pilot (see USERS.md).
