@@ -145,6 +145,30 @@ cd ..\..\usecases; .venv\Scripts\python -m pytest
 
 ---
 
+## Custom modules on Railway
+
+The service runs the stock image with no bind mount, so anything copied into the
+container is lost on redeploy. Custom modules therefore live on the persistent
+volume and are symlinked into the modules directory:
+
+```
+sites/default/copilot-module                                   <- real files (persistent)
+interface/modules/custom_modules/oe-module-copilot-agent       -> symlink
+```
+
+After a redeploy, recreate the symlink and re-register the module (see
+[scripts/README.md](../../scripts/README.md)). If the files are missing while the
+`modules` row is active, OpenEMR retries the bootstrap three times and then sets
+`mod_active = 0` itself.
+
+**A fatal in a module bootstrap breaks every page**, login included, because
+bootstraps load inside `globals.php`. If the site starts returning 500s after a
+module change, disable it first and diagnose afterwards:
+
+```powershell
+railway ssh --service openemr sh -c "mariadb -h mysql.railway.internal -uopenemr -p<pw> openemr -e \"UPDATE modules SET mod_active=0 WHERE mod_directory='oe-module-copilot-agent'\""
+```
+
 ## Cost control between demos
 
 - **Pause:** in the dashboard, remove the deployment or scale the service to zero replicas. Volumes keep their data and cost $0.15/GB/month.

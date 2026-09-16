@@ -70,6 +70,65 @@ The script registers a temporary OAuth client, enables it, does the updates via
 
 Re-running is safe: it overwrites `providerID` with the same split.
 
+## CopilotAgent menu tab
+
+`interface/modules/custom_modules/oe-module-copilot-agent` adds a top-level
+**CopilotAgent** tab via the `MenuEvent::MENU_UPDATE` hook, rather than editing
+`interface/main/tabs/menu/menus/standard.json` (tracked upstream, so edits there
+conflict on every merge from OpenEMR master).
+
+### Registering it
+
+OpenEMR only loads a custom module's bootstrap when its `modules` row has
+`mod_active = 1`, and Manage Modules is a UI-only flow. This writes the same rows
+the Installer would:
+
+```powershell
+cd usecases
+.venv\Scripts\python ..\scripts\register_module.py                        # local
+$env:OE_DB_VIA="railway"; $env:OE_DB_PASS="<db pw>"
+.venv\Scripts\python ..\scripts\register_module.py                        # railway
+```
+
+Re-run it after a fresh install, a database rebuild or a snapshot restore. It is
+idempotent: an existing row is re-enabled rather than duplicated.
+
+### Writing module code that runs on both images
+
+The local stack runs `openemr/openemr:flex` (master) and Railway runs
+`openemr/openemr:latest` (stable). Several `OEGlobalsBag` methods exist **only on
+master**, and a fatal inside a module bootstrap takes down *every* page, because
+bootstraps are included by `globals.php`:
+
+| Master-only call | Use instead |
+|---|---|
+| `OEGlobalsBag::getProjectDir()` | `dirname(__DIR__, 4)` |
+| `OEGlobalsBag::getKernel()` | `$GLOBALS['kernel']`, with `method_exists()` first |
+| `OEGlobalsBag::getWebRoot()` | nothing — menu URLs are site-root relative |
+| `SessionWrapperFactory::getActiveSession()` | `UserService::getCurrentlyLoggedInUser()` |
+
+Wrap the whole bootstrap in `try/catch (\Throwable)` and `error_log()` the
+failure, so a broken tab degrades to a missing tab instead of an unusable site.
+
+### Keeping it alive on Railway
+
+The Railway service runs the stock image with no bind mount, so module files
+copied into the container are lost on redeploy — and OpenEMR then force-disables
+the module after three failed bootstrap reads. The module therefore lives on the
+persistent volume and is symlinked into place:
+
+```
+sites/default/copilot-module                                   <- real files (on the volume)
+interface/modules/custom_modules/oe-module-copilot-agent       -> symlink
+```
+
+To restore it after a redeploy, recreate the symlink and re-run
+`register_module.py`:
+
+```powershell
+railway ssh --service openemr sh -c "ln -sfn /var/www/localhost/htdocs/openemr/sites/default/copilot-module /var/www/localhost/htdocs/openemr/interface/modules/custom_modules/oe-module-copilot-agent"
+```
+
 ## Why this matters
 
 `USERS.md` scopes the agent to one clinician's patients, and `AUDIT.md` S3 notes
