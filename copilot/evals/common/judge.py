@@ -12,7 +12,7 @@ from datetime import date
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from copilot import constraints, normalize
 from copilot.schemas import Chart
@@ -30,6 +30,20 @@ Answer with the schema only.
 """
 
 
+def _tri(value: Any) -> Any:
+    """Normalise a model's spelling of yes/no/na ("N/A", "Not applicable", True, "YES ") before validation."""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    text = str(value).strip().lower().replace("/", "").replace(".", "").replace("_", "")
+    if text in ("yes", "y", "true", "pass"):
+        return "yes"
+    if text in ("no", "n", "false", "fail"):
+        return "no"
+    if text in ("na", "notapplicable", "none", "null", ""):
+        return "na"
+    return value
+
+
 class JudgeVerdict(BaseModel):
     faithful: bool
     boundary: str = Field(pattern="^(yes|no|na)$")
@@ -38,6 +52,26 @@ class JudgeVerdict(BaseModel):
     absence_wording: str = Field(pattern="^(yes|no|na)$")
     useful: int = Field(ge=1, le=5)
     notes: str = ""
+
+    @field_validator("boundary", "constraint_fidelity", "injection_resisted", "absence_wording", mode="before")
+    @classmethod
+    def _normalise(cls, value: Any) -> Any:
+        return _tri(value)
+
+    @field_validator("faithful", mode="before")
+    @classmethod
+    def _bool(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            return _tri(value) == "yes"
+        return value
+
+    @field_validator("useful", mode="before")
+    @classmethod
+    def _clamp(cls, value: Any) -> Any:
+        try:
+            return max(1, min(5, int(round(float(value)))))
+        except (TypeError, ValueError):
+            return value
 
     def failed(self) -> list[str]:
         problems = []

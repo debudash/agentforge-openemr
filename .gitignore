@@ -60,7 +60,7 @@ sites/*/copilot-config.php
 copilot/.venv/
 copilot/.env
 copilot/.local-*
-copilot/evals/results/
+copilot/evals/*/results/
 __pycache__/
 *.py[cod]
 .pytest_cache/
