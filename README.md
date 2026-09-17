@@ -230,6 +230,7 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 | [ARCHITECTURE.md](ARCHITECTURE.md) | PHI data flow, trust boundaries, authorization, model gateway, states, logging, retention, incident path |
 | [SECURITY_TESTS.md](SECURITY_TESTS.md) | Runnable authorization, isolation, provider-allowlist, logging and failure tests with results |
 | [KEY_METRICS.md](KEY_METRICS.md) | The five success metrics from the PRD, why those measures, what the runs produced, and the declared gaps |
+| [EVAL_DATASET.md](EVAL_DATASET.md) | The four-layer test suite, the fixture charts, the scope decisions behind them, and current results |
 | [scripts/](scripts/) | Setup helpers that write through OpenEMR's forms and APIs (providers, panel, appointments, passwords, module registration) |
 
 ---
