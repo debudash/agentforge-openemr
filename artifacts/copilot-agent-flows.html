@@ -1,0 +1,987 @@
+<title>Co-Pilot Flow Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap">
+
+<style>
+  :root {
+    --ink:        #12201F;
+    --ink-soft:   #475853;
+    --ink-faint:  #6E7F79;
+    --paper:      #F7F8F6;
+    --surface:    #FFFFFF;
+    --rule:       #D5DCD8;
+    --rule-soft:  #E6EBE8;
+    --accent:     #0B5D57;
+    --accent-mid: #0E7E75;
+    --accent-wash:#E3EFEC;
+    --deny:       #A33A2E;
+    --warn:       #96691F;
+    --ok:         #2E6B4F;
+    --deny-wash:  #F7E8E5;
+    --warn-wash:  #F9F0DF;
+    --ok-wash:    #E4F0EA;
+
+    --measure: 66ch;
+    --gutter: clamp(1rem, 4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink:        #E4EBE7;
+      --ink-soft:   #A9B8B2;
+      --ink-faint:  #7E8F89;
+      --paper:      #0E1513;
+      --surface:    #16201E;
+      --rule:       #2A3734;
+      --rule-soft:  #202B29;
+      --accent:     #63BDB2;
+      --accent-mid: #7FCFC4;
+      --accent-wash:#16302C;
+      --deny:       #E08878;
+      --warn:       #D9AE63;
+      --ok:         #78C09B;
+      --deny-wash:  #2C1A17;
+      --warn-wash:  #2B2314;
+      --ok-wash:    #16281F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink:        #E4EBE7;
+    --ink-soft:   #A9B8B2;
+    --ink-faint:  #7E8F89;
+    --paper:      #0E1513;
+    --surface:    #16201E;
+    --rule:       #2A3734;
+    --rule-soft:  #202B29;
+    --accent:     #63BDB2;
+    --accent-mid: #7FCFC4;
+    --accent-wash:#16302C;
+    --deny:       #E08878;
+    --warn:       #D9AE63;
+    --ok:         #78C09B;
+    --deny-wash:  #2C1A17;
+    --warn-wash:  #2B2314;
+    --ok-wash:    #16281F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-size: 16.5px;
+    line-height: 1.62;
+    padding-inline: var(--gutter);
+    padding-block: clamp(2.5rem, 6vw, 4.5rem) 5rem;
+    margin: 0;
+  }
+
+  .wrap { max-width: 78rem; margin: 0 auto; display: flex; flex-direction: column; gap: 3.5rem; }
+
+  /* ---------- masthead ---------- */
+  .masthead { display: flex; flex-direction: column; gap: 1.1rem; max-width: var(--measure); }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); font-weight: 500;
+  }
+  h1 {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-size: clamp(2.1rem, 5.5vw, 3.1rem); line-height: 1.08; font-weight: 700;
+    letter-spacing: -0.022em; margin: 0; text-wrap: balance;
+  }
+  .standfirst { font-size: 1.08rem; color: var(--ink-soft); margin: 0; }
+  .meta {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.76rem; color: var(--ink-faint); line-height: 1.8;
+    border-top: 1px solid var(--rule); padding-top: 0.9rem;
+  }
+
+  /* ---------- tier legend ---------- */
+  .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px;
+           background: var(--rule); border: 1px solid var(--rule); }
+  .tier { background: var(--surface); padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .tier-name {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.78rem;
+    font-weight: 600; color: var(--accent); letter-spacing: 0.01em;
+  }
+  .tier-role { font-size: 0.88rem; color: var(--ink-soft); line-height: 1.45; }
+
+  /* ---------- nav ---------- */
+  nav { border-block: 1px solid var(--rule); padding-block: 1rem; }
+  nav ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem;
+           font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.79rem; counter-reset: navc; }
+  nav li { counter-increment: navc; }
+  nav li::before { content: counter(navc, decimal-leading-zero) "  "; color: var(--ink-faint); }
+  nav a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule); padding-bottom: 1px; }
+  nav a:hover, nav a:focus-visible { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ---------- flow sections ---------- */
+  .flows { display: flex; flex-direction: column; gap: 4.5rem; counter-reset: flowc; }
+  .flow { display: flex; flex-direction: column; gap: 1.4rem; scroll-margin-top: 1.5rem; counter-increment: flowc; }
+  .flow-head { display: flex; flex-direction: column; gap: 0.55rem; max-width: var(--measure); }
+  .flow-num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.72rem;
+    letter-spacing: 0.12em; color: var(--ink-faint);
+  }
+  .flow-num::before { content: "FLOW " counter(flowc, decimal-leading-zero); }
+  h2 {
+    font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600;
+    font-size: clamp(1.4rem, 3vw, 1.85rem); line-height: 1.2; letter-spacing: -0.015em;
+    margin: 0; text-wrap: balance;
+  }
+  .asks { margin: 0; color: var(--ink-soft); font-style: italic; }
+
+  /* ---------- figure plate ---------- */
+  figure { margin: 0; border: 1px solid var(--rule); background: var(--surface); }
+  .plate { overflow-x: auto; padding: 1.35rem 1.15rem; }
+  /* ---------- hand-drawn sequence diagrams ---------- */
+  svg.seq { display: block; max-width: 100%; height: auto; }
+  svg.seq text {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: -0.01em;
+  }
+  .sq-life   { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 3 5; }
+  .sq-actor  { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1; }
+  .sq-actor-text { fill: var(--ink); font-weight: 600; font-size: 11px; }
+  .sq-msg-text   { fill: var(--ink-soft); }
+  .sq-arrow  { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+  .sq-head   { fill: var(--ink-faint); }
+  .sq-note   { fill: var(--warn-wash); stroke: var(--warn); stroke-width: 1; }
+  .sq-note-text { fill: var(--ink); }
+  .sq-band   { fill: none; stroke: var(--rule); stroke-width: 1; }
+  .sq-band-tab  { fill: var(--accent-wash); }
+  .sq-band-text { fill: var(--accent); font-weight: 600; font-size: 9.5px;
+                  letter-spacing: 0.06em; text-transform: uppercase; }
+
+  /* ---------- state flowchart ---------- */
+  .fc-text  { fill: var(--ink); font-weight: 500; }
+  .fc-label { fill: var(--ink-faint); font-size: 9.5px; letter-spacing: 0.04em; }
+  .fc-arrow { stroke: var(--ink-faint); stroke-width: 1.2; }
+  .fc-head  { fill: var(--ink-faint); }
+  .fc-dec   { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.2; }
+  .fc-start { fill: var(--accent-wash); stroke: var(--accent); stroke-width: 1.2; }
+  .fc-un    { fill: var(--deny-wash);   stroke: var(--deny);   stroke-width: 1.4; }
+  .fc-part  { fill: var(--warn-wash);   stroke: var(--warn);   stroke-width: 1.4; }
+  .fc-ok    { fill: var(--ok-wash);     stroke: var(--ok);     stroke-width: 1.4; }
+
+  figcaption {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.73rem;
+    color: var(--ink-soft); background: var(--surface);
+    border-top: 1px solid var(--rule); padding: 0.6rem 1.25rem; line-height: 1.6;
+  }
+
+  /* ---------- readouts ---------- */
+  .readout { display: flex; flex-direction: column; gap: 0.9rem; max-width: var(--measure); }
+  .readout h3 {
+    font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-faint); margin: 0;
+  }
+  .readout ul { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .readout li::marker { color: var(--accent); }
+
+  code, .mono {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.86em; background: var(--accent-wash); color: var(--ink);
+    padding: 0.08em 0.34em; border-radius: 2px;
+  }
+
+  /* ---------- state chips ---------- */
+  .states { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px;
+            background: var(--rule); border: 1px solid var(--rule); }
+  .state { background: var(--surface); padding: 1rem 1.15rem; display: flex; flex-direction: column; gap: 0.35rem;
+           border-left: 3px solid var(--chip, var(--accent)); }
+  .state-name { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.8rem; font-weight: 600; color: var(--chip); }
+  .state-def { font-size: 0.88rem; color: var(--ink-soft); line-height: 1.5; }
+  .s-ok   { --chip: var(--ok); }
+  .s-part { --chip: var(--warn); }
+  .s-un   { --chip: var(--deny); }
+  .s-den  { --chip: var(--deny); }
+
+  /* ---------- closing idioms ---------- */
+  .idioms { display: flex; flex-direction: column; gap: 1.5rem; border-top: 2px solid var(--ink); padding-top: 2rem; }
+  .idioms-head {
+    font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-faint); margin: 0;
+  }
+  .idiom-list { display: flex; flex-direction: column; gap: 1.2rem; margin: 0; }
+  .idiom { display: grid; grid-template-columns: minmax(0, 13rem) minmax(0, 1fr); gap: 0.4rem 2rem; align-items: start; }
+  .idiom dt {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.82rem;
+    font-weight: 600; color: var(--accent);
+  }
+  .idiom dd { margin: 0; color: var(--ink-soft); font-size: 0.95rem; }
+
+  @media (max-width: 640px) {
+    .idiom { grid-template-columns: 1fr; gap: 0.25rem; }
+  }
+
+  a.src {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.74rem;
+    color: var(--ink-faint); text-decoration: none; border-bottom: 1px dotted var(--rule);
+  }
+  a.src:hover { color: var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="eyebrow">OpenEMR Clinical Co-Pilot</div>
+    <h1>Co-Pilot Flow Atlas</h1>
+    <p class="standfirst">Seven sequences tracing a clinician's question from the browser tab to a verified,
+      cited answer — and the places the system deliberately refuses to continue.</p>
+    <div class="meta">
+      Drawn from the implementation, 2026-09-18 · agent loop capped at 5 iterations ·
+      answer deadline 60&nbsp;s · prefetch budget 90&nbsp;s, concurrency 12 · request signature skew window 300&nbsp;s
+    </div>
+  </header>
+
+  <section class="tiers" aria-label="The three tiers">
+    <div class="tier">
+      <div class="tier-name">browser</div>
+      <div class="tier-role">Holds the OpenEMR session cookie and a derived CSRF token. Never holds the shared secret or the model key.</div>
+    </div>
+    <div class="tier">
+      <div class="tier-name">PHP module</div>
+      <div class="tier-role">Knows <em>who you are</em>. Resolves the panel, reads charts through OpenEMR's service layer, signs the hop outward.</div>
+    </div>
+    <div class="tier">
+      <div class="tier-name">Python agent</div>
+      <div class="tier-role">Knows <em>how to answer</em>. Holds session memory, runs the tool loop, verifies every claim. No public domain.</div>
+    </div>
+    <div class="tier">
+      <div class="tier-name">model provider</div>
+      <div class="tier-role">Proposes text and tool calls. Decides nothing: every clinical flag and every citation is checked in code.</div>
+    </div>
+  </section>
+
+  <nav aria-label="Flows">
+    <ol>
+      <li><a href="#f1">Opening the panel</a></li>
+      <li><a href="#f2">Reading one chart</a></li>
+      <li><a href="#f3">Topic check</a></li>
+      <li><a href="#f4">The tool loop</a></li>
+      <li><a href="#f5">Claim verification</a></li>
+      <li><a href="#f6">Choosing a state</a></li>
+      <li><a href="#f7">Switching patients</a></li>
+    </ol>
+  </nav>
+
+  <div class="flows">
+
+    <!-- ============ FLOW 1 ============ -->
+    <section class="flow" id="f1">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Opening the panel</h2>
+        <p class="asks">What happens between clicking the CopilotAgent tab and the rounding list being ready?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 1204 1108" width="1204" height="1108" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="1102"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="1102"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="1102"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="1102"/>
+<line class="sq-life" x1="770" y1="44" x2="770" y2="1102"/>
+<line class="sq-life" x1="938" y1="44" x2="938" y2="1102"/>
+<line class="sq-life" x1="1106" y1="44" x2="1106" y2="1102"/>
+<rect class="sq-actor" x="59" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">Browser</text>
+<rect class="sq-actor" x="227" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">api.php</text>
+<rect class="sq-actor" x="393" y="8" width="82" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">PanelScope</text>
+<rect class="sq-actor" x="558" y="8" width="88" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">ChartReader</text>
+<rect class="sq-actor" x="731" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="770" y="31" text-anchor="middle">agent svc</text>
+<rect class="sq-actor" x="891" y="8" width="94" height="36" rx="3"/>
+<text class="sq-actor-text" x="938" y="31" text-anchor="middle">SessionStore</text>
+<rect class="sq-actor" x="1067" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="1106" y="31" text-anchor="middle">model</text>
+<text class="sq-msg-text" x="182" y="68" text-anchor="middle">POST action=open, cookie + CSRF</text>
+<line class="sq-arrow" x1="98" y1="80" x2="259" y2="80"/>
+<path class="sq-head" d="M 266 80 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="114" text-anchor="middle">forCurrentUser, isHospitalist</text>
+<line class="sq-arrow" x1="266" y1="126" x2="427" y2="126"/>
+<path class="sq-head" d="M 434 126 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="156" width="1168" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 18 156 h 151 l -9 18 h -142 Z"/>
+<text class="sq-band-text" x="26" y="169">alt  not a hospitalist</text>
+<text class="sq-msg-text" x="182" y="184" text-anchor="middle">403 access_denied, audited</text>
+<line class="sq-arrow" x1="266" y1="196" x2="105" y2="196" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 196 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="240" text-anchor="middle">roundingList(today)</text>
+<line class="sq-arrow" x1="266" y1="252" x2="427" y2="252"/>
+<path class="sq-head" d="M 434 252 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="302" y="284" width="264" height="44" rx="3"/>
+<text class="sq-note-text" x="434" y="302" text-anchor="middle">today's appointments INTERSECT patients</text>
+<text class="sq-note-text" x="434" y="316" text-anchor="middle">assigned to me</text>
+<text class="sq-msg-text" x="350" y="346" text-anchor="middle">pid list</text>
+<line class="sq-arrow" x1="434" y1="358" x2="273" y2="358" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 358 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="388" width="1168" height="162" rx="3"/>
+<path class="sq-band-tab" d="M 18 388 h 127 l -9 18 h -118 Z"/>
+<text class="sq-band-text" x="26" y="401">loop  each patient</text>
+<text class="sq-msg-text" x="434" y="416" text-anchor="middle">read(pid)</text>
+<line class="sq-arrow" x1="266" y1="428" x2="595" y2="428"/>
+<path class="sq-head" d="M 602 428 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="518" y="462" text-anchor="middle">assertInScope(pid)</text>
+<line class="sq-arrow" x1="602" y1="474" x2="441" y2="474"/>
+<path class="sq-head" d="M 434 474 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="434" y="508" text-anchor="middle">chart + per-source status</text>
+<line class="sq-arrow" x1="602" y1="520" x2="273" y2="520" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 520 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="518" y="564" text-anchor="middle">POST /open, HMAC signed</text>
+<line class="sq-arrow" x1="266" y1="576" x2="763" y2="576"/>
+<path class="sq-head" d="M 770 576 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="792" y="610" text-anchor="start">verify signature, reject stale timestamp</text>
+<path class="sq-arrow" fill="none" d="M 770 620 h 16 v 14 h -9"/>
+<path class="sq-head" d="M 770 634 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="854" y="670" text-anchor="middle">open(sid, user, charts)</text>
+<line class="sq-arrow" x1="770" y1="682" x2="931" y2="682"/>
+<path class="sq-head" d="M 938 682 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="815" y="714" width="245" height="30" rx="3"/>
+<text class="sq-note-text" x="938" y="732" text-anchor="middle">re-checks provider_id on every chart</text>
+<text class="sq-msg-text" x="518" y="762" text-anchor="middle">200, all patients queued</text>
+<line class="sq-arrow" x1="770" y1="774" x2="273" y2="774" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 774 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="804" width="1168" height="162" rx="3"/>
+<path class="sq-band-tab" d="M 18 804 h 145 l -9 18 h -136 Z"/>
+<text class="sq-band-text" x="26" y="817">par  up to 12 at once</text>
+<text class="sq-msg-text" x="1022" y="832" text-anchor="middle">generate_brief(chart)</text>
+<line class="sq-arrow" x1="938" y1="844" x2="1099" y2="844"/>
+<path class="sq-head" d="M 1106 844 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="1022" y="878" text-anchor="middle">BriefDraft</text>
+<line class="sq-arrow" x1="1106" y1="890" x2="945" y2="890" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 938 890 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="912" y="922" width="221" height="30" rx="3"/>
+<text class="sq-note-text" x="1022" y="940" text-anchor="middle">verify, assign state, mark ready</text>
+<rect class="sq-band" x="18" y="976" width="1168" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 18 976 h 133 l -9 18 h -124 Z"/>
+<text class="sq-band-text" x="26" y="989">loop  browser polls</text>
+<text class="sq-msg-text" x="434" y="1004" text-anchor="middle">GET action=status</text>
+<line class="sq-arrow" x1="98" y1="1016" x2="763" y2="1016"/>
+<path class="sq-head" d="M 770 1016 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="434" y="1050" text-anchor="middle">per-patient status</text>
+<line class="sq-arrow" x1="770" y1="1062" x2="105" y2="1062" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 1062 l 7 -4.2 l 0 8.4 Z"/>
+</svg>
+        </div>
+        <figcaption>Gates run before data moves. The brief for every patient is generated before the clinician clicks any of them — the prefetch that buys the 90-second readiness budget.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>Scope is checked three times on this path alone</strong> — <code>roundingList</code> intersects appointments with the panel, <code>ChartReader</code> asserts again per patient, and <code>SessionStore.open</code> re-checks on the far side of the trust boundary.</li>
+          <li><strong>The rounding list is an intersection, not a lookup.</strong> An appointment booked with you is not enough; the patient must also be assigned to you. Otherwise scheduling staff could grant chart access by booking.</li>
+          <li><strong>Prefetch is fire-and-forget.</strong> The open response returns immediately with everything queued; the browser polls for readiness. Work the clinician may never use is paid for up front to make selection instant.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FLOW 2 ============ -->
+    <section class="flow" id="f2">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Reading one chart</h2>
+        <p class="asks">How does a broken data source become an honest answer instead of a silent omission?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 700 790" width="700" height="790" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="784"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="784"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="784"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="784"/>
+<rect class="sq-actor" x="54" y="8" width="88" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">ChartReader</text>
+<rect class="sq-actor" x="225" y="8" width="82" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">PanelScope</text>
+<rect class="sq-actor" x="390" y="8" width="88" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">OpenEMR svc</text>
+<rect class="sq-actor" x="561" y="8" width="82" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">chart JSON</text>
+<text class="sq-msg-text" x="182" y="68" text-anchor="middle">assertInScope(pid)</text>
+<line class="sq-arrow" x1="98" y1="80" x2="259" y2="80"/>
+<path class="sq-head" d="M 266 80 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="110" width="664" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 18 110 h 200 l -9 18 h -192 Z"/>
+<text class="sq-band-text" x="26" y="123">alt  not assigned to this user</text>
+<text class="sq-msg-text" x="182" y="138" text-anchor="middle">throw ScopeDeniedException</text>
+<line class="sq-arrow" x1="266" y1="150" x2="105" y2="150" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 150 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="84" y="182" width="196" height="30" rx="3"/>
+<text class="sq-note-text" x="182" y="200" text-anchor="middle">fail closed, nothing is read</text>
+<rect class="sq-band" x="18" y="236" width="664" height="488" rx="3"/>
+<path class="sq-band-tab" d="M 18 236 h 207 l -9 18 h -198 Z"/>
+<text class="sq-band-text" x="26" y="249">loop  each of the seven domains</text>
+<text class="sq-msg-text" x="266" y="264" text-anchor="middle">section(name, read)</text>
+<line class="sq-arrow" x1="98" y1="276" x2="427" y2="276"/>
+<path class="sq-head" d="M 434 276 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="306" width="644" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 28 306 h 127 l -9 18 h -118 Z"/>
+<text class="sq-band-text" x="36" y="319">alt  rows returned</text>
+<text class="sq-msg-text" x="266" y="334" text-anchor="middle">rows</text>
+<line class="sq-arrow" x1="434" y1="346" x2="105" y2="346" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 346 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="380" text-anchor="middle">status ok, count, ms</text>
+<line class="sq-arrow" x1="98" y1="392" x2="595" y2="392"/>
+<path class="sq-head" d="M 602 392 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="432" width="644" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 28 432 h 151 l -9 18 h -142 Z"/>
+<text class="sq-band-text" x="36" y="445">else  nothing returned</text>
+<text class="sq-msg-text" x="266" y="460" text-anchor="middle">empty list</text>
+<line class="sq-arrow" x1="434" y1="472" x2="105" y2="472" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 472 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="506" text-anchor="middle">status empty, count 0</text>
+<line class="sq-arrow" x1="98" y1="518" x2="595" y2="518"/>
+<path class="sq-head" d="M 602 518 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="558" width="644" height="162" rx="3"/>
+<path class="sq-band-tab" d="M 28 558 h 145 l -9 18 h -136 Z"/>
+<text class="sq-band-text" x="36" y="571">else  the read throws</text>
+<text class="sq-msg-text" x="266" y="586" text-anchor="middle">Throwable</text>
+<line class="sq-arrow" x1="434" y1="598" x2="105" y2="598" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 598 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="632" text-anchor="middle">status error, exception class only</text>
+<line class="sq-arrow" x1="98" y1="644" x2="595" y2="644"/>
+<path class="sq-head" d="M 602 644 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="191" y="676" width="317" height="30" rx="3"/>
+<text class="sq-note-text" x="350" y="694" text-anchor="middle">recorded, never re-thrown</text>
+<text class="sq-msg-text" x="350" y="744" text-anchor="middle">chart plus the sources map</text>
+<line class="sq-arrow" x1="98" y1="756" x2="595" y2="756" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 602 756 l -7 -4.2 l 0 8.4 Z"/>
+</svg>
+        </div>
+        <figcaption>Three statuses, not two. <span class="mono">empty</span> means the source answered and there is genuinely nothing; <span class="mono">error</span> means nobody knows.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>The <code>empty</code> / <code>error</code> split is the safety-critical part.</strong> Collapse them and a failed allergy read becomes an empty list, which the model renders as "no known allergies" — a negative clinical finding invented out of an exception. The doctor then prescribes penicillin.</li>
+          <li><strong>Failures are recorded, not raised.</strong> That is what makes the <code>partial</code> state possible downstream: the response can say which source failed instead of quietly leaving it out.</li>
+          <li><strong>Only the exception class is logged</strong>, never its message — messages carry SQL fragments, paths and sometimes patient data.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FLOW 3 ============ -->
+    <section class="flow" id="f3">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Topic check</h2>
+        <p class="asks">Why does asking about the weather no longer replay the previous answer?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 868 860" width="868" height="860" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="854"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="854"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="854"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="854"/>
+<line class="sq-life" x1="770" y1="44" x2="770" y2="854"/>
+<rect class="sq-actor" x="59" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">ask</text>
+<rect class="sq-actor" x="210" y="8" width="112" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">answer_followup</text>
+<rect class="sq-actor" x="390" y="8" width="88" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">topic check</text>
+<rect class="sq-actor" x="563" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">model</text>
+<rect class="sq-actor" x="731" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="770" y="31" text-anchor="middle">tool loop</text>
+<text class="sq-msg-text" x="182" y="68" text-anchor="middle">chart, question, history</text>
+<line class="sq-arrow" x1="98" y1="80" x2="259" y2="80"/>
+<path class="sq-head" d="M 266 80 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="114" text-anchor="middle">the question alone</text>
+<line class="sq-arrow" x1="266" y1="126" x2="427" y2="126"/>
+<path class="sq-head" d="M 434 126 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="215" y="158" width="270" height="44" rx="3"/>
+<text class="sq-note-text" x="350" y="176" text-anchor="middle">chart and history exist here but are NOT</text>
+<text class="sq-note-text" x="350" y="190" text-anchor="middle">passed down</text>
+<text class="sq-msg-text" x="518" y="220" text-anchor="middle">system prompt + question</text>
+<line class="sq-arrow" x1="434" y1="232" x2="595" y2="232"/>
+<path class="sq-head" d="M 602 232 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="408" y="264" width="221" height="30" rx="3"/>
+<text class="sq-note-text" x="518" y="282" text-anchor="middle">exactly two messages, 137 tokens</text>
+<rect class="sq-band" x="18" y="308" width="832" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 18 308 h 145 l -9 18 h -136 Z"/>
+<text class="sq-band-text" x="26" y="321">alt  the model errors</text>
+<text class="sq-msg-text" x="518" y="336" text-anchor="middle">rate limit or outage</text>
+<line class="sq-arrow" x1="602" y1="348" x2="441" y2="348" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 434 348 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="382" text-anchor="middle">True, fail open</text>
+<line class="sq-arrow" x1="434" y1="394" x2="273" y2="394" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 394 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="434" width="832" height="222" rx="3"/>
+<path class="sq-band-tab" d="M 18 434 h 176 l -9 18 h -167 Z"/>
+<text class="sq-band-text" x="26" y="447">else  not about the record</text>
+<text class="sq-msg-text" x="518" y="462" text-anchor="middle">TopicCheck false</text>
+<line class="sq-arrow" x1="602" y1="474" x2="441" y2="474" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 434 474 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="508" text-anchor="middle">False</text>
+<line class="sq-arrow" x1="434" y1="520" x2="273" y2="520" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 520 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="554" text-anchor="middle">COMPLETE, off_topic, scope statement</text>
+<line class="sq-arrow" x1="266" y1="566" x2="105" y2="566" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 566 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="218" y="598" width="264" height="44" rx="3"/>
+<text class="sq-note-text" x="350" y="616" text-anchor="middle">tools and index never constructed, zero</text>
+<text class="sq-note-text" x="350" y="630" text-anchor="middle">iterations</text>
+<rect class="sq-band" x="18" y="666" width="832" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 18 666 h 151 l -9 18 h -142 Z"/>
+<text class="sq-band-text" x="26" y="679">else  about the record</text>
+<text class="sq-msg-text" x="518" y="694" text-anchor="middle">TopicCheck true</text>
+<line class="sq-arrow" x1="602" y1="706" x2="441" y2="706" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 434 706 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="518" y="740" text-anchor="middle">build context, tools, verification index</text>
+<line class="sq-arrow" x1="266" y1="752" x2="763" y2="752"/>
+<path class="sq-head" d="M 770 752 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="41" y="794" width="282" height="44" rx="3"/>
+<text class="sq-note-text" x="182" y="812" text-anchor="middle">memory receives the question and the reply</text>
+<text class="sq-note-text" x="182" y="826" text-anchor="middle">either way</text>
+</svg>
+        </div>
+        <figcaption>The isolation is structural, not instructed. A stronger prompt failed twice; removing the context from the decision worked.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>Two earlier fixes failed.</strong> An <code>off_topic</code> flag plus a prompt rule lost against a conversation full of helpful clinical answers; turn-scoped citations stopped the leak but the re-lookup then re-fetched allergies. Only removing the context settled it.</li>
+          <li><strong>It fails open, and that is correct</strong> — this is a convenience filter with verification and scope standing behind it. Contrast <code>assertInScope</code>, which fails closed because nothing stands behind it.</li>
+          <li><strong>A question about a different patient passes this check</strong> on purpose. It has to reach the scope layer to produce <code>access_denied</code> and a <code>scope_denied</code> audit event — a probe must not dissolve into a polite brush-off.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FLOW 4 ============ -->
+    <section class="flow" id="f4">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>The tool loop</h2>
+        <p class="asks">What stops a confused model from looping forever, inventing tools, or widening its own scope?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="-22 0 722 1130" width="722" height="1130" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="1124"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="1124"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="1124"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="1124"/>
+<rect class="sq-actor" x="57" y="8" width="82" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">run_rounds</text>
+<rect class="sq-actor" x="227" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">model</text>
+<rect class="sq-actor" x="395" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">tool</text>
+<rect class="sq-actor" x="555" y="8" width="94" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">ChartContext</text>
+<rect class="sq-band" x="18" y="64" width="664" height="984" rx="3"/>
+<path class="sq-band-tab" d="M 18 64 h 151 l -9 18 h -142 Z"/>
+<text class="sq-band-text" x="26" y="77">loop  at most 5 rounds</text>
+<text class="sq-msg-text" x="182" y="92" text-anchor="middle">invoke_with_tools</text>
+<line class="sq-arrow" x1="98" y1="104" x2="259" y2="104"/>
+<path class="sq-head" d="M 266 104 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="134" width="644" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 28 134 h 133 l -9 18 h -124 Z"/>
+<text class="sq-band-text" x="36" y="147">alt  the call fails</text>
+<text class="sq-msg-text" x="182" y="162" text-anchor="middle">exception</text>
+<line class="sq-arrow" x1="266" y1="174" x2="105" y2="174" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 174 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="208" text-anchor="middle">one bounded retry, then give up</text>
+<line class="sq-arrow" x1="98" y1="220" x2="259" y2="220"/>
+<path class="sq-head" d="M 266 220 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="264" text-anchor="middle">AIMessage</text>
+<line class="sq-arrow" x1="266" y1="276" x2="105" y2="276" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 276 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="306" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 306 h 127 l -9 18 h -118 Z"/>
+<text class="sq-band-text" x="36" y="319">alt  no tool calls</text>
+<rect class="sq-note" x="-15" y="332" width="227" height="30" rx="3"/>
+<text class="sq-note-text" x="98" y="350" text-anchor="middle">the model is done, leave the loop</text>
+<rect class="sq-band" x="28" y="386" width="644" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 28 386 h 164 l -9 18 h -155 Z"/>
+<text class="sq-band-text" x="36" y="399">else  invented tool name</text>
+<text class="sq-msg-text" x="350" y="414" text-anchor="middle">record unknown:NAME</text>
+<line class="sq-arrow" x1="98" y1="426" x2="595" y2="426"/>
+<path class="sq-head" d="M 602 426 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="460" text-anchor="middle">error result listing the real tools</text>
+<line class="sq-arrow" x1="98" y1="472" x2="259" y2="472" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 472 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="512" width="644" height="162" rx="3"/>
+<path class="sq-band-tab" d="M 28 512 h 170 l -9 18 h -161 Z"/>
+<text class="sq-band-text" x="36" y="525">else  malformed arguments</text>
+<text class="sq-msg-text" x="266" y="540" text-anchor="middle">raises</text>
+<line class="sq-arrow" x1="434" y1="552" x2="105" y2="552" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 552 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="586" text-anchor="middle">record invalid-args:NAME</text>
+<line class="sq-arrow" x1="98" y1="598" x2="595" y2="598"/>
+<path class="sq-head" d="M 602 598 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="632" text-anchor="middle">error result explaining what to send</text>
+<line class="sq-arrow" x1="98" y1="644" x2="259" y2="644" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 644 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="684" width="644" height="364" rx="3"/>
+<path class="sq-band-tab" d="M 28 684 h 114 l -9 18 h -105 Z"/>
+<text class="sq-band-text" x="36" y="697">else  valid call</text>
+<text class="sq-msg-text" x="266" y="712" text-anchor="middle">invoke(args)</text>
+<line class="sq-arrow" x1="98" y1="724" x2="427" y2="724"/>
+<path class="sq-head" d="M 434 724 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="518" y="758" text-anchor="middle">check(tool, pid)</text>
+<line class="sq-arrow" x1="434" y1="770" x2="595" y2="770"/>
+<path class="sq-head" d="M 602 770 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="38" y="800" width="624" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 38 800 h 225 l -9 18 h -216 Z"/>
+<text class="sq-band-text" x="46" y="813">alt  pid is not the active patient</text>
+<text class="sq-msg-text" x="518" y="828" text-anchor="middle">denied, no existence hint</text>
+<line class="sq-arrow" x1="602" y1="840" x2="441" y2="840" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 434 840 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="38" y="880" width="624" height="162" rx="3"/>
+<path class="sq-band-tab" d="M 38 880 h 121 l -9 18 h -112 Z"/>
+<text class="sq-band-text" x="46" y="893">else  pid matches</text>
+<text class="sq-msg-text" x="518" y="908" text-anchor="middle">rows</text>
+<line class="sq-arrow" x1="602" y1="920" x2="441" y2="920" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 434 920 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="518" y="954" text-anchor="middle">record every source_id in returned_ids</text>
+<line class="sq-arrow" x1="434" y1="966" x2="595" y2="966"/>
+<path class="sq-head" d="M 602 966 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="266" y="1000" text-anchor="middle">ok, each record carries its source id</text>
+<line class="sq-arrow" x1="434" y1="1012" x2="105" y2="1012" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 1012 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="29" y="1074" width="307" height="44" rx="3"/>
+<text class="sq-note-text" x="182" y="1092" text-anchor="middle">budget spent sets loop_exhausted, which forces</text>
+<text class="sq-note-text" x="182" y="1106" text-anchor="middle">PARTIAL</text>
+</svg>
+        </div>
+        <figcaption>Every failure returns a structured result the model can act on. Nothing in this loop raises to the caller, and nothing widens the patient scope.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>A tool never throws at the model.</strong> Invented names, corrupted arguments and scope denials all come back as JSON results, so a weak model can correct itself on the next round instead of ending the turn.</li>
+          <li><strong><code>returned_ids</code> is filled here and spent in flow 5.</strong> Every record a tool hands over is recorded, and only those ids can support a claim this turn.</li>
+          <li><strong>The cap is a cost control as well as a safety one</strong> — five rounds bounds the worst-case spend of a single question to roughly 1.7× the measured mean.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FLOW 5 ============ -->
+    <section class="flow" id="f5">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Claim verification</h2>
+        <p class="asks">What does the system do when the model writes something true-sounding that no record supports?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 700 1098" width="700" height="1098" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="1092"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="1092"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="1092"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="1092"/>
+<rect class="sq-actor" x="59" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">finalise</text>
+<rect class="sq-actor" x="227" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">model</text>
+<rect class="sq-actor" x="384" y="8" width="100" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">verify_claims</text>
+<rect class="sq-actor" x="543" y="8" width="118" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">index + turn ids</text>
+<text class="sq-msg-text" x="182" y="68" text-anchor="middle">structured call, FINALIZE_INSTRUCTION</text>
+<line class="sq-arrow" x1="98" y1="80" x2="259" y2="80"/>
+<path class="sq-head" d="M 266 80 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="114" text-anchor="middle">claims with text and source ids</text>
+<line class="sq-arrow" x1="266" y1="126" x2="105" y2="126" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 126 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="156" width="664" height="644" rx="3"/>
+<path class="sq-band-tab" d="M 18 156 h 114 l -9 18 h -105 Z"/>
+<text class="sq-band-text" x="26" y="169">loop  each claim</text>
+<text class="sq-msg-text" x="266" y="184" text-anchor="middle">check_claim</text>
+<line class="sq-arrow" x1="98" y1="196" x2="427" y2="196"/>
+<path class="sq-head" d="M 434 196 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="518" y="230" text-anchor="middle">resolve every cited source id</text>
+<line class="sq-arrow" x1="434" y1="242" x2="595" y2="242"/>
+<path class="sq-head" d="M 602 242 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="272" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 272 h 139 l -9 18 h -130 Z"/>
+<text class="sq-band-text" x="36" y="285">alt  no source cited</text>
+<text class="sq-msg-text" x="266" y="300" text-anchor="middle">REMOVE</text>
+<line class="sq-arrow" x1="434" y1="312" x2="105" y2="312" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 312 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="352" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 352 h 176 l -9 18 h -167 Z"/>
+<text class="sq-band-text" x="36" y="365">else  id not in this chart</text>
+<text class="sq-msg-text" x="266" y="380" text-anchor="middle">REMOVE, another patient</text>
+<line class="sq-arrow" x1="434" y1="392" x2="105" y2="392" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 392 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="432" width="644" height="130" rx="3"/>
+<path class="sq-band-tab" d="M 28 432 h 207 l -9 18 h -198 Z"/>
+<text class="sq-band-text" x="36" y="445">else  id not returned this turn</text>
+<text class="sq-msg-text" x="266" y="460" text-anchor="middle">REMOVE, restated without a lookup</text>
+<line class="sq-arrow" x1="434" y1="472" x2="105" y2="472" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 472 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="383" y="504" width="270" height="44" rx="3"/>
+<text class="sq-note-text" x="518" y="522" text-anchor="middle">this is what blocks replaying an earlier</text>
+<text class="sq-note-text" x="518" y="536" text-anchor="middle">answer</text>
+<rect class="sq-band" x="28" y="572" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 572 h 200 l -9 18 h -192 Z"/>
+<text class="sq-band-text" x="36" y="585">else  phrases a recommendation</text>
+<text class="sq-msg-text" x="266" y="600" text-anchor="middle">REMOVE, product boundary</text>
+<line class="sq-arrow" x1="434" y1="612" x2="105" y2="612" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 612 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="652" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 652 h 244 l -9 18 h -235 Z"/>
+<text class="sq-band-text" x="36" y="665">else  number absent from cited record</text>
+<text class="sq-msg-text" x="266" y="680" text-anchor="middle">REMOVE, value not found</text>
+<line class="sq-arrow" x1="434" y1="692" x2="105" y2="692" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 692 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="28" y="732" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 732 h 108 l -9 18 h -99 Z"/>
+<text class="sq-band-text" x="36" y="745">else  supported</text>
+<text class="sq-msg-text" x="266" y="760" text-anchor="middle">KEEP</text>
+<line class="sq-arrow" x1="434" y1="772" x2="105" y2="772" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 772 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="822" width="664" height="208" rx="3"/>
+<path class="sq-band-tab" d="M 18 822 h 305 l -9 18 h -296 Z"/>
+<text class="sq-band-text" x="26" y="835">alt  all removed, no tool called, not off topic</text>
+<rect class="sq-note" x="78" y="848" width="208" height="30" rx="3"/>
+<text class="sq-note-text" x="182" y="866" text-anchor="middle">the model answered from memory</text>
+<text class="sq-msg-text" x="182" y="896" text-anchor="middle">look the facts up and answer again</text>
+<line class="sq-arrow" x1="98" y1="908" x2="259" y2="908"/>
+<path class="sq-head" d="M 266 908 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="32" y="940" width="301" height="30" rx="3"/>
+<text class="sq-note-text" x="182" y="958" text-anchor="middle">second pass: the first round MUST call a tool</text>
+<text class="sq-msg-text" x="266" y="988" text-anchor="middle">verify again within the remaining budget</text>
+<line class="sq-arrow" x1="98" y1="1000" x2="427" y2="1000"/>
+<path class="sq-head" d="M 434 1000 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="266" y="1044" text-anchor="middle">kept and removed hand off to</text>
+<text class="sq-msg-text" x="266" y="1058" text-anchor="middle">decide_state</text>
+<line class="sq-arrow" x1="98" y1="1070" x2="427" y2="1070" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 434 1070 l -7 -4.2 l 0 8.4 Z"/>
+</svg>
+        </div>
+        <figcaption>Five independent reasons to delete a sentence. The model's intent is never consulted — only whether a record backs the words.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>Turn-scoped citation is the anti-regurgitation rule.</strong> Memory carries the answer <em>text</em> but never the citation ids, so a restated answer has nothing valid to cite and every claim in it dies.</li>
+          <li><strong>Numbers are checked against the cited record</strong>, not merely against the chart. A plausible-looking potassium value that appears nowhere in the record it cites is removed.</li>
+          <li><strong>The re-lookup forces a tool call</strong> on its first round. A model that answered from memory once is not trusted to choose to look things up when merely asked.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FLOW 6 ============ -->
+    <section class="flow" id="f6">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Choosing a state</h2>
+        <p class="asks">How does everything that happened collapse into one honest label?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq flow" viewBox="0 0 700 430" width="700" height="430" role="img" xmlns="http://www.w3.org/2000/svg">
+<rect class="fc-start" x="250" y="10" width="200" height="32" rx="16"/>
+<text class="fc-text" x="350" y="30" text-anchor="middle">what happened this turn</text>
+<line class="fc-arrow" x1="350" y1="42" x2="350" y2="62"/>
+<path class="fc-head" d="M 350 62 L 346.0 54.0 L 354.0 54.0 Z"/>
+<path class="fc-dec" d="M 350 64.0 L 440.0 92 L 350 120.0 L 260.0 92 Z"/>
+<text class="fc-text" x="350" y="96" text-anchor="middle">model failed?</text>
+<line class="fc-arrow" x1="440" y1="92" x2="545" y2="92"/>
+<path class="fc-head" d="M 545 92 L 537.0 96.0 L 537.0 88.0 Z"/>
+<text class="fc-label" x="492" y="84" text-anchor="middle">yes</text>
+<rect class="fc-un" x="545" y="72" width="145" height="40" rx="4"/>
+<text class="fc-text" x="618" y="89" text-anchor="middle">UNABLE</text>
+<text class="fc-text" x="618" y="103" text-anchor="middle">provider failure</text>
+<line class="fc-arrow" x1="350" y1="120" x2="350" y2="146"/>
+<path class="fc-head" d="M 350 146 L 346.0 138.0 L 354.0 138.0 Z"/>
+<text class="fc-label" x="364" y="136" text-anchor="middle">no</text>
+<path class="fc-dec" d="M 350 150.0 L 465.0 182 L 350 214.0 L 235.0 182 Z"/>
+<text class="fc-text" x="350" y="179" text-anchor="middle">claims removed,</text>
+<text class="fc-text" x="350" y="193" text-anchor="middle">none kept?</text>
+<line class="fc-arrow" x1="465" y1="182" x2="545" y2="182"/>
+<path class="fc-head" d="M 545 182 L 537.0 186.0 L 537.0 178.0 Z"/>
+<text class="fc-label" x="505" y="174" text-anchor="middle">yes</text>
+<rect class="fc-un" x="545" y="158" width="145" height="46" rx="4"/>
+<text class="fc-text" x="618" y="178" text-anchor="middle">UNABLE</text>
+<text class="fc-text" x="618" y="192" text-anchor="middle">nothing verified</text>
+<line class="fc-arrow" x1="350" y1="214" x2="350" y2="244"/>
+<path class="fc-head" d="M 350 244 L 346.0 236.0 L 354.0 236.0 Z"/>
+<text class="fc-label" x="364" y="232" text-anchor="middle">no</text>
+<path class="fc-dec" d="M 350 250.0 L 470.0 282 L 350 314.0 L 230.0 282 Z"/>
+<text class="fc-text" x="350" y="279" text-anchor="middle">any reason</text>
+<text class="fc-text" x="350" y="293" text-anchor="middle">to qualify?</text>
+<line class="fc-arrow" x1="230" y1="282" x2="150" y2="282"/>
+<path class="fc-head" d="M 150 282 L 158.0 278.0 L 158.0 286.0 Z"/>
+<text class="fc-label" x="190" y="274" text-anchor="middle">yes</text>
+<rect class="fc-part" x="10" y="250" width="140" height="66" rx="4"/>
+<text class="fc-text" x="80" y="259" text-anchor="middle">PARTIAL</text>
+<text class="fc-text" x="80" y="273" text-anchor="middle">source failed,</text>
+<text class="fc-text" x="80" y="287" text-anchor="middle">limit hit, rule</text>
+<text class="fc-text" x="80" y="301" text-anchor="middle">unevaluated,</text>
+<text class="fc-text" x="80" y="315" text-anchor="middle">claims removed</text>
+<line class="fc-arrow" x1="350" y1="314" x2="350" y2="352"/>
+<path class="fc-head" d="M 350 352 L 346.0 344.0 L 354.0 344.0 Z"/>
+<text class="fc-label" x="364" y="338" text-anchor="middle">no</text>
+<rect class="fc-ok" x="240" y="352" width="220" height="46" rx="4"/>
+<text class="fc-text" x="350" y="372" text-anchor="middle">COMPLETE</text>
+<text class="fc-text" x="350" y="386" text-anchor="middle">all retrieved, all verified</text>
+</svg>
+        </div>
+        <figcaption>Scope denial never reaches this function — it is decided earlier, in the session and the tools, and returns <span class="mono">access_denied</span> with no content at all.</figcaption>
+      </figure>
+      <div class="states">
+        <div class="state s-ok">
+          <div class="state-name">complete</div>
+          <div class="state-def">Everything in scope was retrieved and every claim verified. A correct refusal of an off-topic question lands here too — declining properly is a success.</div>
+        </div>
+        <div class="state s-part">
+          <div class="state-name">partial</div>
+          <div class="state-def">Something is qualified: a source failed, the loop ran out, a rule could not be evaluated, or claims were removed. The reasons are shown, not hidden.</div>
+        </div>
+        <div class="state s-un">
+          <div class="state-name">unable_to_answer</div>
+          <div class="state-def">The machinery failed, or nothing survived verification. This is the state that should make somebody investigate.</div>
+        </div>
+        <div class="state s-den">
+          <div class="state-name">access_denied</div>
+          <div class="state-def">Not permitted. Carries no patient content and no hint whether the patient exists, so it cannot be used to enumerate ids.</div>
+        </div>
+      </div>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>"Complete" is a statement about evidence, not satisfaction.</strong> It means nothing was silently dropped — which is why an off-topic refusal qualifies and a rate-limited answer does not.</li>
+          <li><strong>Every qualifying reason is accumulated, then reported together</strong> rather than the first one winning, so a clinician sees all of what was wrong.</li>
+          <li><strong>Removing claims but keeping none is treated as failure</strong>, not as a thin answer. An answer whose every sentence was deleted is not a partial answer.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ FLOW 7 ============ -->
+    <section class="flow" id="f7">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Switching patients</h2>
+        <p class="asks">What guarantees one patient's conversation can never colour another's answer?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 700 740" width="700" height="740" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="734"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="734"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="734"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="734"/>
+<rect class="sq-actor" x="59" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">Browser</text>
+<rect class="sq-actor" x="219" y="8" width="94" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">SessionStore</text>
+<rect class="sq-actor" x="395" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">state A</text>
+<rect class="sq-actor" x="563" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">state B</text>
+<rect class="sq-note" x="293" y="66" width="282" height="30" rx="3"/>
+<text class="sq-note-text" x="434" y="84" text-anchor="middle">history holds six messages about patient A</text>
+<text class="sq-msg-text" x="182" y="114" text-anchor="middle">select patient B</text>
+<line class="sq-arrow" x1="98" y1="126" x2="259" y2="126"/>
+<path class="sq-head" d="M 266 126 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="156" width="664" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 18 156 h 219 l -9 18 h -210 Z"/>
+<text class="sq-band-text" x="26" y="169">alt  B is not on this user's list</text>
+<text class="sq-msg-text" x="182" y="184" text-anchor="middle">access_denied + scope_denied audit event</text>
+<line class="sq-arrow" x1="266" y1="196" x2="105" y2="196" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 196 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="236" width="664" height="208" rx="3"/>
+<path class="sq-band-tab" d="M 18 236 h 151 l -9 18 h -142 Z"/>
+<text class="sq-band-text" x="26" y="249">else  B is on the list</text>
+<rect class="sq-band" x="28" y="260" width="644" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 28 260 h 188 l -9 18 h -179 Z"/>
+<text class="sq-band-text" x="36" y="273">loop  every patient except B</text>
+<text class="sq-msg-text" x="350" y="288" text-anchor="middle">history.clear()</text>
+<line class="sq-arrow" x1="266" y1="300" x2="427" y2="300"/>
+<path class="sq-head" d="M 434 300 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="288" y="344" text-anchor="start">active_pid becomes B</text>
+<path class="sq-arrow" fill="none" d="M 266 354 h 16 v 14 h -9"/>
+<path class="sq-head" d="M 266 368 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="404" text-anchor="middle">status, brief, error for B</text>
+<line class="sq-arrow" x1="266" y1="416" x2="105" y2="416" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 416 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="460" text-anchor="middle">ask about patient A</text>
+<line class="sq-arrow" x1="98" y1="472" x2="259" y2="472"/>
+<path class="sq-head" d="M 266 472 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="113" y="504" width="307" height="30" rx="3"/>
+<text class="sq-note-text" x="266" y="522" text-anchor="middle">A is still on the list but is no longer active</text>
+<text class="sq-msg-text" x="182" y="552" text-anchor="middle">access_denied, not the active patient</text>
+<line class="sq-arrow" x1="266" y1="564" x2="105" y2="564" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 564 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="598" text-anchor="middle">ask about patient B</text>
+<line class="sq-arrow" x1="98" y1="610" x2="259" y2="610"/>
+<path class="sq-head" d="M 266 610 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="434" y="644" text-anchor="middle">history is empty, a fresh thread</text>
+<line class="sq-arrow" x1="266" y1="656" x2="595" y2="656"/>
+<path class="sq-head" d="M 602 656 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="314" y="688" width="239" height="30" rx="3"/>
+<text class="sq-note-text" x="434" y="706" text-anchor="middle">nothing from A can enter B's prompt</text>
+</svg>
+        </div>
+        <figcaption>History is model input, not inert storage. Clearing it is about what can reach the next prompt, not about where bytes are kept.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>Two mechanisms, same failure.</strong> Clearing history removes A's text from memory; turn-scoped citations mean that even if remembered text resurfaced it could not cite anything and would be deleted.</li>
+          <li><strong>Asking about a panel patient who is not active is refused</strong>, which collapses the reachable surface to one chart at a time.</li>
+          <li><strong>The cost is real:</strong> a clinician cannot keep two threads alive and flip between them. The demo chose the obviously-correct version over the more useful one.</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="idioms">
+    <h3 class="idioms-head">Recurring idioms</h3>
+    <dl class="idiom-list">
+      <div class="idiom">
+        <dt>fail closed</dt>
+        <dd>Authorization checks deny when they cannot run. <code>assertInScope</code> throws rather than returning false, so a caller who forgets to test the result still reads nothing.</dd>
+      </div>
+      <div class="idiom">
+        <dt>fail open</dt>
+        <dd>Convenience checks allow when they cannot run. The topic check earns this only because verification and scope stand behind it. A control with no backstop never fails open.</dd>
+      </div>
+      <div class="idiom">
+        <dt>correlation id</dt>
+        <dd>One id minted per request in <code>api.php</code>, threaded through OpenEMR's audit log, the agent's event stream and the LangSmith trace, so one question can be reconstructed across three systems.</dd>
+      </div>
+      <div class="idiom">
+        <dt>structured error</dt>
+        <dd>Tools answer with <code>{"result": "error", ...}</code> rather than raising, so the model gets something it can act on and the attempt stays visible in the trace.</dd>
+      </div>
+      <div class="idiom">
+        <dt>the model proposes</dt>
+        <dd>Every clinical flag comes from a versioned rule engine the model cannot invoke, suppress or soften, and every sentence it writes must cite a record fetched in the same turn.</dd>
+      </div>
+    </dl>
+  </section>
+
+  <p class="meta" style="max-width:var(--measure);">
+    Sources:
+    <a class="src" href="#f1">api.php</a> ·
+    <a class="src" href="#f1">PanelScope.php</a> ·
+    <a class="src" href="#f2">ChartReader.php</a> ·
+    <a class="src" href="#f1">session.py</a> ·
+    <a class="src" href="#f4">agent.py</a> ·
+    <a class="src" href="#f5">verify.py</a> ·
+    <a class="src" href="#f4">tools.py</a>
+    <br>Companion documents: ARCHITECTURE.md · EVAL_DATASET.md · KEY_METRICS.md · COST_ANALYSIS.md
+  </p>
+
+</div>
