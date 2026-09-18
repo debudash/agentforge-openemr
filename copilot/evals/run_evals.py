@@ -3,7 +3,8 @@
     python -m evals.run_evals --stage stage1                         # golden + behavioural, live model
     python -m evals.run_evals --stage stage1 --suite golden          # the every-run regression gate
     python -m evals.run_evals --stage stage1 --suite golden --freeze # record golden snapshots (do this on the reference model)
-    python -m evals.run_evals --stage stage1 --judge --langsmith --pace 12
+    python -m evals.run_evals --stage stage1 --judge --pace 12         # results upload by default
+    python -m evals.run_evals --stage stage1 --no-langsmith            # local only, no upload
     python -m evals.run_evals --stage stage1 --only G1-latest-lab,B3-scope-probe-mid-conversation
 
 Layout: evals/<stage>/{golden/cases.json, golden/expected/, behavioral/scenarios.json, fixtures/charts/,
@@ -41,7 +42,8 @@ def main() -> int:
     parser.add_argument("--suite", choices=["golden", "behavioral", "all"], default="all")
     parser.add_argument("--judge", action="store_true", help="add the LLM judge (rules 5, 6, 7, 9)")
     parser.add_argument("--freeze", action="store_true", help="record golden snapshots from this run")
-    parser.add_argument("--langsmith", action="store_true", help="upload results to LangSmith (dataset per stage and suite)")
+    parser.add_argument("--langsmith", action=argparse.BooleanOptionalAction, default=None,
+                        help="upload results to LangSmith (dataset per stage and suite). Defaults to on when LangSmith tracing is configured; --no-langsmith opts out.")
     parser.add_argument("--only", default="", help="comma-separated case or scenario ids")
     parser.add_argument("--pace", type=float, default=float(os.environ.get("EVAL_PACE_S", "0")),
                         help="seconds between cases (free-tier endpoints allow ~20 requests/min)")
@@ -54,7 +56,11 @@ def main() -> int:
 
     settings = get_settings()
     from copilot.telemetry import configure_tracing
-    configure_tracing(settings)
+    tracing = configure_tracing(settings)
+    # Uploads follow tracing unless the operator says otherwise, so a run's results and the
+    # model calls behind them land in the same workspace by default.
+    if args.langsmith is None:
+        args.langsmith = bool(tracing.get("tracing"))
     llm = build_llm(settings)      # raises ProviderNotApproved: evals never run on an unapproved model
     judge_llm = build_llm(settings, settings.judge_model or None) if args.judge else None
     print(f"stage={args.stage} suite={args.suite} agent={settings.model} judge={(settings.judge_model or settings.model) if args.judge else '-'}")
@@ -95,7 +101,10 @@ def main() -> int:
     print(f"\n{summary['pass']} pass, {summary['fail']} fail, {summary['na']} not applicable "
           f"(pass rate over applicable: {summary['pass_rate']}); judge n/a on {summary['judge_na']} -> {out}")
     if args.langsmith:
-        _upload(rows, summary, args, settings)
+        try:
+            _upload(rows, summary, args, settings)
+        except Exception as exc:  # noqa: BLE001 - the results file is already written
+            print(f"LangSmith upload failed ({type(exc).__name__}: {exc}); results remain at {out}")
     return 0 if summary["fail"] == 0 else 1
 
 

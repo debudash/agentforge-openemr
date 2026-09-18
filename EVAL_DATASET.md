@@ -140,6 +140,7 @@ cd copilot
 .venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden   # layer 2, the gate
 .venv\Scripts\python -m evals.run_evals --stage stage1                  # layers 2 and 3
 .venv\Scripts\python -m evals.run_evals --stage stage1 --judge --pace 8 # + judge, paced for free tier
+.venv\Scripts\python -m evals.run_evals --stage stage1 --no-langsmith  # skip the LangSmith upload
 .venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden --freeze   # record snapshots
 
 cd ..\usecases
@@ -149,3 +150,5 @@ cd ..\usecases
 `copilot\check_local.ps1` runs layers 1 and 2 together and is what gates a Railway publish.
 
 **Staging.** Evals live under `copilot/evals/<stage>/`, with the runner, checks and judge shared in `copilot/evals/common/`. Stage 2 and 3 get their own directories and their own LangSmith datasets, so later work never mixes with this one.
+
+**Uploads.** Results go to LangSmith by default whenever tracing is configured: one dataset per stage and suite, one run per case carrying the pass/fail/na verdict as feedback. No chart content is uploaded -- the run inputs are the case id and suite only.

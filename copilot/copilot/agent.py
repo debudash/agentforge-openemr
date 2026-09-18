@@ -207,7 +207,8 @@ def generate_brief(chart: Chart, llm, settings: Settings, correlation_id: str, t
 def question_is_about_the_record(question: str, llm, correlation_id: str) -> bool:
     """Classify the question alone, without history. Errors fail open (treated as on-topic)."""
     try:
-        verdict = llm.structured([SystemMessage(content=TOPIC_CHECK_SYSTEM), HumanMessage(content=question)], TopicCheck)
+        with traced("topic_check", correlation_id, kind="topic_check"):
+            verdict = llm.structured([SystemMessage(content=TOPIC_CHECK_SYSTEM), HumanMessage(content=question)], TopicCheck)
     except Exception as exc:  # noqa: BLE001 - the check is an aid, never a blocker
         emit("topic_check_failed", correlation_id, failure_category=classify_model_error(exc), error_type=type(exc).__name__)
         return True
@@ -221,92 +222,92 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
     today = today or date.today()
     started = time.perf_counter()
 
-    # Decide off-topic before the history and the tools are in play (see Settings.topic_check).
-    if settings.topic_check and not question_is_about_the_record(question, llm, correlation_id):
-        response = AgentResponse(
-            correlation_id=correlation_id, state=ResponseState.COMPLETE, state_reason="not a question about this patient's record",
-            pid=chart.patient.pid, kind="answer", comparison_window=comparison_window(today, settings.comparison_hours),
-            generated_at=chart.generated_at, missing=SCOPE_STATEMENT, off_topic=True, sources=chart.sources,
-            duration_ms=int((time.perf_counter() - started) * 1000))
-        emit("followup_answered", correlation_id, pid=chart.patient.pid, state="complete", iterations=0, off_topic=True,
-             tool_calls=[], scope_denials=0, claims_kept=0, claims_removed=0, duration_ms=response.duration_ms)
-        return response, [HumanMessage(content=question), AIMessage(content=SCOPE_STATEMENT)]
-
-    ctx = ChartContext(chart, today, settings.recent_lab_days)
-    tools = make_tools(ctx)
-    tool_by_name = {t.name: t for t in tools}
-    index = verification_index(chart, ctx)
-
-    system = FOLLOWUP_SYSTEM.format(max_iterations=settings.max_iterations, pid=chart.patient.pid,
-                                    name=normalize.display_name(chart.patient.name), today=today.isoformat())
-    messages: list[BaseMessage] = [SystemMessage(content=system), *history, HumanMessage(content=question)]
-
-    def run_rounds(budget: int, force_first: bool = False) -> tuple[int, bool, str | None]:
-        """Tool-calling rounds until the model stops calling tools or the budget is spent.
-        `force_first` requires a tool call on the first round. Returns (iterations used,
-        loop exhausted, model failure)."""
-        used = 0
-        for _ in range(budget):                            # the loop cap the brief asks for
-            used += 1
-            ai = None
-            # FR12: one bounded retry of a tool round on malformed model output (for example
-            # unparsable tool-call arguments); rate limits are already retried inside the wrapper.
-            for attempt in (1, 2):
-                try:
-                    ai = llm.invoke_with_tools(messages, tools, require_tool=(force_first and used == 1))
-                    break
-                except Exception as exc:  # noqa: BLE001
-                    emit("model_tool_round_failed", correlation_id, iteration=used, attempt=attempt,
-                         failure_category=classify_model_error(exc), error_type=type(exc).__name__,
-                         debug_excerpt=error_excerpt(exc))
-                    if attempt == 2:
-                        return used, False, f"{_describe(exc)} during tool use"
-            if ai is None:  # pragma: no cover - the retry loop returns or sets ai
-                return used, False, "the model did not return a tool round"
-            messages.append(ai)
-            if not ai.tool_calls:
-                return used, False, None
-            for call in ai.tool_calls:
-                tool = tool_by_name.get(call["name"])
-                if tool is None:
-                    # An invented tool name. Say which tools exist so the next round can recover,
-                    # and keep the attempt visible in the trace.
-                    ctx.calls.append(f"unknown:{call['name']}")
-                    output = json.dumps({"result": "error", "reason": f"no tool named '{call['name']}'",
-                                         "available_tools": sorted(tool_by_name)})
-                else:
-                    try:
-                        output = tool.invoke(call["args"])
-                    except Exception as exc:  # noqa: BLE001 - FR6: a tool answers with a structured error, never an exception
-                        # Malformed arguments from the model (for example a corrupted pid). Tell it what
-                        # was wrong so the next round can correct the call; the trace keeps the attempt.
-                        ctx.calls.append(f"invalid-args:{call['name']}")
-                        emit("tool_invalid_arguments", correlation_id, tool=call["name"], error_type=type(exc).__name__)
-                        output = json.dumps({"result": "error", "reason": f"invalid arguments for {call['name']} ({type(exc).__name__}); "
-                                                                        f"pass the active patient's integer pid and valid option values"})
-                messages.append(ToolMessage(content=str(output), tool_call_id=call["id"]))
-        return used, True, None
-
-    def finalise_and_verify(loop_exhausted: bool, model_failure: str | None):
-        draft: AnswerDraft | None = None
-        failure = model_failure
-        if failure is None:
-            draft, failure = _draft_with_one_retry(
-                lambda: llm.structured([*messages, HumanMessage(content=FINALIZE_INSTRUCTION)], AnswerDraft), correlation_id, "answer")
-        # A follow-up claim may cite only what a tool returned in this turn (plus the derived ids
-        # those tools carry). Facts restated from memory without a fresh lookup are removed: the
-        # model cannot re-emit an earlier answer to an unrelated question and have it verify.
-        off_topic = bool(draft is not None and draft.off_topic)
-        if off_topic and draft is not None and draft.claims:
-            # The flag wins: an off-topic question carries no chart facts, whatever else the model wrote.
-            removed = [RemovedClaim(text=c.text, reason="off-topic question: chart facts discarded") for c in draft.claims]
-            kept: list = []
-        else:
-            kept, removed = ([], []) if draft is None else verify_claims(
-                draft.claims, index, allowed_numbers(chart, today, settings, question), turn_ids=ctx.returned_ids)
-        return draft, failure, off_topic, kept, removed
-
     with traced("followup_answer", correlation_id, pid=chart.patient.pid, kind="answer") as run:
+        # Decide off-topic before the history and the tools are in play (see Settings.topic_check).
+        if settings.topic_check and not question_is_about_the_record(question, llm, correlation_id):
+            response = AgentResponse(
+                correlation_id=correlation_id, state=ResponseState.COMPLETE, state_reason="not a question about this patient's record",
+                pid=chart.patient.pid, kind="answer", comparison_window=comparison_window(today, settings.comparison_hours),
+                generated_at=chart.generated_at, missing=SCOPE_STATEMENT, off_topic=True, sources=chart.sources,
+                duration_ms=int((time.perf_counter() - started) * 1000), langsmith_run_id=run["run_id"])
+            emit("followup_answered", correlation_id, pid=chart.patient.pid, state="complete", iterations=0, off_topic=True,
+                 tool_calls=[], scope_denials=0, claims_kept=0, claims_removed=0, duration_ms=response.duration_ms)
+            return response, [HumanMessage(content=question), AIMessage(content=SCOPE_STATEMENT)]
+
+        ctx = ChartContext(chart, today, settings.recent_lab_days)
+        tools = make_tools(ctx)
+        tool_by_name = {t.name: t for t in tools}
+        index = verification_index(chart, ctx)
+
+        system = FOLLOWUP_SYSTEM.format(max_iterations=settings.max_iterations, pid=chart.patient.pid,
+                                        name=normalize.display_name(chart.patient.name), today=today.isoformat())
+        messages: list[BaseMessage] = [SystemMessage(content=system), *history, HumanMessage(content=question)]
+
+        def run_rounds(budget: int, force_first: bool = False) -> tuple[int, bool, str | None]:
+            """Tool-calling rounds until the model stops calling tools or the budget is spent.
+            `force_first` requires a tool call on the first round. Returns (iterations used,
+            loop exhausted, model failure)."""
+            used = 0
+            for _ in range(budget):                            # the loop cap the brief asks for
+                used += 1
+                ai = None
+                # FR12: one bounded retry of a tool round on malformed model output (for example
+                # unparsable tool-call arguments); rate limits are already retried inside the wrapper.
+                for attempt in (1, 2):
+                    try:
+                        ai = llm.invoke_with_tools(messages, tools, require_tool=(force_first and used == 1))
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        emit("model_tool_round_failed", correlation_id, iteration=used, attempt=attempt,
+                             failure_category=classify_model_error(exc), error_type=type(exc).__name__,
+                             debug_excerpt=error_excerpt(exc))
+                        if attempt == 2:
+                            return used, False, f"{_describe(exc)} during tool use"
+                if ai is None:  # pragma: no cover - the retry loop returns or sets ai
+                    return used, False, "the model did not return a tool round"
+                messages.append(ai)
+                if not ai.tool_calls:
+                    return used, False, None
+                for call in ai.tool_calls:
+                    tool = tool_by_name.get(call["name"])
+                    if tool is None:
+                        # An invented tool name. Say which tools exist so the next round can recover,
+                        # and keep the attempt visible in the trace.
+                        ctx.calls.append(f"unknown:{call['name']}")
+                        output = json.dumps({"result": "error", "reason": f"no tool named '{call['name']}'",
+                                             "available_tools": sorted(tool_by_name)})
+                    else:
+                        try:
+                            output = tool.invoke(call["args"])
+                        except Exception as exc:  # noqa: BLE001 - FR6: a tool answers with a structured error, never an exception
+                            # Malformed arguments from the model (for example a corrupted pid). Tell it what
+                            # was wrong so the next round can correct the call; the trace keeps the attempt.
+                            ctx.calls.append(f"invalid-args:{call['name']}")
+                            emit("tool_invalid_arguments", correlation_id, tool=call["name"], error_type=type(exc).__name__)
+                            output = json.dumps({"result": "error", "reason": f"invalid arguments for {call['name']} ({type(exc).__name__}); "
+                                                                            f"pass the active patient's integer pid and valid option values"})
+                    messages.append(ToolMessage(content=str(output), tool_call_id=call["id"]))
+            return used, True, None
+
+        def finalise_and_verify(loop_exhausted: bool, model_failure: str | None):
+            draft: AnswerDraft | None = None
+            failure = model_failure
+            if failure is None:
+                draft, failure = _draft_with_one_retry(
+                    lambda: llm.structured([*messages, HumanMessage(content=FINALIZE_INSTRUCTION)], AnswerDraft), correlation_id, "answer")
+            # A follow-up claim may cite only what a tool returned in this turn (plus the derived ids
+            # those tools carry). Facts restated from memory without a fresh lookup are removed: the
+            # model cannot re-emit an earlier answer to an unrelated question and have it verify.
+            off_topic = bool(draft is not None and draft.off_topic)
+            if off_topic and draft is not None and draft.claims:
+                # The flag wins: an off-topic question carries no chart facts, whatever else the model wrote.
+                removed = [RemovedClaim(text=c.text, reason="off-topic question: chart facts discarded") for c in draft.claims]
+                kept: list = []
+            else:
+                kept, removed = ([], []) if draft is None else verify_claims(
+                    draft.claims, index, allowed_numbers(chart, today, settings, question), turn_ids=ctx.returned_ids)
+            return draft, failure, off_topic, kept, removed
+
         iterations, loop_exhausted, model_failure = run_rounds(settings.max_iterations)
         draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
 
@@ -361,12 +362,12 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             langsmith_run_id=run["run_id"],
         )
 
-    emit("followup_answered", correlation_id, pid=chart.patient.pid, state=state.value, iterations=iterations,
-         loop_exhausted=loop_exhausted, off_topic=off_topic, tool_calls=ctx.calls, scope_denials=len(ctx.denials),
-         claims_kept=len(kept), claims_removed=len(removed), duration_ms=response.duration_ms)
+        emit("followup_answered", correlation_id, pid=chart.patient.pid, state=state.value, iterations=iterations,
+             loop_exhausted=loop_exhausted, off_topic=off_topic, tool_calls=ctx.calls, scope_denials=len(ctx.denials),
+             claims_kept=len(kept), claims_removed=len(removed), duration_ms=response.duration_ms)
 
-    # Memory holds only the question and the verified answer text: no tool payloads, no drafts and
-    # no citation ids. A later turn that needs one of these facts has to look it up again, which
-    # is what keeps "every claim traces to a tool result in this turn" true.
-    summary = " ".join(c.text for c in kept) or (response.boundary or response.missing or "No verified answer.")
-    return response, [HumanMessage(content=question), AIMessage(content=summary)]
+        # Memory holds only the question and the verified answer text: no tool payloads, no drafts and
+        # no citation ids. A later turn that needs one of these facts has to look it up again, which
+        # is what keeps "every claim traces to a tool result in this turn" true.
+        summary = " ".join(c.text for c in kept) or (response.boundary or response.missing or "No verified answer.")
+        return response, [HumanMessage(content=question), AIMessage(content=summary)]

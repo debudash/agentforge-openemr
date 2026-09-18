@@ -126,4 +126,7 @@ A note on how failures are counted, because it changes the honesty of every rate
 | Chart read cost | `chart_read_ms` in the module's open response | open the tab as `doctor1` |
 | Per-control security evidence | [SECURITY_TESTS.md](SECURITY_TESTS.md) | listed per row |
 
-Every run also uploads to LangSmith under a per-stage dataset, so a figure in this document can be traced to the individual model calls behind it.
+Every run also uploads to LangSmith under a per-stage, per-suite dataset, so a figure in this document
+can be traced to the individual model calls behind it. Uploading is the default whenever LangSmith
+tracing is configured; `--no-langsmith` runs locally without it, and an upload failure warns rather
+than failing the suite, since the results file is already on disk by then.
