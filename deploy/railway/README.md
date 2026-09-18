@@ -255,7 +255,7 @@ The co-pilot's list is *today's* appointments, so it empties at midnight. A thir
 `copilot-seeder`, rebooks it every night. It is a one-shot container: it seeds, prints a
 verification table and exits, which is what Railway's cron scheduler expects.
 
-Set up 2026-09-16. It runs at **01:00 UTC**, shortly after the server's date rolls over, and
+Set up 2026-09-16. It runs at **01:05 UTC**, shortly after the server's date rolls over, and
 each run books `SEED_DAYS` days starting from that new date, so a missed night self-heals.
 
 ```powershell
@@ -281,8 +281,18 @@ service's own id (`railway variable list --service copilot-seeder --json` shows
 `RAILWAY_SERVICE_ID` and `RAILWAY_ENVIRONMENT_ID`):
 
 ```powershell
-railway api 'mutation SetCron($serviceId: String!, $environmentId: String, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }' --variables '{\"serviceId\":\"<service id>\",\"environmentId\":\"<environment id>\",\"input\":{\"cronSchedule\":\"0 1 * * *\"}}'
+railway api 'mutation SetCron($serviceId: String!, $environmentId: String, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }' --variables '{\"serviceId\":\"<service id>\",\"environmentId\":\"<environment id>\",\"input\":{\"cronSchedule\":\"5 1 * * *\"}}'
 ```
+
+**Redeploy after setting the schedule.** The mutation changes the service setting but does
+not create a deployment, so the deployment `railway up` already made keeps
+`cronSchedule: null` in its manifest. The dashboard then renders the service as always-on,
+a green `Running` with a climbing uptime timer, even though every run exits in about eight
+seconds. The CLI is unaffected: `railway status` reads the instance state and correctly says
+`Completed`, so the two disagree and the card looks like a hung job. Redeploy, or set the
+schedule to a *different* value, so a fresh manifest captures it. Re-applying an identical
+value deploys nothing, because Railway needs a real diff. A correctly registered cron
+service reads `Online - 0/1 running`.
 
 Read it back, including when it next fires:
 
@@ -297,7 +307,13 @@ Notes:
   private network is IPv6 and takes a moment to come up, so the connection retries briefly.
 - Appointments are still written through the REST API, so validation and audit logging run
   (AUDIT.md C1b). Only the reads and the cleanup of its own previous bookings use SQL.
-- `railway logs --service copilot-seeder` shows the last run's verification table.
+- `railway logs --service copilot-seeder` shows the last run's verification table. Logs are
+  scoped to the *current* deployment, so after a redeploy they stay empty until the next
+  scheduled run fires.
+- To tell a stalled run from a mislabelled card, read the meter rather than the dashboard:
+  `railway metrics --service copilot-seeder` (0 vCPU means nothing is running) or
+  `railway ssh --service copilot-seeder ps` (`status: exited`). The script has no overall
+  wall-clock timeout, so a genuine stall is possible and looks identical on the card.
 - To seed a different window, change `SEED_DAYS`; to pause it, set `cronSchedule` to `null`.
 
 ## Cost control between demos
