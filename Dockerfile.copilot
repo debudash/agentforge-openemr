@@ -1,6 +1,6 @@
-# Clinical Co-Pilot agent service, built from the repository root (Railway uploads the
-# whole repo with `railway up`, so the build context is the root and this file lives here;
-# copilot/Dockerfile is the same image for a `copilot/`-rooted build).
+# Clinical Co-Pilot agent service, built from the repository root: Railway uploads the
+# whole repo with `railway up`, so the build context is the root and this file lives
+# here, with root-relative COPY paths. It is the only Dockerfile for this service.
 # The service is private-network only; the OpenEMR module is its client.
 FROM python:3.13-slim
 

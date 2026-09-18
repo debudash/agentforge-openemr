@@ -171,9 +171,10 @@ railway ssh --service openemr sh -c "mariadb -h mysql.railway.internal -uopenemr
 
 ## Agent service (Clinical Co-Pilot)
 
-The co-pilot's agent runs as a third service built from `copilot/Dockerfile`. It has
-**no public domain**: OpenEMR reaches it over the private network and the browser only
-ever talks to OpenEMR (PRD PHI4). See `ARCHITECTURE.md` and `copilot/README.md`.
+The co-pilot's agent runs as a third service built from `Dockerfile.copilot` at the
+repository root. It has **no public domain**: OpenEMR reaches it over the private
+network and the browser only ever talks to OpenEMR (PRD PHI4). See `ARCHITECTURE.md`
+and `copilot/README.md`.
 
 Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
 
@@ -200,8 +201,8 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
    allowlists to match, and `ANTHROPIC_API_KEY`.)
 2. Deploy **from the repository root**. `railway up` uploads the linked directory (the repo),
    so the build context is the root; without `RAILWAY_DOCKERFILE_PATH` Railway's builder finds
-   `composer.json` and tries to build OpenEMR instead. `Dockerfile.copilot` at the root is the
-   same image as `copilot/Dockerfile` with root-relative COPY paths.
+   `composer.json` and tries to build OpenEMR instead. `Dockerfile.copilot` lives at the
+   root for that reason, with root-relative COPY paths.
    ```powershell
    railway up --service copilot-agent -c       # streams the build; ends with "Deploy complete"
    ```

@@ -162,4 +162,4 @@ Current configuration: agent `nvidia/nemotron-3-super-120b-a12b:free`, judge `go
 
 ## Deploying on Railway
 
-See `deploy/railway/README.md`, "Agent service": the service runs from `copilot/Dockerfile` with no public domain, and the OpenEMR service gets `COPILOT_AGENT_URL=http://copilot-agent.railway.internal:8600` plus the shared secret.
+See `deploy/railway/README.md`, "Agent service": the service is built from `Dockerfile.copilot` at the repository root and has no public domain, and the OpenEMR service gets `COPILOT_AGENT_URL=http://copilot-agent.railway.internal:8600` plus the shared secret.
