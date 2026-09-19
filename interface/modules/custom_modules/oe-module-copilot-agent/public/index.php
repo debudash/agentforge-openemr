@@ -71,6 +71,20 @@ $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
         .cpa-turn-a { background: #f3fff3; }
         .cpa-turn { padding: .5rem .75rem; border-radius: .4rem; margin-bottom: .5rem; }
         .cpa-meta { font-size: .78rem; color: #555; }
+        .cpa-trace { display: inline-flex; align-items: center; gap: .3rem; font-size: .75rem; }
+        .cpa-trace-label { color: #666; text-transform: uppercase; letter-spacing: .05em; }
+        .cpa-trace-id { background: #eef1f4; border: 1px solid #d5dbe0; border-radius: .2rem;
+                        padding: .05rem .3rem; user-select: all; font-size: .75rem; color: #222;
+                        white-space: nowrap; }
+        .cpa-trace-copy { border: 1px solid #d5dbe0; background: #fff; border-radius: .2rem;
+                          font-size: .7rem; padding: 0 .3rem; cursor: pointer; color: #333; }
+        .cpa-trace-copy:hover { background: #eef1f4; }
+        .cpa-runinfo { font-size: .78rem; color: #555; margin-bottom: .4rem; }
+        .cpa-fb { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem;
+                  font-size: .75rem; color: #555; }
+        .cpa-fb-btn { border: 1px solid #d5dbe0; background: #fff; border-radius: .2rem;
+                      font-size: .72rem; padding: .05rem .4rem; cursor: pointer; color: #333; }
+        .cpa-fb-btn:hover { background: #eef1f4; }
         .cpa-rule-flag { color: #8a6d00; font-weight: 600; }
         .cpa-rule-engine_failure, .cpa-rule-unable_to_evaluate { color: #b71c1c; }
         .cpa-disclaimer { font-size: .85rem; }
@@ -124,17 +138,18 @@ $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
                             <strong id="cpa-patient-name"></strong>
                             <span class="cpa-meta" id="cpa-patient-ids"></span>
                         </div>
-                        <div>
+                        <div class="d-flex align-items-center" style="gap:.6rem">
                             <span class="cpa-state" id="cpa-brief-state" data-state=""></span>
+                            <span id="cpa-brief-trace"></span>
                         </div>
                     </div>
-                    <div class="cpa-meta" id="cpa-brief-window"></div>
                     <div class="cpa-meta" id="cpa-brief-reason"></div>
                 </div>
                 <div class="card-body" id="cpa-brief"></div>
                 <div class="card-body border-top">
                     <details>
-                        <summary><?php echo xlt("Constraint checks and data sources"); ?></summary>
+                        <summary><?php echo xlt("Run details, constraint checks and data sources"); ?></summary>
+                        <div class="cpa-runinfo mt-2" id="cpa-brief-window"></div>
                         <table class="table table-sm mt-2" id="cpa-rules"><caption class="sr-only"><?php echo xlt("Rule engine outcomes"); ?></caption>
                             <thead><tr><th><?php echo xlt("Rule"); ?></th><th><?php echo xlt("Outcome"); ?></th><th><?php echo xlt("Detail"); ?></th></tr></thead><tbody></tbody></table>
                         <div class="cpa-meta" id="cpa-sources"></div>
@@ -175,6 +190,34 @@ $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
         return fetch(API + "?action=" + encodeURIComponent(action), options).then(function (r) {
             return r.json().then(function (j) { j.http_status = r.status; return j; });
         });
+    }
+    function selectText(node) {
+        var range = document.createRange(); range.selectNodeContents(node);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+    }
+    // The correlation id joins the OpenEMR audit log, the agent event stream and the LangSmith
+    // trace, so it is on screen and copyable rather than buried in a metadata sentence.
+    function traceChip(res) {
+        var wrap = el("span", "cpa-trace");
+        wrap.appendChild(el("span", "cpa-trace-label", "trace"));
+        // Short form like a commit sha: enough to eyeball against a log line, and it keeps a
+        // 36-character uuid from wrapping across the header. The copy button gives the full id.
+        var full = res.correlation_id || "-";
+        var id = el("code", "cpa-trace-id", full.length > 10 ? full.slice(0, 8) + "…" : full);
+        id.title = full + (res.langsmith_run_id ? " — LangSmith run " + res.langsmith_run_id : "");
+        wrap.appendChild(id);
+        var btn = el("button", "cpa-trace-copy", "copy"); btn.type = "button";
+        btn.setAttribute("aria-label", "Copy the correlation id for this response");
+        btn.addEventListener("click", function () {
+            var text = res.correlation_id || "";
+            if (res.langsmith_run_id) { text += " langsmith:" + res.langsmith_run_id; }
+            var done = function () { btn.textContent = "copied"; setTimeout(function () { btn.textContent = "copy"; }, 1500); };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done, function () { selectText(id); });
+            } else { selectText(id); }
+        });
+        wrap.appendChild(btn);
+        return wrap;
     }
     function stateLabel(s) {
         return { complete: "Complete for requested scope", partial: "Partial", unable_to_answer: "Unable to answer", access_denied: "Access denied" }[s] || s;
@@ -263,8 +306,16 @@ $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
     function renderBrief(brief) {
         var box = document.getElementById("cpa-brief"); box.innerHTML = "";
         var st = document.getElementById("cpa-brief-state"); st.textContent = stateLabel(brief.state); st.setAttribute("data-state", brief.state);
-        document.getElementById("cpa-brief-window").textContent = "Comparison window: " + brief.comparison_window + " · chart read " + brief.generated_at + " · brief " + brief.duration_ms + " ms · correlation " + brief.correlation_id;
+        document.getElementById("cpa-brief-window").textContent = "Comparison window: " + brief.comparison_window
+            + " · chart read " + brief.generated_at + " · brief " + brief.duration_ms + " ms"
+            + " · correlation " + brief.correlation_id
+            + (brief.langsmith_run_id ? " · langsmith run " + brief.langsmith_run_id : "");
+        var traceBox = document.getElementById("cpa-brief-trace");
+        traceBox.textContent = ""; traceBox.appendChild(traceChip(brief));
         document.getElementById("cpa-brief-reason").textContent = brief.state_reason || "";
+        var reason = document.getElementById("cpa-brief-reason");
+        // A "complete" reason restates the happy path; it belongs in the dropdown, not the header.
+        reason.textContent = brief.state === "complete" ? "" : (brief.state_reason || "");
         var cites = citationMap(brief.citations);
         (brief.sections || []).forEach(function (section) {
             box.appendChild(el("h5", "mt-2", section.title));
@@ -309,6 +360,36 @@ $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
         });
     }
 
+    // Feedback covers only what the deterministic layer cannot see. The verifier proves a
+    // citation is present, resolves to this patient and was fetched this turn, so a missing
+    // or dangling citation never reaches the screen and is not worth asking about. What it
+    // cannot prove is that the sentence reads the cited record faithfully -- a claim with no
+    // numbers in it is checked for provenance and nothing else. That is the gap these three
+    // categories cover, and why the specific ones only appear once something is reported wrong.
+    function feedbackControls(res) {
+        var box = el("div", "cpa-fb mt-1");
+        function send(score, category, label) {
+            api("feedback", { run_id: res.langsmith_run_id || "", score: score, category: category })
+                .then(function () { box.textContent = "Thanks — recorded (" + label + ")."; });
+        }
+        var up = el("button", "cpa-fb-btn", "Helpful"); up.type = "button";
+        up.addEventListener("click", function () { send(1, "good", "helpful"); });
+        var down = el("button", "cpa-fb-btn", "Not right"); down.type = "button";
+        down.addEventListener("click", function () {
+            box.textContent = "";
+            box.appendChild(el("span", "", "What was wrong?"));
+            [["mismatch", "Doesn't match the record"],
+             ["relevance", "Not what I asked"],
+             ["completeness", "Missed something"]].forEach(function (opt) {
+                var b = el("button", "cpa-fb-btn", opt[1]); b.type = "button";
+                b.addEventListener("click", function () { send(0, opt[0], opt[1]); });
+                box.appendChild(b);
+            });
+        });
+        box.appendChild(up); box.appendChild(down);
+        return box;
+    }
+
     // ---- follow-up ---------------------------------------------------------
     function renderAnswer(res, chat) {
         var turn = el("div", "cpa-turn cpa-turn-a");
@@ -319,22 +400,18 @@ $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
         renderClaims(res.claims || [], cites, turn);
         if (res.missing) { turn.appendChild(el("div", "text-muted", res.missing)); }
         if (!res.claims || !res.claims.length) { if (!res.boundary && !res.missing) { turn.appendChild(el("div", "text-muted", res.state_reason || res.reason || "")); } }
-        var meta = el("div", "cpa-meta", (res.state_reason ? res.state_reason + " · " : "") + (res.iterations !== undefined ? res.iterations + " iteration(s)" : "")
+        head.appendChild(traceChip(res));
+        // Everything below is how the answer was produced, not what it says: available on
+        // demand rather than competing with the clinical content for attention.
+        var det = el("details", "mt-1");
+        det.appendChild(el("summary", "cpa-meta", "How this was answered"));
+        det.appendChild(el("div", "cpa-meta", (res.state_reason ? res.state_reason + " · " : "") + (res.iterations !== undefined ? res.iterations + " iteration(s)" : "")
             + (res.tool_calls && res.tool_calls.length ? " · tools: " + res.tool_calls.join(" → ") : "") + (res.duration_ms !== undefined ? " · " + res.duration_ms + " ms" : "")
             + " · correlation " + (res.correlation_id || "")
-            + ((res.removed_claims || []).length ? " · " + res.removed_claims.length + " unverified statement(s) removed" : ""));
-        turn.appendChild(meta);
-        if (res.langsmith_run_id !== undefined) {
-            var fb = el("div", "mt-1");
-            [["good", 1, "Helpful"], ["citation", 0, "Citation issue"], ["relevance", 0, "Not relevant"], ["completeness", 0, "Incomplete"]].forEach(function (opt) {
-                var b = el("button", "btn btn-sm btn-outline-secondary mr-1", opt[2]); b.type = "button";
-                b.addEventListener("click", function () {
-                    api("feedback", { run_id: res.langsmith_run_id || "", score: opt[1], category: opt[0] }).then(function () { fb.textContent = "Thanks, feedback recorded (" + opt[2] + ")."; });
-                });
-                fb.appendChild(b);
-            });
-            turn.appendChild(fb);
-        }
+            + (res.langsmith_run_id ? " · langsmith run " + res.langsmith_run_id : "")
+            + ((res.removed_claims || []).length ? " · " + res.removed_claims.length + " unverified statement(s) removed" : "")));
+        turn.appendChild(det);
+        if (res.langsmith_run_id) { turn.appendChild(feedbackControls(res)); }
         chat.appendChild(turn); chat.scrollTop = chat.scrollHeight;
     }
     document.getElementById("cpa-ask-form").addEventListener("submit", function (ev) {

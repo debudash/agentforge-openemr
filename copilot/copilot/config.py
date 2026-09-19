@@ -53,6 +53,10 @@ class Settings:
     comparison_hours: int = int(os.environ.get("COPILOT_COMPARISON_HOURS", "24"))
     recent_lab_days: int = int(os.environ.get("COPILOT_RECENT_LAB_DAYS", "180"))
     prefetch_concurrency: int = int(os.environ.get("COPILOT_PREFETCH_CONCURRENCY", "12"))
+    # A brief is regenerated only when the chart behind it changes, so reopening the panel
+    # reuses the previous one instead of paying for it again. Entries are keyed by patient,
+    # chart fingerprint and model, so a data change or a model change both invalidate.
+    brief_cache_size: int = int(os.environ.get("COPILOT_BRIEF_CACHE", "200"))
     prefetch_budget_s: int = int(os.environ.get("COPILOT_PREFETCH_BUDGET_S", "90"))
     answer_deadline_s: float = float(os.environ.get("COPILOT_ANSWER_DEADLINE_S", "60"))
 

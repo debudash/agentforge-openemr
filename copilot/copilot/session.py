@@ -6,13 +6,17 @@ and is cleared whenever the active patient changes. Sessions expire after an idl
 period and can be closed explicitly. Everything lives in process memory: nothing is
 written to disk.
 
-Prefetch: when a session opens, a brief is generated for every patient in the
-background (bounded concurrency) so selecting a patient is instant once ready.
+Prefetch: when a session opens, a brief is generated in the background (bounded
+concurrency) for every patient whose chart has changed since the last one, so
+selecting a patient is instant once ready and reopening the panel costs nothing
+for charts that stand still. See chart_fingerprint for what counts as a change.
 """
 
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
@@ -26,10 +30,28 @@ from .schemas import AgentResponse, Chart, ResponseState
 from .telemetry import emit, new_correlation_id
 
 
+def chart_fingerprint(chart: Chart) -> str:
+    """Hash of the chart content a brief is derived from.
+
+    Excludes the two fields that differ on every read without changing anything the brief
+    could say: the read timestamp, and each source's elapsed time. Everything else counts,
+    so a new lab, an ended medication or a source that failed this time all produce a new
+    fingerprint and therefore a new brief.
+    """
+    payload = chart.model_dump(mode="json")
+    payload.pop("generated_at", None)
+    for source in (payload.get("sources") or {}).values():
+        if isinstance(source, dict):
+            source.pop("ms", None)
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(encoded.encode()).hexdigest()
+
+
 @dataclass
 class PatientState:
     chart: Chart
     status: str = "queued"            # queued | generating | ready | failed
+    fingerprint: str = ""
     brief: AgentResponse | None = None
     error: str | None = None
     history: list[BaseMessage] = field(default_factory=list)
@@ -64,6 +86,8 @@ class SessionStore:
         self._llm: Any = None
         self.sessions: dict[str, Session] = {}
         self._semaphore = asyncio.Semaphore(settings.prefetch_concurrency)
+        # (pid, chart fingerprint, model) -> the brief that was generated from it.
+        self._briefs: dict[tuple[int, str, str], AgentResponse] = {}
 
     # -- model -------------------------------------------------------------
     def llm(self) -> Any:
@@ -77,16 +101,25 @@ class SessionStore:
         self.sweep()
         rejected: list[dict[str, Any]] = []
         patients: dict[int, PatientState] = {}
+        reused = 0
         for chart in charts:
             if chart.patient.provider_id != int(user["id"]):
                 rejected.append({"pid": chart.patient.pid, "reason": "not assigned to this user"})
                 emit("scope_rejected_at_open", correlation_id, pid=chart.patient.pid, user_id=user["id"], failure_category="authorization")
                 continue
-            patients[chart.patient.pid] = PatientState(chart=chart)
+            state = PatientState(chart=chart, fingerprint=chart_fingerprint(chart))
+            cached = self._briefs.get(self._brief_key(state))
+            if cached is not None:
+                # Same patient, same chart content, same model: the brief cannot have changed.
+                state.brief, state.status = cached, "ready"
+                state.ready_at = time.perf_counter()
+                reused += 1
+            patients[chart.patient.pid] = state
         now = datetime.now(timezone.utc)
         session = Session(sid=sid, user=user, patients=patients, created=now, last_seen=now)
         self.sessions[sid] = session
-        emit("session_opened", correlation_id, session=sid[:8], user_id=user["id"], patients=len(patients), rejected=len(rejected))
+        emit("session_opened", correlation_id, session=sid[:8], user_id=user["id"], patients=len(patients),
+             rejected=len(rejected), briefs_reused=reused)
         return session, rejected
 
     async def prefetch(self, sid: str, correlation_id: str) -> None:
@@ -102,6 +135,8 @@ class SessionStore:
             return
 
         async def one(state: PatientState) -> None:
+            if state.status == "ready":
+                return                      # reused from the cache in open()
             async with self._semaphore:
                 if self.sessions.get(sid) is not session:
                     return  # session was closed or replaced while queued
@@ -110,6 +145,7 @@ class SessionStore:
                 try:
                     state.brief = await asyncio.to_thread(generate_brief, state.chart, llm, self.settings, cid)
                     state.status, state.ready_at = "ready", time.perf_counter()
+                    self._remember_brief(state)
                 except Exception as exc:  # noqa: BLE001
                     state.status, state.error = "failed", f"brief generation failed ({type(exc).__name__})"
                     emit("brief_failed", cid, pid=state.chart.patient.pid, failure_category="agent", error_type=type(exc).__name__)
@@ -119,6 +155,17 @@ class SessionStore:
         emit("prefetch_finished", correlation_id, session=sid[:8], patients=len(session.patients),
              ready=sum(1 for s in session.patients.values() if s.status == "ready"),
              duration_ms=int((time.perf_counter() - started) * 1000), budget_s=self.settings.prefetch_budget_s)
+
+    def _brief_key(self, state: PatientState) -> tuple[int, str, str]:
+        return (state.chart.patient.pid, state.fingerprint, self.settings.model)
+
+    def _remember_brief(self, state: PatientState) -> None:
+        """Keep the brief so the next open of an unchanged chart costs nothing."""
+        if state.brief is None or not state.fingerprint:
+            return
+        self._briefs[self._brief_key(state)] = state.brief
+        while len(self._briefs) > max(1, self.settings.brief_cache_size):
+            self._briefs.pop(next(iter(self._briefs)))    # oldest insertion first
 
     def get(self, sid: str) -> Session | None:
         self.sweep()

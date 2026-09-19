@@ -113,7 +113,10 @@ class AskRequest(BaseModel):
 class FeedbackRequest(BaseModel):
     run_id: str = ""
     score: int = Field(ge=0, le=1)
-    category: str = Field(pattern=r"^(citation|relevance|completeness|other|good)$")
+    # "citation" is gone on purpose: a claim with a missing or unresolvable citation is
+    # deleted by the verifier and can never reach a clinician, so it was not reportable.
+    # "mismatch" is the reachable failure -- a real, fresh citation the sentence misreads.
+    category: str = Field(pattern=r"^(mismatch|relevance|completeness|other|good)$")
 
 
 # -- health --------------------------------------------------------------------
