@@ -18,6 +18,7 @@
 
 namespace OpenEMR\Modules\CopilotAgent;
 
+use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Menu\MenuEvent;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -63,40 +64,68 @@ class Bootstrap
         $menu = $event->getMenu();
 
         foreach ($menu as $menuItem) {
-            if (($menuItem->menu_id ?? '') === 'cpa0') {
+            if (in_array($menuItem->menu_id ?? '', ['cpa0', 'cph0'], true)) {
                 // Already added (the event can fire more than once per request).
                 return $event;
             }
         }
 
-        $item = new stdClass();
-        $item->requirement = 0;
-        $item->target = self::MENU_TARGET;
-        $item->menu_id = 'cpa0';
-        $item->label = xlt("CopilotAgent");
-        $item->url = self::MODULE_INSTALLATION_PATH . "/public/index.php";
-        $item->children = [];
-        // Same ACL as the patient finder: anyone who may read demographics.
-        $item->acl_req = ["patients", "demo"];
-        $item->global_req = [];
+        [$isHospitalist, $isAdministrator] = $this->currentRoles();
 
-        $menu[] = $item;
+        // Offered to hospitalists only. `acl_req` cannot express this: AclMain grants a superuser
+        // every ACL, so no value would exclude an administrator -- who is refused by the page
+        // itself, and would otherwise be shown a tab that only produces an audited denial.
+        if ($isHospitalist) {
+            $item = new stdClass();
+            $item->requirement = 0;
+            $item->target = self::MENU_TARGET;
+            $item->menu_id = 'cpa0';
+            $item->label = xlt("CopilotAgent");
+            $item->url = self::MODULE_INSTALLATION_PATH . "/public/index.php";
+            $item->children = [];
+            // Same ACL as the patient finder: anyone who may read demographics.
+            $item->acl_req = ["patients", "demo"];
+            $item->global_req = [];
+            $menu[] = $item;
+        }
 
         // Service health: operational counters, no clinical content. Administrators only, which is
-        // the inverse of the co-pilot itself -- an administrator is denied there by design.
-        $health = new stdClass();
-        $health->requirement = 0;
-        $health->target = self::HEALTH_TARGET;
-        $health->menu_id = 'cph0';
-        $health->label = xlt("CopilotHealth");
-        $health->url = self::MODULE_INSTALLATION_PATH . "/public/metrics.php";
-        $health->children = [];
-        $health->acl_req = ["admin", "super"];
-        $health->global_req = [];
+        // the inverse of the co-pilot itself.
+        if ($isAdministrator) {
+            $health = new stdClass();
+            $health->requirement = 0;
+            $health->target = self::HEALTH_TARGET;
+            $health->menu_id = 'cph0';
+            $health->label = xlt("CopilotHealth");
+            $health->url = self::MODULE_INSTALLATION_PATH . "/public/metrics.php";
+            $health->children = [];
+            $health->acl_req = ["admin", "super"];
+            $health->global_req = [];
+            $menu[] = $health;
+        }
 
-        $menu[] = $health;
         $event->setMenu($menu);
 
         return $event;
+    }
+
+    /**
+     * Which tabs the signed-in user should be offered.
+     *
+     * Both pages enforce their own access, so this only decides what is shown. A throwable here
+     * would break every page in OpenEMR, menus being built inside globals.php, so a failure hides
+     * both tabs rather than propagating.
+     *
+     * @return array{0: bool, 1: bool} [is a hospitalist, is an administrator]
+     */
+    private function currentRoles(): array
+    {
+        try {
+            $isAdministrator = AclMain::aclCheckCore('admin', 'super');
+            [$isHospitalist] = PanelScope::forCurrentUser()->isHospitalist();
+            return [(bool) $isHospitalist, (bool) $isAdministrator];
+        } catch (\Throwable $e) {
+            return [false, false];
+        }
     }
 }
