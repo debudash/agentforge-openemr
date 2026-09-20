@@ -19,6 +19,9 @@ A public deployment on Railway, so you can look around without installing anythi
 | `doctor2` | Dr. Samir Okafor, MD — provider (Physicians group) with the **other 25 patients**. |
 
 **Passwords are not in this repository.** Email Debu Dash (the repo owner) to request them.
+Ask for the agent's shared secret at the same time if you want to run the
+[API collection](api/) against the live service — it is the credential every call to the agent
+is signed with, so it is kept out of the repository for the same reason the passwords are.
 
 **What's loaded:** 50 Synthea patients, ~2,800 encounters, ~1,400 problems, ~300 prescriptions, ~9,900 lab results and ~700 immunizations. Every patient has one assigned provider, split evenly between the two doctors.
 

@@ -15,9 +15,15 @@ You should not need to read any source to run it.
 | Variable | Value |
 |---|---|
 | `baseUrl` | `https://copilot-agent-production-1f21.up.railway.app` for the live demo, or `http://127.0.0.1:8600` for a local service |
-| `sharedSecret` | the shared secret for whichever you chose |
+| `sharedSecret` | see below |
 
 The live demo needs no local setup: point `baseUrl` at it, paste the secret, and run.
+
+**Where the secret comes from.** It is not in this repository, for the same reason the demo
+logins are not: it is the credential that authorises every call to the agent. Request it with
+the demo accounts — see the accounts table in the [root README](../README.md). If you are
+running locally instead, it is your own `COPILOT_SHARED_SECRET` from `copilot/.env`, which you
+generated when you set the service up.
 
 4. Open the Collection Runner, set **Delay 2000 ms**, and run.
 
