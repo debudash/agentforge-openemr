@@ -14,8 +14,10 @@ You should not need to read any source to run it.
 
 | Variable | Value |
 |---|---|
-| `baseUrl` | `http://127.0.0.1:8600` for a local service |
-| `sharedSecret` | `COPILOT_SHARED_SECRET` from `copilot/.env` |
+| `baseUrl` | `https://copilot-agent-production-1f21.up.railway.app` for the live demo, or `http://127.0.0.1:8600` for a local service |
+| `sharedSecret` | the shared secret for whichever you chose |
+
+The live demo needs no local setup: point `baseUrl` at it, paste the secret, and run.
 
 4. Open the Collection Runner, set **Delay 2000 ms**, and run.
 
@@ -25,6 +27,27 @@ The delay matters: a brief takes 10-30 s on the free tier, and request 4 re-runs
 until every patient reads `ready`. Without a delay it spins through its forty attempts in a
 second and gives up before the first brief lands. Running the requests one at a time works
 too -- just press Send on request 4 until it reports `ready`.
+
+## Why the live service is reachable at all
+
+The agent normally has no public address. OpenEMR proxies every clinician request over
+Railway's private network, and that is the PHI4 control: the browser never talks to the
+agent or the model.
+
+A public domain was added to the demo instance so this collection can be run against it
+without a local stack. That is a deliberate trade, and it rests on two facts:
+
+- **Every endpoint that touches a chart is signed.** `open`, `select`, `ask`, `feedback` and
+  `metrics` all return **401** without the shared secret. Reaching the URL is not access.
+- **The data is synthetic.** Every patient is Synthea-generated and contains no PHI.
+
+`/health` and `/ready` stay unsigned, because Railway's own healthcheck and the deploy script
+read them. They disclose the model name, the provider endpoint and the tracing project —
+configuration, not credentials.
+
+Handling real patient data would mean taking the domain off and returning to private-only,
+where the collection runs against a local service and the deployed agent is exercised through
+the OpenEMR UI. Nothing else about the design would change.
 
 ## Why a shared secret
 
