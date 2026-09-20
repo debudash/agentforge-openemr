@@ -81,7 +81,9 @@ $env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
 
 Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied by design (PRD RBAC matrix).
 
-Health: `GET /healthz` (process), `GET /readyz` (model provider allowlisted and keyed, secret set, tracing state; 503 otherwise). The service refuses to open sessions while not ready.
+Health: `GET /health` (process alive; checks nothing else, so a dependency outage never gets a working service killed) and `GET /ready` (probes the model provider endpoint, the LangSmith API and OpenEMR, plus the provider allowlist and shared secret; 503 naming whichever failed). `/healthz` and `/readyz` remain as aliases. Set `COPILOT_OPENEMR_URL` for the OpenEMR probe: the agent never calls OpenEMR in normal operation, so it cannot infer the address. The service refuses to open sessions while not ready.
+
+A runnable API collection covering the whole workflow is in [api/](../api/).
 
 ## Testing locally, and the gate in front of Railway
 

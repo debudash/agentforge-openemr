@@ -21,6 +21,7 @@ from collections import Counter, defaultdict
 from contextlib import asynccontextmanager
 from typing import Any
 
+import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
@@ -121,23 +122,67 @@ class FeedbackRequest(BaseModel):
 
 
 # -- health --------------------------------------------------------------------
+@app.get("/health")
 @app.get("/healthz")
-async def healthz() -> dict[str, Any]:
+async def health() -> dict[str, Any]:
+    """Liveness: is this process running. Deliberately checks nothing else, so a dependency
+    outage never causes the orchestrator to kill a service that is working."""
     return {"status": "ok", "version": __version__, "uptime_s": int(time.time() - started_at)}
 
 
+async def _reach(url: str, *, timeout: float = 3.0, insecure: bool = False) -> dict[str, Any]:
+    """Is this dependency answering? Any HTTP response proves reachability; the status is detail.
+
+    A 5xx is treated as unreachable: the host is there but not serving. No credentials are sent
+    and no body is read, so this probe cannot leak anything or cost anything.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=timeout, verify=not insecure, follow_redirects=True) as client:
+            result = await client.get(url)
+        return {"ok": result.status_code < 500, "detail": f"HTTP {result.status_code}"}
+    except Exception as exc:  # noqa: BLE001 - any failure to reach is the answer
+        return {"ok": False, "detail": type(exc).__name__}
+
+
+@app.get("/ready")
 @app.get("/readyz")
-async def readyz(response: Response) -> dict[str, Any]:
+async def ready(response: Response) -> dict[str, Any]:
+    """Readiness: can this service actually do its job right now.
+
+    Two kinds of check. Configuration, which is the PHI1 allowlist control and fails closed before
+    any PHI moves; and reachability, which probes the three dependencies a working request needs:
+    the model provider, the observability backend, and OpenEMR itself.
+    """
     approved, reason = settings.provider_approved()
+
+    openemr_url = settings.openemr_url
+    langsmith_url = settings.langsmith_endpoint.rstrip("/") + "/info"
+    # The local OpenEMR runs behind a self-signed development certificate. This probe sends no
+    # credentials and reads no body, so skipping verification costs nothing.
+    probes = await asyncio.gather(
+        _reach(settings.endpoint()),
+        _reach(langsmith_url) if settings.langsmith_tracing else _noop("tracing disabled"),
+        _reach(openemr_url, insecure=True) if openemr_url else _noop("COPILOT_OPENEMR_URL not set", ok=False),
+    )
+    provider_reach, langsmith_reach, openemr_reach = probes
+
     checks = {
-        "model_provider": {"ok": approved, "detail": reason, "model": settings.model},
-        "shared_secret": {"ok": bool(settings.shared_secret)},
-        "observability": {"ok": True, **tracing_evidence},
+        "model_provider": {"ok": approved and provider_reach["ok"], "allowlist": reason,
+                           "model": settings.model, "endpoint": settings.endpoint(), **provider_reach},
+        "shared_secret": {"ok": bool(settings.shared_secret), "detail": "configured" if settings.shared_secret else "missing"},
+        "observability": {"ok": langsmith_reach["ok"], "project": settings.langsmith_project,
+                          "tracing": settings.langsmith_tracing, **langsmith_reach},
+        "openemr": {"ok": openemr_reach["ok"], "url": openemr_url or None, **openemr_reach},
     }
-    ready = all(c["ok"] for c in checks.values())
-    if not ready:
+    is_ready = all(check["ok"] for check in checks.values())
+    if not is_ready:
         response.status_code = 503
-    return {"ready": ready, "checks": checks}
+    return {"ready": is_ready, "checks": checks}
+
+
+async def _noop(detail: str, ok: bool = True) -> dict[str, Any]:
+    """A check that is not applicable, reported rather than hidden."""
+    return {"ok": ok, "detail": detail}
 
 
 # -- sessions ------------------------------------------------------------------

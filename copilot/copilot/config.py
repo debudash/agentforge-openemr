@@ -70,6 +70,10 @@ class Settings:
     # Observability (PHI7)
     langsmith_tracing: bool = os.environ.get("LANGSMITH_TRACING", "false").lower() in ("1", "true", "yes")
     langsmith_project: str = os.environ.get("LANGSMITH_PROJECT", "openemr-copilot")
+    langsmith_endpoint: str = os.environ.get("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+    # Data flows OpenEMR -> agent, so the agent never calls OpenEMR and cannot infer its address.
+    # /ready needs one to probe, so it is configured explicitly and reported as missing if absent.
+    openemr_url: str = os.environ.get("COPILOT_OPENEMR_URL", "")
     langsmith_api_key: str = os.environ.get("LANGSMITH_API_KEY", "")
     trace_redact: bool = os.environ.get("COPILOT_TRACE_REDACT", "false").lower() in ("1", "true", "yes")
 
