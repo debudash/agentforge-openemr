@@ -80,13 +80,18 @@ pays full price on nearly every request while a busy one serves the same prefix 
 The marginal cost of request N+1 is lower than request N. This inverts the usual SaaS assumption that
 unit costs are flat and only volume grows.
 
-**2. Briefs can become a batch workload, but only above a certain scale.** Today the brief is generated
-when the clinician opens the panel, inside a 90-second budget (`prefetch_budget_s`,
-`prefetch_concurrency=12`). Tomorrow's rounding list is knowable the night before — this repository
-already runs a nightly job that proves it, the `copilot-seeder` cron. Moving brief generation to an
-overnight batch keyed off tomorrow's appointments makes it eligible for the Batch API's **50% discount**
-and removes the morning demand spike entirely. That is worth building at 1,000 users and not worth
-building at 100.
+**2. Briefs can become a batch workload, but only above a certain scale.** A brief is generated when the
+clinician first opens the panel, inside a 90-second budget (`prefetch_budget_s`,
+`prefetch_concurrency=12`), and is then reused until the chart behind it changes — keyed by patient,
+chart fingerprint and model. Reopening the panel on an unchanged list costs nothing, measured at 19.6 s
+to generate against 0.01 s to reuse. The table below assumes one open per clinician per day, so it was
+already counting the cheap case; before the cache, a clinician who reopened the panel four times a day
+paid four times the brief cost, which the table would have understated.
+
+Tomorrow's rounding list is knowable the night before — this repository already runs a nightly job that
+proves it, the `copilot-seeder` cron. Moving brief generation to an overnight batch keyed off tomorrow's
+appointments makes it eligible for the Batch API's **50% discount** and removes the morning demand spike
+entirely. That is worth building at 1,000 users and not worth building at 100.
 
 **3. Cost is bounded per patient, not proportional to patient complexity.** `facts_pack` caps everything
 it sends: 20 rule flags, 12 medications, 8 disorders, 10 compliance signals; `get_labs` caps at 30 rows

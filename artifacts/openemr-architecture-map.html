@@ -96,7 +96,7 @@ a{color:var(--accent)}
 
 <div class="wrap">
 <header>
-  <div class="eyebrow">debudash/openemragent · main @ 7b887fb</div>
+  <div class="eyebrow">debudash/openemragent · platform scanned @ 7b887fb · co-pilot added since</div>
   <h1>OpenEMR Architecture Map</h1>
   <p class="lede">A PHP 8.2 electronic health record that has two codebases in one: a procedural legacy app that renders pages, and a typed <code>OpenEMR\</code> core that serves REST and FHIR. Both use the same service layer and the same MySQL schema.</p>
   <ul class="facts">
@@ -279,6 +279,14 @@ a{color:var(--accent)}
       <p>Internal integer keys (<code>pid</code>, <code>encounter</code>) stay internal. APIs expose UUIDs from <code>UuidRegistry</code>, so most routes use <code>:puuid</code> and <code>:euuid</code>. A few older nested routes, like <code>…/encounter/:eid/vital</code>, still take integer IDs.</p>
     </div>
     <div>
+      <span class="tag m">What the co-pilot adds</span>
+      <p>No tables. The agent owns no schema and writes nothing: it reads through the service layer per request,
+      holds a chart in memory for the life of a session, and drops it. Its only <em>schema</em> is a typed wire
+      contract (24 Pydantic models) validated at the boundary. Nothing persisted is nothing to retain, encrypt
+      or breach — and it keeps the EHR the single system of record, which is what makes
+      “every claim cites a record fetched this turn” mean anything.</p>
+    </div>
+    <div>
       <span class="tag m">Multi-site</span>
       <p>Each directory under <code>sites/</code> is its own site: <code>sqlconf.php</code> for database credentials, <code>config.php</code>, <code>documents/</code> and LBF layouts. <code>SiteSetupListener</code> and <code>globals.php</code> pick one per request.</p>
     </div>
@@ -295,7 +303,7 @@ a{color:var(--accent)}
     <thead><tr><th>Mechanism</th><th>How it attaches</th><th>Examples in this repo</th></tr></thead>
     <tbody>
       <tr><td><b>Events</b></td><td>Symfony EventDispatcher from the kernel. Services fire <code>Before…</code> and <code>…Created/Updated</code> events around writes.</td><td><span class="mono">BeforePatientCreatedEvent</span>, <span class="mono">PatientUpdatedEvent</span>, <span class="mono">RestApiCreateEvent</span>, menu and page-render events (80 event classes)</td></tr>
-      <tr><td><b>Custom modules</b></td><td><code>interface/modules/custom_modules/&lt;name&gt;/openemr.bootstrap.php</code>, loaded by <code>ModulesApplication</code> with the dispatcher injected. Can add routes, menus, scopes and listeners.</td><td>comlink-telehealth, dashboard-context, dorn (labs), ehi-exporter, faxsms, prior-authorizations, weno (eRx)</td></tr>
+      <tr><td><b>Custom modules</b></td><td><code>interface/modules/custom_modules/&lt;name&gt;/openemr.bootstrap.php</code>, loaded by <code>ModulesApplication</code> with the dispatcher injected. Can add routes, menus, scopes and listeners.</td><td><span class="mono">oe-module-copilot-agent</span> (this repo’s Clinical Co-Pilot), claimrev-connect, comlink-telehealth, dashboard-context, dorn (labs), ehi-exporter, faxsms, prior-authorizations, weno (eRx)</td></tr>
       <tr><td><b>Laminas modules</b></td><td>Older Zend/Laminas MVC apps under <code>zend_modules/module</code>, each with its own controllers and views.</td><td>Carecoordination, Ccr, Immunization, Syndromicsurveillance, PatientFlowBoard, Acl, Installer</td></tr>
     </tbody>
   </table>
@@ -325,18 +333,19 @@ a{color:var(--accent)}
 
 <section>
   <div class="callout">
-    <h3>Where an agent plugs in</h3>
-    <p>This repo is named <span class="mono">openemragent</span>, so here are the integration options, from least to most invasive. This is a reading of the architecture, not something the repo already does.</p>
+    <h3>Where the agent plugged in</h3>
+    <p>These were the integration options, least to most invasive. The Clinical Co-Pilot has since been built on this repo, so each is marked with what actually happened.</p>
     <ul class="plain">
-      <li><b>FHIR R4 over OAuth2 (preferred).</b> Register a client, request narrow SMART scopes (SMART v2 form, for example <span class="mono">user/Patient.rs</span>, <span class="mono">user/Observation.rs</span>), and call <span class="mono">/apis/default/fhir/*</span>. Tokens, scopes, ACLs and the API audit log all apply automatically.</li>
-      <li><b>Standard REST API.</b> <span class="mono">/apis/default/api/*</span> covers writes that FHIR here doesn't: appointments, encounters, SOAP notes and vitals. It is protected by the same pipeline.</li>
-      <li><b>Custom module.</b> Use this when the agent needs a panel inside the UI or needs to react to events, such as <span class="mono">PatientUpdatedEvent</span>. It runs in the same process with full access, so any guardrails have to be written by you.</li>
-      <li><b>Direct SQL (avoid).</b> It skips ACLs, UUIDs, events and audit logging. At most, use a read-only replica for analytics.</li>
+      <li><b>FHIR R4 over OAuth2.</b> Narrow SMART scopes against <span class="mono">/apis/default/fhir/*</span>; tokens, scopes, ACLs and the API audit log all apply automatically. <b>Not taken:</b> eight sequential FHIR calls measured 11.4&nbsp;s, against 1.0&nbsp;s to read five complete charts through the service layer, and the co-pilot needed a panel inside the UI regardless.</li>
+      <li><b>Standard REST API.</b> <span class="mono">/apis/default/api/*</span> covers writes FHIR here doesn’t. <b>Taken for writes:</b> the nightly rounding-list seeder books appointments through it, so validation and audit logging run rather than being bypassed by raw SQL.</li>
+      <li><b>Custom module — taken.</b> <span class="mono">oe-module-copilot-agent</span> appends its tab through a <span class="mono">MenuEvent</span> listener rather than editing the tracked menu JSON, so it survives every merge from upstream, and reads charts through the service layer.</li>
+      <li><b>Direct SQL (avoid).</b> <b>Used once, narrowly:</b> <span class="mono">PrescriptionService</span> drops <span class="mono">end_date</span>, and medication status is derived from that date rather than from the <span class="mono">active</span> flag, which a stopped drug can still carry.</li>
     </ul>
+    <p>The warning in the third option turned out to be literal. OpenEMR’s ACLs are role-based and never restrict a clinician to their own patients — measured, not assumed — so that boundary does not exist until you build it. The co-pilot enforces it at four independent layers, and the browser never reaches the agent or the model: every request is proxied through this module under the clinician’s own session.</p>
   </div>
 </section>
 
 <footer>
-  Built from a scan of <span class="mono">openemr-base-clean</span> (commit 7b887fb): <span class="mono">apis/</span>, <span class="mono">src/RestControllers/ApiApplication.php</span>, <span class="mono">interface/globals.php</span>, <span class="mono">src/Services</span>, <span class="mono">src/Core/ModulesApplication.php</span>, <span class="mono">docker/development-easy</span>, and the repo's CLAUDE.md.
+  Built from a scan of <span class="mono">openemr-base-clean</span> (commit 7b887fb): <span class="mono">apis/</span>, <span class="mono">src/RestControllers/ApiApplication.php</span>, <span class="mono">interface/globals.php</span>, <span class="mono">src/Services</span>, <span class="mono">src/Core/ModulesApplication.php</span>, <span class="mono">docker/development-easy</span>, and the repo's CLAUDE.md. Revised 2026-09-20 to record where the Clinical Co-Pilot attached.
 </footer>
 </div>

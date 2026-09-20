@@ -48,6 +48,8 @@ Companion documents: `AUDIT.md` (findings this design answers), `USERS.md` (use 
 ┌──────────────────────────────▼──── agent service (Python, trust boundary B) ──┐
 │  copilot/copilot/service/app.py                                                │
 │   session.py   in-memory charts + conversation, bound to user+patient, expiring │
+│                briefs cached by (pid, chart fingerprint, model) so an unchanged │
+│                chart is never briefed twice                                     │
 │                receives PHI · stores PHI in RAM only · never on disk            │
 │   agent.py     topic pre-check → tool loop (≤5) → verify → state               │
 │   tools.py / constraints.py / verify.py  typed tools, rules, claim checks      │
@@ -175,6 +177,15 @@ Each answer-affecting failure produces a user-visible `state_reason` and a struc
 - **Metrics**: `GET /metrics` (signed) exposes counters by state, tool calls, verifier removals, auth rejections and p50/p95/p99 latencies for briefs and answers.
 
 ## 10. Retention and deletion (PHI6)
+
+**The agent owns no database.** It defines no tables, runs no migrations and writes nothing to disk;
+the module adds no schema to OpenEMR either, and its only direct write path is the nightly seeder,
+which books appointments through the REST API so validation and audit logging run. What looks like a
+schema is a typed wire contract (24 Pydantic models) validated at the boundary and discarded. That
+keeps the EHR the single system of record — which is what makes “every claim cites a record fetched
+this turn” verifiable — and leaves the co-pilot with nothing of its own to retain, encrypt or breach.
+The cost is stated in COST_ANALYSIS.md: sessions die with the process, and a second replica starts
+cold, which is the first thing that has to change at around 100 users.
 
 | Store | Content | Retention |
 |---|---|---|
