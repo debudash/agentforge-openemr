@@ -17,6 +17,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel
 
 from .config import Settings
+from .telemetry import emit
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -103,6 +104,9 @@ class LangChainLLM:
                 attempt += 1
                 if not _is_rate_limit(exc) or attempt > self.rate_limit_retries:
                     raise
+                # The only retry path that was invisible. It is also the earliest warning that a
+                # provider is degrading, so it is worth a counter of its own.
+                emit("model_rate_limited", attempt=attempt, error_type=type(exc).__name__)
                 time.sleep(_retry_after_seconds(exc, attempt))
 
     def invoke_with_tools(self, messages: Sequence[BaseMessage], tools: Sequence[BaseTool],

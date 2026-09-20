@@ -63,6 +63,30 @@ def _record_numbers(record: dict[str, Any]) -> set[str]:
     return found
 
 
+def removal_reason_code(reason: str) -> str:
+    """Stable code for a removal reason, so removals can be counted by cause.
+
+    Lives beside the reasons it classifies: a reason reworded in check_claim and a mapping kept
+    somewhere else would drift apart silently, and the count would quietly become 'other'.
+    """
+    text = (reason or "").lower()
+    if text.startswith("no source cited"):
+        return "no_citation"
+    if text.startswith("cites records that are not"):
+        return "wrong_patient"
+    if text.startswith("cites records no tool returned"):
+        return "restated_without_lookup"
+    if text.startswith("phrases a clinical recommendation"):
+        return "recommendation"
+    if text.startswith("value(s) not found"):
+        return "unsupported_value"
+    if text.startswith("empty claim"):
+        return "empty_claim"
+    if text.startswith("off-topic"):
+        return "off_topic"
+    return "other"
+
+
 def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers: set[str],
                 turn_ids: set[str] | None = None) -> str | None:
     """Return a removal reason, or None when the claim is supported.

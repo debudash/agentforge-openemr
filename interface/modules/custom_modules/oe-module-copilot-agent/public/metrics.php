@@ -34,6 +34,11 @@ use OpenEMR\Modules\CopilotAgent\AgentClient;
 use OpenEMR\Modules\CopilotAgent\AgentUnavailableException;
 use OpenEMR\Modules\CopilotAgent\Config;
 
+// Counters move continuously, so a cached copy of this page is a wrong one. The same header
+// api.php sets, for the same reason.
+header('Cache-Control: no-store, must-revalidate');
+header('Pragma: no-cache');
+
 $username = (string) ($_SESSION['authUser'] ?? '');
 $authGroup = (string) ($_SESSION['authProvider'] ?? '');
 
@@ -59,6 +64,10 @@ if (!AclMain::aclCheckCore('admin', 'super')) {
 }
 
 $correlationId = bin2hex(random_bytes(8));
+// The server clock is the container's, which is UTC. Emit an unambiguous instant and let the
+// browser render it in the viewer's own timezone; the UTC form stays as the no-script fallback.
+$readAtIso = gmdate('c');
+$readAtUtc = gmdate('H:i:s');
 $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
 
 $metrics = null;
@@ -84,6 +93,7 @@ foreach ((array) ($metrics['counters'] ?? []) as $name => $value) {
     $counters[(string) $name] = (int) $value;
 }
 $latency = (array) ($metrics['latency_ms'] ?? []);
+$retries = (array) ($metrics['retries'] ?? []);
 $sessionsActive = (int) ($metrics['sessions_active'] ?? 0);
 
 /** Sum every counter whose name starts with the given prefix. */
@@ -114,6 +124,19 @@ $feedback = [
     'mismatch' => ['label' => xl("Doesn't match the record"), 'count' => $counters['feedback_mismatch'] ?? 0],
     'relevance' => ['label' => xl("Not what I asked"), 'count' => $counters['feedback_relevance'] ?? 0],
     'completeness' => ['label' => xl("Missed something"), 'count' => $counters['feedback_completeness'] ?? 0],
+];
+
+// Why claims were removed. Each cause calls for a different response, so they are shown apart
+// rather than as one total.
+$removalMeta = [
+    'wrong_patient' => xl("Cited another patient's record"),
+    'restated_without_lookup' => xl("Restated without a fresh lookup"),
+    'unsupported_value' => xl("Carried a value the cited record does not contain"),
+    'recommendation' => xl("Crossed the advice boundary"),
+    'no_citation' => xl("Cited nothing at all"),
+    'off_topic' => xl("Off-topic question, chart facts discarded"),
+    'empty_claim' => xl("Empty claim"),
+    'other' => xl("Other"),
 ];
 
 $stateMeta = [
@@ -170,8 +193,13 @@ $ms = static fn(?float $v): string => $v === null ? '—' : ($v >= 1000 ? number
 
     <div class="d-flex flex-wrap align-items-center justify-content-between mt-2">
         <h2 class="mb-0"><?php echo xlt("Co-Pilot Service Health"); ?></h2>
-        <div class="cph-since text-muted">
-            <?php echo xlt("Counters are held in the agent's memory, so every figure is since the service last started."); ?>
+        <div class="cph-since text-muted text-right">
+            <div><?php echo xlt("Counters are held in the agent's memory, so every figure is since the service last started."); ?></div>
+            <div class="mt-1">
+                <?php echo xlt("Read at"); ?>
+                <time id="cph-readat" datetime="<?php echo attr($readAtIso); ?>"><?php echo text($readAtUtc); ?> UTC</time>
+                <button type="button" class="btn btn-sm btn-outline-secondary ml-2" id="cph-refresh"><?php echo xlt("Refresh"); ?></button>
+            </div>
         </div>
     </div>
 
@@ -211,6 +239,24 @@ $ms = static fn(?float $v): string => $v === null ? '—' : ($v >= 1000 ? number
     <p class="cph-note mt-2">
         <?php echo xlt("A removed claim is a sentence the verifier deleted before anyone saw it, because it cited nothing, cited another patient's record, cited a record no tool returned in that turn, crossed the advice boundary, or carried a number the cited record does not contain."); ?>
     </p>
+
+    <?php $removalRows = []; ?>
+    <?php foreach ($removalMeta as $code => $label) : ?>
+        <?php $n = $counters['removed_' . $code] ?? 0; ?>
+        <?php if ($n > 0) { $removalRows[$label] = $n; } ?>
+    <?php endforeach; ?>
+    <?php if ($removalRows !== []) : ?>
+        <h5 class="mt-4"><?php echo xlt("Why were claims removed?"); ?></h5>
+        <table class="table table-sm" style="max-width:46rem">
+            <thead><tr><th><?php echo xlt("Cause"); ?></th><th class="cph-num"><?php echo xlt("Count"); ?></th></tr></thead>
+            <tbody>
+            <?php foreach ($removalRows as $label => $n) : ?>
+                <tr><td><?php echo text($label); ?></td><td class="cph-num"><?php echo text((string) $n); ?></td></tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <p class="cph-note"><?php echo xlt("Cited another patient's record and restated without a fresh lookup are the two to watch: the first is a scope failure the verifier caught, the second means the model answered from memory."); ?></p>
+    <?php endif; ?>
 
     <h5 class="mt-4"><?php echo xlt("How did the answers end?"); ?></h5>
     <?php foreach ([['brief_state_', xl("Rounding briefs"), $briefs], ['answer_state_', xl("Follow-up answers"), $answers]] as [$prefix, $title, $total]) : ?>
@@ -285,6 +331,24 @@ $ms = static fn(?float $v): string => $v === null ? '—' : ($v >= 1000 ? number
         </table>
     <?php endif; ?>
 
+    <h5 class="mt-4"><?php echo xlt("How often did it have to retry?"); ?></h5>
+    <div class="cph-tiles">
+        <?php foreach ([
+            ['rate_limited', xl("Rate limited"), xl("provider throttled a call")],
+            ['draft_failed', xl("Draft retried"), xl("model or schema failure")],
+            ['tool_round_failed', xl("Tool round retried"), xl("malformed tool round")],
+            ['forced_relookup', xl("Forced re-lookup"), xl("answered from memory, sent back")],
+        ] as [$key, $label, $desc]) : ?>
+            <?php $n = (int) ($retries[$key] ?? 0); ?>
+            <div class="cph-tile">
+                <span class="k"><?php echo text($label); ?></span>
+                <span class="v <?php echo $n === 0 ? 'ok' : ''; ?>"><?php echo text((string) $n); ?></span>
+                <span class="d"><?php echo text($desc); ?></span>
+            </div>
+        <?php endforeach; ?>
+    </div>
+    <p class="cph-note"><?php echo xlt("Retries are the earliest warning that a provider is degrading: they rise before the error rate does, because a retried call still succeeds."); ?></p>
+
     <h5 class="mt-4"><?php echo xlt("Boundary and failure counters"); ?></h5>
     <div class="cph-tiles">
         <div class="cph-tile"><span class="k"><?php echo xlt("Auth rejections"); ?></span>
@@ -312,5 +376,25 @@ $ms = static fn(?float $v): string => $v === null ? '—' : ($v >= 1000 ? number
     </p>
 
 </div>
+<script>
+    // The tab may stay open for hours; counters move the whole time. The read time above says how
+    // old these numbers are, and this reloads them without leaving the tab.
+    document.getElementById("cph-refresh").addEventListener("click", function () {
+        window.location.reload();
+    });
+
+    // Render the read time in the viewer's timezone, not the container's. Falls back to the UTC
+    // text already in the element if anything here fails, so the stamp is never blank or wrong.
+    (function () {
+        var el = document.getElementById("cph-readat");
+        if (!el) { return; }
+        var when = new Date(el.getAttribute("datetime"));
+        if (isNaN(when.getTime())) { return; }
+        try {
+            el.textContent = when.toLocaleTimeString();
+            el.title = when.toLocaleString();
+        } catch (e) { /* keep the UTC fallback */ }
+    })();
+</script>
 </body>
 </html>

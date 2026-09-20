@@ -29,7 +29,8 @@ from ..config import Settings, get_settings
 from ..llm import build_llm
 from ..schemas import Chart
 from ..session import SessionStore
-from ..telemetry import configure_tracing, emit, new_correlation_id, submit_feedback
+from ..telemetry import configure_tracing, emit, event_counts, new_correlation_id, submit_feedback
+from ..verify import removal_reason_code
 from .auth import verify
 
 settings: Settings = get_settings()
@@ -180,6 +181,8 @@ async def session_select(sid: str, request: Request, body: bytes = Depends(signe
         # /metrics. Counting only removals tells you a denominator is missing, not what it is.
         counters["claims_kept"] += sum(len(section.claims) for section in brief.sections)
         counters["claims_removed"] += len(brief.removed_claims)
+        for claim in brief.removed_claims:
+            counters[f"removed_{removal_reason_code(claim.reason)}"] += 1
         record_latency("brief_ms", brief.duration_ms)
     return {"status": status, "correlation_id": cid, "error": error,
             "brief": brief.model_dump(mode="json") if brief else None}
@@ -194,6 +197,10 @@ async def session_ask(sid: str, request: Request, body: bytes = Depends(signed))
     counters["tool_calls"] += len(response.tool_calls)
     counters["claims_kept"] += len(response.claims)
     counters["claims_removed"] += len(response.removed_claims)
+    # Why a claim died is the most diagnostic signal this design produces: "cites another patient"
+    # and "restated without a lookup" call for completely different responses.
+    for claim in response.removed_claims:
+        counters[f"removed_{removal_reason_code(claim.reason)}"] += 1
     record_latency("answer_ms", response.duration_ms)
     return response.model_dump(mode="json")
 
@@ -223,10 +230,20 @@ async def session_close(sid: str, request: Request, _: bytes = Depends(signed)) 
 
 @app.get("/metrics")
 async def metrics(request: Request, _: bytes = Depends(signed)) -> dict[str, Any]:
+    events = event_counts()
     return {
         "counters": dict(counters),
         "latency_ms": {name: {"p50": percentile(s, 0.5), "p95": percentile(s, 0.95), "p99": percentile(s, 0.99),
                               "n": len(s), "mean": int(statistics.fmean(s)) if s else None}
                        for name, s in latencies.items()},
         "sessions_active": len(store.sessions),
+        # The retry paths live in the agent and all emit; telemetry keeps the tally so /metrics
+        # can report them without threading a counter through the call stack.
+        "retries": {
+            "rate_limited": events.get("model_rate_limited", 0),
+            "draft_failed": events.get("model_draft_failed", 0),
+            "tool_round_failed": events.get("model_tool_round_failed", 0),
+            "forced_relookup": events.get("followup_relookup", 0),
+            "topic_check_failed": events.get("topic_check_failed", 0),
+        },
     }

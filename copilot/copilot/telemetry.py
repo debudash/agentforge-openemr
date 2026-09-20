@@ -19,6 +19,7 @@ import os
 import sys
 import time
 import uuid
+from collections import Counter
 from contextlib import contextmanager
 from typing import Any, Iterator
 
@@ -39,6 +40,19 @@ def new_correlation_id() -> str:
     return str(uuid.uuid4())
 
 
+_event_counts: Counter[str] = Counter()
+
+
+def event_counts() -> dict[str, int]:
+    """Events emitted since start, by name.
+
+    The retry paths live in the agent, which has no view of the service's counters. They all
+    already emit, so the tally is kept here and read by /metrics rather than threading a
+    counter through the call stack.
+    """
+    return dict(_event_counts)
+
+
 def emit(event: str, correlation_id: str | None = None, **fields: Any) -> dict[str, Any]:
     """Log a structured event. Refuses PHI-shaped keys so a careless caller cannot leak."""
     leak = _FORBIDDEN_KEYS.intersection(fields)
@@ -47,6 +61,7 @@ def emit(event: str, correlation_id: str | None = None, **fields: Any) -> dict[s
     record = {"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "event": event,
               "correlation_id": correlation_id, **fields}
     _log.info(json.dumps(record, default=str))
+    _event_counts[event] += 1
     return record
 
 
