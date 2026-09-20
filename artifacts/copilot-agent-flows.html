@@ -238,7 +238,7 @@
     <p class="standfirst">Seven sequences tracing a clinician's question from the browser tab to a verified,
       cited answer — and the places the system deliberately refuses to continue.</p>
     <div class="meta">
-      Drawn from the implementation, 2026-09-18 · agent loop capped at 5 iterations ·
+      Drawn from the implementation, 2026-09-20 · agent loop capped at 5 iterations ·
       answer deadline 60&nbsp;s · prefetch budget 90&nbsp;s, concurrency 12 · request signature skew window 300&nbsp;s
     </div>
   </header>
@@ -285,14 +285,14 @@
       </div>
       <figure>
         <div class="plate">
-<svg class="seq" viewBox="0 0 1204 1108" width="1204" height="1108" role="img" xmlns="http://www.w3.org/2000/svg">
-<line class="sq-life" x1="98" y1="44" x2="98" y2="1102"/>
-<line class="sq-life" x1="266" y1="44" x2="266" y2="1102"/>
-<line class="sq-life" x1="434" y1="44" x2="434" y2="1102"/>
-<line class="sq-life" x1="602" y1="44" x2="602" y2="1102"/>
-<line class="sq-life" x1="770" y1="44" x2="770" y2="1102"/>
-<line class="sq-life" x1="938" y1="44" x2="938" y2="1102"/>
-<line class="sq-life" x1="1106" y1="44" x2="1106" y2="1102"/>
+<svg class="seq" viewBox="0 0 1204 1292" width="1204" height="1292" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="1286"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="1286"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="1286"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="1286"/>
+<line class="sq-life" x1="770" y1="44" x2="770" y2="1286"/>
+<line class="sq-life" x1="938" y1="44" x2="938" y2="1286"/>
+<line class="sq-life" x1="1106" y1="44" x2="1106" y2="1286"/>
 <rect class="sq-actor" x="59" y="8" width="78" height="36" rx="3"/>
 <text class="sq-actor-text" x="98" y="31" text-anchor="middle">Browser</text>
 <rect class="sq-actor" x="227" y="8" width="78" height="36" rx="3"/>
@@ -351,39 +351,51 @@
 <path class="sq-head" d="M 938 682 l -7 -4.2 l 0 8.4 Z"/>
 <rect class="sq-note" x="815" y="714" width="245" height="30" rx="3"/>
 <text class="sq-note-text" x="938" y="732" text-anchor="middle">re-checks provider_id on every chart</text>
-<text class="sq-msg-text" x="518" y="762" text-anchor="middle">200, all patients queued</text>
-<line class="sq-arrow" x1="770" y1="774" x2="273" y2="774" stroke-dasharray="5 4"/>
-<path class="sq-head" d="M 266 774 l 7 -4.2 l 0 8.4 Z"/>
-<rect class="sq-band" x="18" y="804" width="1168" height="162" rx="3"/>
-<path class="sq-band-tab" d="M 18 804 h 145 l -9 18 h -136 Z"/>
-<text class="sq-band-text" x="26" y="817">par  up to 12 at once</text>
-<text class="sq-msg-text" x="1022" y="832" text-anchor="middle">generate_brief(chart)</text>
-<line class="sq-arrow" x1="938" y1="844" x2="1099" y2="844"/>
-<path class="sq-head" d="M 1106 844 l -7 -4.2 l 0 8.4 Z"/>
-<text class="sq-msg-text" x="1022" y="878" text-anchor="middle">BriefDraft</text>
-<line class="sq-arrow" x1="1106" y1="890" x2="945" y2="890" stroke-dasharray="5 4"/>
-<path class="sq-head" d="M 938 890 l 7 -4.2 l 0 8.4 Z"/>
-<rect class="sq-note" x="912" y="922" width="221" height="30" rx="3"/>
-<text class="sq-note-text" x="1022" y="940" text-anchor="middle">verify, assign state, mark ready</text>
-<rect class="sq-band" x="18" y="976" width="1168" height="116" rx="3"/>
-<path class="sq-band-tab" d="M 18 976 h 133 l -9 18 h -124 Z"/>
-<text class="sq-band-text" x="26" y="989">loop  browser polls</text>
-<text class="sq-msg-text" x="434" y="1004" text-anchor="middle">GET action=status</text>
-<line class="sq-arrow" x1="98" y1="1016" x2="763" y2="1016"/>
-<path class="sq-head" d="M 770 1016 l -7 -4.2 l 0 8.4 Z"/>
-<text class="sq-msg-text" x="434" y="1050" text-anchor="middle">per-patient status</text>
-<line class="sq-arrow" x1="770" y1="1062" x2="105" y2="1062" stroke-dasharray="5 4"/>
-<path class="sq-head" d="M 98 1062 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="960" y="762" text-anchor="start">fingerprint each chart, ignoring read</text>
+<text class="sq-msg-text" x="960" y="776" text-anchor="start">time and timings</text>
+<path class="sq-arrow" fill="none" d="M 938 786 h 16 v 14 h -9"/>
+<path class="sq-head" d="M 938 800 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="832" width="1168" height="70" rx="3"/>
+<path class="sq-band-tab" d="M 18 832 h 299 l -9 18 h -290 Z"/>
+<text class="sq-band-text" x="26" y="845">alt  fingerprint already briefed on this model</text>
+<rect class="sq-note" x="797" y="858" width="282" height="30" rx="3"/>
+<text class="sq-note-text" x="938" y="876" text-anchor="middle">reuse: marked ready at once, no model call</text>
+<rect class="sq-band" x="18" y="912" width="1168" height="194" rx="3"/>
+<path class="sq-band-tab" d="M 18 912 h 176 l -9 18 h -167 Z"/>
+<text class="sq-band-text" x="26" y="925">else  new or changed chart</text>
+<rect class="sq-band" x="28" y="936" width="1148" height="162" rx="3"/>
+<path class="sq-band-tab" d="M 28 936 h 145 l -9 18 h -136 Z"/>
+<text class="sq-band-text" x="36" y="949">par  up to 12 at once</text>
+<text class="sq-msg-text" x="1022" y="964" text-anchor="middle">generate_brief(chart)</text>
+<line class="sq-arrow" x1="938" y1="976" x2="1099" y2="976"/>
+<path class="sq-head" d="M 1106 976 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="1022" y="1010" text-anchor="middle">BriefDraft</text>
+<line class="sq-arrow" x1="1106" y1="1022" x2="945" y2="1022" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 938 1022 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="881" y="1054" width="282" height="30" rx="3"/>
+<text class="sq-note-text" x="1022" y="1072" text-anchor="middle">verify, assign state, cache by fingerprint</text>
+<text class="sq-msg-text" x="518" y="1122" text-anchor="middle">200, queued and reused counts</text>
+<line class="sq-arrow" x1="770" y1="1134" x2="273" y2="1134" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 1134 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="1164" width="1168" height="116" rx="3"/>
+<path class="sq-band-tab" d="M 18 1164 h 133 l -9 18 h -124 Z"/>
+<text class="sq-band-text" x="26" y="1177">loop  browser polls</text>
+<text class="sq-msg-text" x="434" y="1192" text-anchor="middle">GET action=status</text>
+<line class="sq-arrow" x1="98" y1="1204" x2="763" y2="1204"/>
+<path class="sq-head" d="M 770 1204 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="434" y="1238" text-anchor="middle">per-patient status</text>
+<line class="sq-arrow" x1="770" y1="1250" x2="105" y2="1250" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 1250 l 7 -4.2 l 0 8.4 Z"/>
 </svg>
         </div>
-        <figcaption>Gates run before data moves. The brief for every patient is generated before the clinician clicks any of them — the prefetch that buys the 90-second readiness budget.</figcaption>
+        <figcaption>Gates run before data moves. Briefs are generated before the clinician clicks anyone — the prefetch that buys the 90-second readiness budget — but only for charts whose content has changed since they were last briefed.</figcaption>
       </figure>
       <div class="readout">
         <h3>What to read off it</h3>
         <ul>
           <li><strong>Scope is checked three times on this path alone</strong> — <code>roundingList</code> intersects appointments with the panel, <code>ChartReader</code> asserts again per patient, and <code>SessionStore.open</code> re-checks on the far side of the trust boundary.</li>
           <li><strong>The rounding list is an intersection, not a lookup.</strong> An appointment booked with you is not enough; the patient must also be assigned to you. Otherwise scheduling staff could grant chart access by booking.</li>
-          <li><strong>Prefetch is fire-and-forget.</strong> The open response returns immediately with everything queued; the browser polls for readiness. Work the clinician may never use is paid for up front to make selection instant.</li>
+          <li><strong>Prefetch is fire-and-forget, and paid for once.</strong> The open response returns immediately; the browser polls for readiness. A brief is reused until the chart behind it changes — keyed by patient, chart fingerprint and model — so reopening the panel on an unchanged list costs nothing. Measured: 19.6&nbsp;s to generate, 0.01&nbsp;s to reuse, and 10.2&nbsp;s again after a single lab value changed.</li>
         </ul>
       </div>
     </section>
@@ -571,7 +583,7 @@
       </div>
       <figure>
         <div class="plate">
-<svg class="seq" viewBox="-22 0 722 1130" width="722" height="1130" role="img" xmlns="http://www.w3.org/2000/svg">
+<svg class="seq" viewBox="0 0 700 1130" width="700" height="1130" role="img" xmlns="http://www.w3.org/2000/svg">
 <line class="sq-life" x1="98" y1="44" x2="98" y2="1124"/>
 <line class="sq-life" x1="266" y1="44" x2="266" y2="1124"/>
 <line class="sq-life" x1="434" y1="44" x2="434" y2="1124"/>
@@ -605,8 +617,8 @@
 <rect class="sq-band" x="28" y="306" width="644" height="70" rx="3"/>
 <path class="sq-band-tab" d="M 28 306 h 127 l -9 18 h -118 Z"/>
 <text class="sq-band-text" x="36" y="319">alt  no tool calls</text>
-<rect class="sq-note" x="-15" y="332" width="227" height="30" rx="3"/>
-<text class="sq-note-text" x="98" y="350" text-anchor="middle">the model is done, leave the loop</text>
+<rect class="sq-note" x="14" y="332" width="227" height="30" rx="3"/>
+<text class="sq-note-text" x="127" y="350" text-anchor="middle">the model is done, leave the loop</text>
 <rect class="sq-band" x="28" y="386" width="644" height="116" rx="3"/>
 <path class="sq-band-tab" d="M 28 386 h 164 l -9 18 h -155 Z"/>
 <text class="sq-band-text" x="36" y="399">else  invented tool name</text>
