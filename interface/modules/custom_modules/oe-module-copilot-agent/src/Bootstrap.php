@@ -31,6 +31,9 @@ class Bootstrap
     /** Menu target: the iframe tab the main screen opens the URL in. */
     private const MENU_TARGET = "cpa";
 
+    /** Second tab: the admin-only service health view. Its own target so it opens beside the co-pilot. */
+    private const HEALTH_TARGET = "cph";
+
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
     ) {
@@ -50,7 +53,10 @@ class Bootstrap
     }
 
     /**
-     * Append the CopilotAgent tab to the top-level menu.
+     * Append the CopilotAgent tab, and the admin-only health tab beside it.
+     *
+     * Appending here rather than editing interface/main/tabs/menu/menus/*.json keeps both tabs
+     * out of a tracked file, so neither one conflicts on a merge from OpenEMR master.
      */
     public function addCopilotMenuItem(MenuEvent $event): MenuEvent
     {
@@ -75,6 +81,20 @@ class Bootstrap
         $item->global_req = [];
 
         $menu[] = $item;
+
+        // Service health: operational counters, no clinical content. Administrators only, which is
+        // the inverse of the co-pilot itself -- an administrator is denied there by design.
+        $health = new stdClass();
+        $health->requirement = 0;
+        $health->target = self::HEALTH_TARGET;
+        $health->menu_id = 'cph0';
+        $health->label = xlt("CopilotHealth");
+        $health->url = self::MODULE_INSTALLATION_PATH . "/public/metrics.php";
+        $health->children = [];
+        $health->acl_req = ["admin", "super"];
+        $health->global_req = [];
+
+        $menu[] = $health;
         $event->setMenu($menu);
 
         return $event;

@@ -1,0 +1,284 @@
+<title>Co-Pilot Service Health</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+
+<style>
+  :root {
+    --surface:   #fcfcfb;
+    --ground:    #f2f3f1;
+    --ink:       #0b0b0b;
+    --ink-2:     #52514e;
+    --ink-3:     #7c7b76;
+    --rule:      #dedcd7;
+
+    --good:      #0ca30c;
+    --warning:   #fab219;
+    --critical:  #d03b3b;
+    --neutral:   #2a78d6;
+
+    --good-wash:     #e6f4e6;
+    --warning-wash:  #fdf2dc;
+    --critical-wash: #f8e5e5;
+    --neutral-wash:  #e3edf9;
+
+    --gutter: clamp(1rem, 4vw, 2.75rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface: #1a1a19; --ground: #111110; --ink: #ffffff; --ink-2: #c3c2b7;
+      --ink-3: #8f8e86; --rule: #34332f;
+      --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --neutral: #3987e5;
+      --good-wash: #122a12; --warning-wash: #2e2512; --critical-wash: #2d1515; --neutral-wash: #13243a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface: #1a1a19; --ground: #111110; --ink: #ffffff; --ink-2: #c3c2b7;
+    --ink-3: #8f8e86; --rule: #34332f;
+    --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --neutral: #3987e5;
+    --good-wash: #122a12; --warning-wash: #2e2512; --critical-wash: #2d1515; --neutral-wash: #13243a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 15px; line-height: 1.55;
+    padding-inline: var(--gutter); padding-block: clamp(2rem, 5vw, 3.25rem) 4rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 68rem; margin: 0 auto; display: flex; flex-direction: column; gap: 2.5rem; }
+
+  header { display: flex; flex-direction: column; gap: .55rem; }
+  .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: .72rem; letter-spacing: .12em;
+             text-transform: uppercase; color: var(--ink-3); }
+  h1 { font-size: clamp(1.7rem, 4vw, 2.3rem); font-weight: 700; letter-spacing: -.02em; margin: 0;
+       line-height: 1.12; text-wrap: balance; }
+  .sub { color: var(--ink-2); margin: 0; max-width: 62ch; }
+
+  .snapshot { background: var(--warning-wash); border-left: 3px solid var(--warning);
+              padding: .8rem 1rem; font-size: .88rem; color: var(--ink); border-radius: 0 3px 3px 0; }
+
+  section { display: flex; flex-direction: column; gap: .95rem; }
+  h2 { font-size: 1.12rem; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .note { font-size: .84rem; color: var(--ink-2); margin: 0; max-width: 68ch; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px;
+           background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; }
+  .tile { background: var(--surface); padding: .95rem 1.05rem; display: flex; flex-direction: column; gap: .18rem; }
+  .tile .k { font-family: "IBM Plex Mono", monospace; font-size: .7rem; letter-spacing: .07em;
+             text-transform: uppercase; color: var(--ink-3); }
+  .tile .v { font-size: 1.85rem; font-weight: 600; line-height: 1.1; letter-spacing: -.02em; }
+  .tile .d { font-size: .82rem; color: var(--ink-2); }
+  .tile.zero .v { color: var(--good); }
+  .tile.zero .v::after { content: " \2713"; font-size: 1rem; vertical-align: .18em; }
+
+  /* stacked outcome bar */
+  .obar { display: flex; flex-direction: column; gap: .4rem; }
+  .obar .lbl { display: flex; justify-content: space-between; font-size: .86rem; color: var(--ink-2); }
+  .obar .track { display: flex; gap: 2px; height: 26px; }
+  .obar .seg { border-radius: 3px; display: flex; align-items: center; justify-content: center;
+               font-family: "IBM Plex Mono", monospace; font-size: .74rem; font-weight: 600; color: #fff;
+               min-width: 26px; }
+  .seg.complete { background: var(--good); }
+  .seg.partial  { background: var(--warning); color: #221a05; }
+  .seg.unable   { background: var(--critical); }
+  .seg.denied   { background: var(--neutral); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .4rem 1.1rem; font-size: .82rem; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: .38rem; }
+  .sw { width: 11px; height: 11px; border-radius: 2px; flex: none; }
+  .sw.complete { background: var(--good); } .sw.partial { background: var(--warning); }
+  .sw.unable { background: var(--critical); } .sw.denied { background: var(--neutral); }
+
+  /* latency bullet */
+  .lat { display: grid; gap: .8rem; }
+  .row { display: grid; grid-template-columns: minmax(84px, 110px) minmax(0, 1fr) 74px; gap: .75rem;
+         align-items: center; font-size: .88rem; }
+  .row .nm { font-family: "IBM Plex Mono", monospace; font-size: .8rem; color: var(--ink-2); }
+  .row .track { position: relative; height: 22px; background: var(--surface);
+                border: 1px solid var(--rule); border-radius: 3px; }
+  .row .fill { position: absolute; inset: 2px auto 2px 2px; border-radius: 2px; }
+  .row .fill.ok { background: var(--good); } .row .fill.over { background: var(--critical); }
+  .row .target { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+  .row .target::after { content: attr(data-t); position: absolute; top: -1.05rem; left: 50%;
+                        transform: translateX(-50%); font-family: "IBM Plex Mono", monospace;
+                        font-size: .66rem; color: var(--ink-2); white-space: nowrap; }
+  .row .val { font-family: "IBM Plex Mono", monospace; font-size: .84rem; text-align: right; }
+  .row .val.over { color: var(--critical); font-weight: 600; }
+
+  table { border-collapse: collapse; width: 100%; font-size: .88rem; }
+  th, td { text-align: left; padding: .5rem .8rem .5rem 0; border-bottom: 1px solid var(--rule);
+           vertical-align: top; }
+  th { font-family: "IBM Plex Mono", monospace; font-size: .7rem; letter-spacing: .07em;
+       text-transform: uppercase; color: var(--ink-3); font-weight: 500; }
+  td.n { font-family: "IBM Plex Mono", monospace; text-align: right; white-space: nowrap; }
+
+  .gap { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 1.1rem 1.25rem;
+         display: flex; flex-direction: column; gap: .6rem; }
+  .gap h3 { margin: 0; font-size: .95rem; font-weight: 600; }
+  .gap ul { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .45rem;
+            font-size: .88rem; color: var(--ink-2); }
+  code { font-family: "IBM Plex Mono", monospace; font-size: .85em; background: var(--ground);
+         padding: .06em .32em; border-radius: 2px; color: var(--ink); }
+  footer { border-top: 1px solid var(--rule); padding-top: 1rem; font-size: .8rem; color: var(--ink-3);
+           font-family: "IBM Plex Mono", monospace; line-height: 1.7; }
+  @media (max-width: 560px) { .row { grid-template-columns: minmax(70px, 88px) minmax(0,1fr) 62px; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">OpenEMR Clinical Co-Pilot &middot; service health</div>
+    <h1>Is the co-pilot safe, honest and fast enough today?</h1>
+    <p class="sub">A rolled-up view of the agent's own <code>/metrics</code> endpoint, written for the
+      people who own the service rather than the people who debug it. Every figure here is a counter the
+      running service keeps; none of it is estimated.</p>
+  </header>
+
+  <div class="snapshot">
+    <strong>Snapshot, not live.</strong> Taken from the development instance on 2026-09-20. Volumes are
+    small &mdash; 3 sessions, 3 briefs, 3 answers &mdash; so the percentiles below are shown for shape,
+    not for judgement. Percentiles need roughly 20 samples before they mean anything.
+  </div>
+
+  <section>
+    <h2>The four that must be zero</h2>
+    <p class="note">These are not targets to improve. They are release criteria, and any value above zero
+      is an incident rather than a trend.</p>
+    <div class="tiles">
+      <div class="tile zero"><span class="k">Wrong-patient citations</span><span class="v">0</span>
+        <span class="d">A claim citing another patient's record</span></div>
+      <div class="tile zero"><span class="k">Unauthorised disclosures</span><span class="v">0</span>
+        <span class="d">Data reaching a denied role or context</span></div>
+      <div class="tile zero"><span class="k">Incorrect completeness</span><span class="v">0</span>
+        <span class="d">Labelled complete while a source had failed</span></div>
+      <div class="tile zero"><span class="k">Auth rejections</span><span class="v">0</span>
+        <span class="d">Unsigned or stale requests to the agent</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What did it do?</h2>
+    <div class="tiles">
+      <div class="tile"><span class="k">Sessions opened</span><span class="v">3</span>
+        <span class="d">2 still active</span></div>
+      <div class="tile"><span class="k">Briefs delivered</span><span class="v">3</span>
+        <span class="d">all ready on selection</span></div>
+      <div class="tile"><span class="k">Questions answered</span><span class="v">3</span>
+        <span class="d">1 tool call across them</span></div>
+      <div class="tile"><span class="k">Clinician ratings</span><span class="v">3</span>
+        <span class="d">all negative &mdash; see below</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How did the answers end?</h2>
+    <div class="obar">
+      <div class="lbl"><span>Rounding briefs</span><span>3</span></div>
+      <div class="track">
+        <div class="seg complete" style="flex:3" title="complete — 3 of 3">3</div>
+      </div>
+    </div>
+    <div class="obar">
+      <div class="lbl"><span>Follow-up answers</span><span>3</span></div>
+      <div class="track">
+        <div class="seg complete" style="flex:2" title="complete — 2 of 3">2</div>
+        <div class="seg denied" style="flex:1" title="access denied — 1 of 3, the system refusing correctly">1</div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw complete"></i>complete &mdash; everything retrieved, every claim verified</span>
+      <span><i class="sw partial"></i>partial &mdash; a source failed or claims were removed, and it said so</span>
+      <span><i class="sw unable"></i>unable &mdash; investigate this one</span>
+      <span><i class="sw denied"></i>access denied &mdash; the system working</span>
+    </div>
+    <p class="note"><strong>Access denied is deliberately not red.</strong> A refusal is the boundary
+      holding, not a failure, and a dashboard that paints it as an error teaches the opposite. The state
+      to watch is <em>unable</em>: it means the machinery broke or nothing survived verification.</p>
+  </section>
+
+  <section>
+    <h2>Was it fast enough?</h2>
+    <div class="lat">
+      <div class="row">
+        <span class="nm">answer p50</span>
+        <span class="track"><span class="fill ok" style="width:12%"></span><span class="target" style="left:25%" data-t="5 s target"></span></span>
+        <span class="val">0.7 s</span>
+      </div>
+      <div class="row">
+        <span class="nm">answer p95</span>
+        <span class="track"><span class="fill over" style="width:96%"></span><span class="target" style="left:50%" data-t="10 s target"></span></span>
+        <span class="val over">23.1 s</span>
+      </div>
+      <div class="row">
+        <span class="nm">brief p50</span>
+        <span class="track"><span class="fill ok" style="width:58%"></span><span class="target" style="left:100%" data-t="90 s budget"></span></span>
+        <span class="val">17.5 s</span>
+      </div>
+      <div class="row">
+        <span class="nm">brief p95</span>
+        <span class="track"><span class="fill ok" style="width:75%"></span><span class="target" style="left:100%" data-t="90 s budget"></span></span>
+        <span class="val">30.3 s</span>
+      </div>
+    </div>
+    <p class="note">Answers are measured against the PRD's interactive targets; briefs against the 90-second
+      prefetch budget, because a brief is generated before the clinician opens the patient and is reused
+      until that chart changes. The p95 miss on answers is the known tradeoff: a verified answer costs at
+      least two model calls, and nothing is streamed before it is checked.</p>
+  </section>
+
+  <section>
+    <h2>What did clinicians say?</h2>
+    <table>
+      <thead><tr><th>Category</th><th>Meaning</th><th class="n">Count</th></tr></thead>
+      <tbody>
+        <tr><td>Doesn't match the record</td><td>Cited a real record the sentence misreads &mdash; the gap the verifier cannot close</td><td class="n">1</td></tr>
+        <tr><td>Not what I asked</td><td>Answered something adjacent</td><td class="n">2</td></tr>
+        <tr><td>Missed something</td><td>Left out something material</td><td class="n">0</td></tr>
+        <tr><td>Helpful</td><td>Useful as delivered</td><td class="n">0</td></tr>
+      </tbody>
+    </table>
+    <p class="note">Every rating attaches to the trace that produced that answer, so a complaint is
+      reproducible rather than anecdotal. These three came from testing the control itself, which is why
+      they are all negative.</p>
+  </section>
+
+  <section>
+    <h2>Verification activity</h2>
+    <div class="tiles">
+      <div class="tile"><span class="k">Claims removed</span><span class="v">0</span>
+        <span class="d">Sentences deleted before display</span></div>
+      <div class="tile"><span class="k">Tool calls</span><span class="v">1</span>
+        <span class="d">Chart lookups across 3 answers</span></div>
+      <div class="tile"><span class="k">Scope denials</span><span class="v">1</span>
+        <span class="d">Requests for a non-active patient</span></div>
+      <div class="tile"><span class="k">Sessions active</span><span class="v">2</span>
+        <span class="d">Expire after 120 min idle</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="gap">
+      <h3>What this view cannot tell you yet</h3>
+      <ul>
+        <li><strong>Verified claim rate is not derivable.</strong> The service counts
+          <code>claims_removed</code> but not claims kept, so precision &mdash; the headline safety
+          number &mdash; cannot be computed from <code>/metrics</code>. One counter would fix it.</li>
+        <li><strong>Counters reset on restart.</strong> They live in process memory alongside everything
+          else, so this is "since the service last started", not a period.</li>
+        <li><strong>No per-clinician or per-ward breakdown.</strong> Deliberate: the metrics endpoint
+          carries no identifiers, so it cannot become a second place PHI lives.</li>
+        <li><strong>Time saved is still unmeasured.</strong> The workflow promise has no baseline, and
+          no counter here will produce one &mdash; it needs a clinician with a stopwatch.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    Source: <code>GET /metrics</code> on the agent service, HMAC-signed, no clinical content.<br>
+    Counters: sessions_opened, select_*, brief_state_*, answer_state_*, tool_calls, claims_removed,
+    feedback_*, auth_rejected. Latency: brief_ms, answer_ms (p50/p95/p99).<br>
+    Companion documents: KEY_METRICS.md &middot; EVAL_DATASET.md &middot; ARCHITECTURE.md
+  </footer>
+
+</div>

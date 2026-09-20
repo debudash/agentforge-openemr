@@ -176,6 +176,10 @@ async def session_select(sid: str, request: Request, body: bytes = Depends(signe
     counters[f"select_{status}"] += 1
     if brief is not None:
         counters[f"brief_state_{brief.state.value}"] += 1
+        # Kept alongside claims_removed so the verified-claim rate can be read straight off
+        # /metrics. Counting only removals tells you a denominator is missing, not what it is.
+        counters["claims_kept"] += sum(len(section.claims) for section in brief.sections)
+        counters["claims_removed"] += len(brief.removed_claims)
         record_latency("brief_ms", brief.duration_ms)
     return {"status": status, "correlation_id": cid, "error": error,
             "brief": brief.model_dump(mode="json") if brief else None}
@@ -188,6 +192,7 @@ async def session_ask(sid: str, request: Request, body: bytes = Depends(signed))
     response = await store.ask(sid, payload.pid, payload.question, cid)
     counters[f"answer_state_{response.state.value}"] += 1
     counters["tool_calls"] += len(response.tool_calls)
+    counters["claims_kept"] += len(response.claims)
     counters["claims_removed"] += len(response.removed_claims)
     record_latency("answer_ms", response.duration_ms)
     return response.model_dump(mode="json")
