@@ -17,9 +17,14 @@ You should not need to read any source to run it.
 | `baseUrl` | `http://127.0.0.1:8600` for a local service |
 | `sharedSecret` | `COPILOT_SHARED_SECRET` from `copilot/.env` |
 
-4. Run the collection in order.
+4. Open the Collection Runner, set **Delay 2000 ms**, and run.
 
-`sessionId` and `lastRunId` are already set and managed for you.
+`sessionId`, `lastRunId` and `statusTries` are set and managed for you.
+
+The delay matters: a brief takes 10-30 s on the free tier, and request 4 re-runs itself
+until every patient reads `ready`. Without a delay it spins through its forty attempts in a
+second and gives up before the first brief lands. Running the requests one at a time works
+too -- just press Send on request 4 until it reports `ready`.
 
 ## Why a shared secret
 
