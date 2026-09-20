@@ -242,8 +242,9 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
    $env:OE_DB_VIA="railway"; $env:OE_DB_PASS="<openemr db pw>"
    .venv\Scripts\python ..\scripts\seed_appointments.py
    ```
-6. Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied by
-   design and the denial is written to the audit log. Traces appear in the LangSmith project
+6. Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied it by
+   design and the denial is written to the audit log; an administrator gets a **CopilotHealth**
+   tab instead, showing the service's counters since it last started. Traces appear in the LangSmith project
    named in `LANGSMITH_PROJECT`.
 
 `COPILOT_TRACE_REDACT=true` hides prompts and outputs in LangSmith; use it whenever the data

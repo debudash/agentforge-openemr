@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "OpenEMR Clinical Co-Pilot - agent service",
-    "description": "Runnable collection for the co-pilot agent service.\n\nSETUP (two variables, then press Run):\n  baseUrl       http://127.0.0.1:8600 locally\n  sharedSecret  COPILOT_SHARED_SECRET from copilot/.env\n\nEvery request is HMAC-signed by a collection-level pre-request script, the same scheme the OpenEMR module uses; there is nothing to sign by hand. Run the requests in order: 3 opens a session, 4 polls until the briefs are ready, 5 through 8 exercise one patient, 9 shows the counters and 10 tears down.\n\nThe browser never talks to this service in normal use -- OpenEMR proxies every call under the clinician's session -- so this collection is the only way to drive it directly.",
+    "description": "Runnable collection for the co-pilot agent service.\n\nSETUP (one variable, then press Run):\n  baseUrl       already points at the live demo; use http://127.0.0.1:8600 for a local service\n  sharedSecret  request it with the demo logins (see the repo README), or your own\n                COPILOT_SHARED_SECRET if you are running locally\n\nIn the Collection Runner set Delay to 2000 ms: a brief takes 10-30 s and request 4 polls itself.\n\nEvery request is HMAC-signed by a collection-level pre-request script, the same scheme the OpenEMR module uses; there is nothing to sign by hand. Run the requests in order: 3 opens a session, 4 polls until the briefs are ready, 5 through 8 exercise one patient, 9 shows the counters and 10 tears down.\n\nThe browser never talks to this service in normal use -- OpenEMR proxies every call under the clinician's session -- so this collection is the only way to drive it directly.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -14,9 +14,9 @@
           "//   signature = HMAC-SHA256(secret, \"<unix ts>.<METHOD>.<path>.<raw body>\")",
           "// The service rejects a missing or stale timestamp and any mismatch, so an unsigned",
           "// request returns 401 by design.",
-          "var secret = pm.collectionVariables.get(\"sharedSecret\");",
+          "var secret = pm.variables.get(\"sharedSecret\");",
           "if (!secret) {",
-          "    console.warn(\"Set the sharedSecret collection variable (COPILOT_SHARED_SECRET from copilot/.env).\");",
+          "    console.warn(\"Set sharedSecret (collection variable, environment, or newman --env-var). Every signed request returns 401 without it.\");",
           "}",
           "",
           "var ts = Math.floor(Date.now() / 1000).toString();",
@@ -27,7 +27,7 @@
           "// {{variables}} in the address bar -- reading the resolved string here would sign the wrong path.",
           "function fill(text) {",
           "    return String(text).replace(/\\{\\{([^}]+)\\}\\}/g, function (match, name) {",
-          "        var value = pm.collectionVariables.get(name.trim());",
+          "        var value = pm.variables.get(name.trim());",
           "        return value === undefined || value === null ? match : value;",
           "    });",
           "}",
@@ -53,7 +53,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://127.0.0.1:8600",
+      "value": "https://copilot-agent-production-1f21.up.railway.app",
       "description": "Agent service base URL"
     },
     {

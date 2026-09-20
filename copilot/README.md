@@ -79,7 +79,9 @@ $env:OPENEMR_BASE_URL="https://localhost:9300"; $env:OE_PASS="pass"
 .venv\Scripts\python ..\scripts\seed_appointments.py
 ```
 
-Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied by design (PRD RBAC matrix).
+Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is denied the
+co-pilot by design (PRD RBAC matrix) and gets a **CopilotHealth** tab instead, showing the
+service's counters since it last started.
 
 Health: `GET /health` (process alive; checks nothing else, so a dependency outage never gets a working service killed) and `GET /ready` (probes the model provider endpoint, the LangSmith API and OpenEMR, plus the provider allowlist and shared secret; 503 naming whichever failed). `/healthz` and `/readyz` remain as aliases. Set `COPILOT_OPENEMR_URL` for the OpenEMR probe: the agent never calls OpenEMR in normal operation, so it cannot infer the address. The service refuses to open sessions while not ready.
 

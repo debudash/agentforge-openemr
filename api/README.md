@@ -7,17 +7,18 @@ You should not need to read any source to run it.
 
 ## Setup
 
-1. Start the agent service (see [copilot/README.md](../copilot/README.md)), or point at a
-   deployed one.
-2. Import the collection.
-3. Set two collection variables:
+1. Import the collection. It points at the live demo service, so nothing needs to be running
+   locally; to drive a local service instead, start it first (see
+   [copilot/README.md](../copilot/README.md)).
+2. Open the Collection Runner.
+3. Set one collection variable:
 
 | Variable | Value |
 |---|---|
-| `baseUrl` | `https://copilot-agent-production-1f21.up.railway.app` for the live demo, or `http://127.0.0.1:8600` for a local service |
 | `sharedSecret` | see below |
 
-The live demo needs no local setup: point `baseUrl` at it, paste the secret, and run.
+`baseUrl` already points at the live demo, so there is nothing else to set: paste the secret and
+run. Change it to `http://127.0.0.1:8600` if you would rather drive a local service.
 
 **Where the secret comes from.** It is not in this repository, for the same reason the demo
 logins are not: it is the credential that authorises every call to the agent. Request it with
@@ -25,7 +26,7 @@ the demo accounts — see the accounts table in the [root README](../README.md).
 running locally instead, it is your own `COPILOT_SHARED_SECRET` from `copilot/.env`, which you
 generated when you set the service up.
 
-4. Open the Collection Runner, set **Delay 2000 ms**, and run.
+4. Set **Delay 2000 ms**, and run.
 
 `sessionId`, `lastRunId` and `statusTries` are set and managed for you.
 
