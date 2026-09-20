@@ -45,11 +45,12 @@ To pull actual records you need a token; [usecases/USECASES.md](usecases/USECASE
 The **CopilotAgent** tab in the top menu opens a two-pane page: the signed-in physician's rounding list for today on the left, the selected patient's pre-rounding brief and a follow-up conversation on the right. Every statement is cited to a chart record and verified before it is shown; every response carries one of four states (complete for requested scope, partial, unable to answer, access denied).
 
 - Built to [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf), within [USERS.md](USERS.md) §4 boundaries and [AUDIT.md](AUDIT.md) findings.
-- Agent code, evals and grounding rules: [copilot/](copilot/) ([README](copilot/README.md), [GROUNDING_RULES.md](copilot/evals/GROUNDING_RULES.md)).
+- Agent code, evals and grounding rules: [copilot/](copilot/) ([README](copilot/README.md), [GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md)).
 - OpenEMR module (gateway, scope, UI): [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/).
-- Design and evidence: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY_TESTS.md](SECURITY_TESTS.md), [KEY_METRICS.md](KEY_METRICS.md).
+- Design and evidence: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY_TESTS.md](SECURITY_TESTS.md), [KEY_METRICS.md](KEY_METRICS.md), [EVAL_DATASET.md](EVAL_DATASET.md), [COST_ANALYSIS.md](COST_ANALYSIS.md).
+- **Runnable API collection**: [api/](api/) — ten requests covering the whole workflow, against the live service or a local one. Import, set two variables, run.
 
-Who can use it: providers in the **Physicians** group (`doctor1`, `doctor2`). `admin` is denied by design. The list is *today's appointments booked for that provider, limited to their assigned patients*; book them with `scripts/seed_appointments.py`.
+Who can use it: providers in the **Physicians** group (`doctor1`, `doctor2`). `admin` is denied by design, and is offered a separate **CopilotHealth** tab instead — an operational view of the agent's own counters, with no clinical content. The rounding list is *today's appointments booked for that provider, limited to their assigned patients*; book them with `scripts/seed_appointments.py`.
 
 ## Prerequisites
 
