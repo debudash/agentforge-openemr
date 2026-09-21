@@ -4,7 +4,7 @@
  * Reads one patient's chart through OpenEMR's service layer into the compact JSON the
  * agent consumes (copilot/copilot/schemas.py: Chart).
  *
- * Design notes, all traceable to AUDIT.md / USERS.md:
+ * Design notes, all traceable to AUDIT.md / USER.md:
  * - Every read is preceded by PanelScope::assertInScope() (REQ-SCOPE-1, fails closed).
  * - Each domain is read separately with its own timing and status so a failed source
  *   becomes a "partial" response, never a silent omission (PRD FR17/FR20).

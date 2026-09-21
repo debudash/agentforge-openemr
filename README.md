@@ -25,7 +25,7 @@ is signed with, so it is kept out of the repository for the same reason the pass
 
 **What's loaded:** 50 Synthea patients, ~2,800 encounters, ~1,400 problems, ~300 prescriptions, ~9,900 lab results and ~700 immunizations. Every patient has one assigned provider, split evenly between the two doctors.
 
-**Expect `doctor1` to see all 50 patients**, not just their 25. OpenEMR's permissions are role-based, so an assigned provider is a data attribute, not an access restriction — see [AUDIT.md](AUDIT.md) S3. Restricting a clinician to their own panel is the agent's job, specified as REQ-SCOPE-1 in [USERS.md](USERS.md).
+**Expect `doctor1` to see all 50 patients**, not just their 25. OpenEMR's permissions are role-based, so an assigned provider is a data attribute, not an access restriction — see [AUDIT.md](AUDIT.md) S3. Restricting a clinician to their own panel is the agent's job, specified as REQ-SCOPE-1 in [USER.md](USER.md).
 
 **A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters. As `admin`, **Admin → Users** shows the two provider accounts.
 
@@ -44,7 +44,7 @@ To pull actual records you need a token; [usecases/USECASES.md](usecases/USECASE
 
 The **CopilotAgent** tab in the top menu opens a two-pane page: the signed-in physician's rounding list for today on the left, the selected patient's pre-rounding brief and a follow-up conversation on the right. Every statement is cited to a chart record and verified before it is shown; every response carries one of four states (complete for requested scope, partial, unable to answer, access denied).
 
-- Built to [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf), within [USERS.md](USERS.md) §4 boundaries and [AUDIT.md](AUDIT.md) findings.
+- Built to [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf), within [USER.md](USER.md) §4 boundaries and [AUDIT.md](AUDIT.md) findings.
 - Agent code, evals and grounding rules: [copilot/](copilot/) ([README](copilot/README.md), [GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md)).
 - OpenEMR module (gateway, scope, UI): [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/).
 - Design and evidence: [ARCHITECTURE.md](ARCHITECTURE.md), [SECURITY_TESTS.md](SECURITY_TESTS.md), [KEY_METRICS.md](KEY_METRICS.md), [EVAL_DATASET.md](EVAL_DATASET.md), [COST_ANALYSIS.md](COST_ANALYSIS.md).
@@ -228,13 +228,14 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 | [deploy/railway/](deploy/railway/) | **Public deployment.** Railway config: Compose file to import, variables, and step-by-step setup |
 | [deploy/digitalocean/](deploy/digitalocean/) | Reference VM deployment (droplet or Vultr): hardened production Compose, Let's Encrypt via `DOMAIN` |
 | [AUDIT.md](AUDIT.md) | Security, performance, architecture, data quality and compliance audit of this system |
-| [USERS.md](USERS.md) | Target user (hospitalist), workflow and the use cases the agent must serve |
+| [USER.md](USER.md) | Target user (hospitalist), workflow and the use cases the agent must serve |
 | [copilot/](copilot/) | **The agent**: LangChain tool-calling loop (max 5 rounds), rule engine, claim verifier, FastAPI gateway, evals and grounding rules, LangSmith tracing |
 | [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/) | OpenEMR module: CopilotAgent tab, role and patient-scope enforcement, chart reader, signed proxy to the agent |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | PHI data flow, trust boundaries, authorization, model gateway, states, logging, retention, incident path |
 | [SECURITY_TESTS.md](SECURITY_TESTS.md) | Runnable authorization, isolation, provider-allowlist, logging and failure tests with results |
 | [KEY_METRICS.md](KEY_METRICS.md) | The five success metrics from the PRD, why those measures, what the runs produced, and the declared gaps |
 | [EVAL_DATASET.md](EVAL_DATASET.md) | The four-layer test suite, the fixture charts, the scope decisions behind them, and current results |
+| [ALERTS.md](ALERTS.md) | The three alerts on the metrics dashboard plus one agent-specific, each with thresholds, meaning and the on-call response |
 | [scripts/](scripts/) | Setup helpers that write through OpenEMR's forms and APIs (providers, panel, appointments, passwords, module registration) |
 
 ---

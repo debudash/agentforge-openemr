@@ -4,7 +4,7 @@ What we measure, why those measures and not others, what the runs actually produ
 
 **Status:** measured 2026-09-16 on the local stack. Two of the five primary metrics have no data yet and are declared as gaps rather than estimated. Every figure below is traceable to a results file under `copilot/evals/stage1/results/`, a service event log, or a named test.
 
-Companion documents: [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf) (where the targets come from), [USERS.md](USERS.md) (the workflow being measured), [SECURITY_TESTS.md](SECURITY_TESTS.md) (per-control evidence), [copilot/evals/stage1/GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (what counts as grounded).
+Companion documents: [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf) (where the targets come from), [USER.md](USER.md) (the workflow being measured), [SECURITY_TESTS.md](SECURITY_TESTS.md) (per-control evidence), [ALERTS.md](ALERTS.md) (the thresholds these baselines set, and the on-call response), [copilot/evals/stage1/GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (what counts as grounded).
 
 ---
 

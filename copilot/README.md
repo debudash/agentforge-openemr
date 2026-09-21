@@ -2,7 +2,7 @@
 
 The agent behind the **CopilotAgent** tab in OpenEMR. It prepares a pre-rounding brief for every patient on the signed-in physician's list for the day and answers follow-up questions about the selected patient, with every statement cited to a chart record and verified before display.
 
-Built to `requirements/AgentForge_Clinical_Copilot_PRD.pdf`, within the boundaries of `USERS.md` (§4 NG-1..7, §6 REQ-*) and the findings of `AUDIT.md`.
+Built to `requirements/AgentForge_Clinical_Copilot_PRD.pdf`, within the boundaries of `USER.md` (§4 NG-1..7, §6 REQ-*) and the findings of `AUDIT.md`.
 
 ## How it fits together
 

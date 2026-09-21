@@ -12,7 +12,7 @@
 
 return [
     'name' => 'Clinical Co-Pilot Agent',
-    'description' => 'Adds a CopilotAgent tab that hosts the clinical co-pilot for the hospitalist workflow defined in USERS.md.',
+    'description' => 'Adds a CopilotAgent tab that hosts the clinical co-pilot for the hospitalist workflow defined in USER.md.',
     'version' => '0.1.0',
     'author' => 'Debu Dash',
     'license' => 'GPL-3.0',

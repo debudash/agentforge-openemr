@@ -2,7 +2,7 @@
 
 PHI data flow, trust boundaries, component responsibilities, authorization, the model gateway, storage, logging, verification, failure handling and the incident path, as required by the PRD ("Required Security Evidence", ARCHITECTURE.md). Every PHI-handling component states whether it **receives, stores, transmits or logs** PHI.
 
-Companion documents: `AUDIT.md` (findings this design answers), `USERS.md` (use cases and requirements), `KEY_METRICS.md` (what success is measured by), `SECURITY_TESTS.md` (runnable evidence), `copilot/evals/stage1/GROUNDING_RULES.md` (what "grounded" means), `copilot/README.md` (how to run it).
+Companion documents: `AUDIT.md` (findings this design answers), `USER.md` (use cases and requirements), `KEY_METRICS.md` (what success is measured by), `SECURITY_TESTS.md` (runnable evidence), `ALERTS.md` (alert thresholds and on-call response), `copilot/evals/stage1/GROUNDING_RULES.md` (what "grounded" means), `copilot/README.md` (how to run it).
 
 ---
 
@@ -66,7 +66,7 @@ Companion documents: `AUDIT.md` (findings this design answers), `USERS.md` (use 
 
 Trust boundary A is OpenEMR's own session and ACL. Boundary B is the agent service, which trusts only requests signed with the shared secret and re-validates patient assignment itself. The browser is outside both and never holds a secret or a model key (PHI4).
 
-## 2. Authorization flow (PRD FR2, FR15; USERS.md REQ-SCOPE-1)
+## 2. Authorization flow (PRD FR2, FR15; USER.md REQ-SCOPE-1)
 
 1. **Session.** `interface/globals.php` requires an authenticated OpenEMR session; anonymous requests never reach the module.
 2. **Role.** `PanelScope::isHospitalist()` requires membership of the **Physicians** gacl group (the OpenEMR mapping of the PRD's hospitalist role) and `users.authorized = 1`. Administrators, front office, accounting, nurses and non-provider accounts are denied by default; the denial is audited (`copilot-role-denied`).
@@ -227,4 +227,4 @@ Each of these is a decision with a cost, not an oversight. They are stated as wh
 | **Scope enforced in the application** | A clinician sees only their own panel | Four layers to keep in step, and none of it is enforced by OpenEMR | Not a choice: OpenEMR's permissions are role-based and every user token reads every patient (AUDIT.md S3, measured) |
 | **Free-tier model** | Zero cost for development | Rate limits, provider outages, weaker instruction-following; NFR1 latency targets unmet | The guards are model-independent, so the cheap model is a harsher test of them. A paid model is one variable away |
 
-**Scope limits that are not tradeoffs, just facts.** The dataset is ambulatory Synthea data with no current admission, overnight vitals or notes (USERS.md §5), so the rounding list stands in as today's booked appointments and "recent labs" falls back to the most recent collection. The OAuth password grant remains enabled because the test suite needs it (AUDIT.md S1).
+**Scope limits that are not tradeoffs, just facts.** The dataset is ambulatory Synthea data with no current admission, overnight vitals or notes (USER.md §5), so the rounding list stands in as today's booked appointments and "recent labs" falls back to the most recent collection. The OAuth password grant remains enabled because the test suite needs it (AUDIT.md S1).

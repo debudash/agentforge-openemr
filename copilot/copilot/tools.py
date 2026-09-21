@@ -3,7 +3,7 @@
 Every tool takes the patient id it wants to read. The tool compares it with the one
 patient the session is bound to and returns a `denied` result for anything else, without
 revealing whether that patient exists. The model cannot widen the scope (PRD
-authorization rules; USERS.md REQ-SCOPE-1). Each result is a JSON string with a
+authorization rules; USER.md REQ-SCOPE-1). Each result is a JSON string with a
 `result` of ok / empty / denied / error, and every record carries its `source_id`.
 
 Tools read from the chart the OpenEMR gateway already retrieved for this session; they

@@ -13,7 +13,7 @@ Stage 1 has two suites, run by `copilot/evals/run_evals.py --stage stage1`:
 
 A case is **not applicable** rather than failed when the model endpoint rate-limited or was unavailable for the agent's call (the agent reports it in `state_reason`); a judge that suffers the same is recorded as "judge n/a" and does not fail the case. Both are counted and reported apart, so an endpoint's quota never masquerades as an agent defect.
 
-The rules derive from `USERS.md` §4 (NG-1 to NG-7, REQ-CITE-1, REQ-NORM-1), `AUDIT.md` §4 (D1 to D8) and the PRD's claim verification policy, required refusals and bounded constraint engine.
+The rules derive from `USER.md` §4 (NG-1 to NG-7, REQ-CITE-1, REQ-NORM-1), `AUDIT.md` §4 (D1 to D8) and the PRD's claim verification policy, required refusals and bounded constraint engine.
 
 ## The rules
 

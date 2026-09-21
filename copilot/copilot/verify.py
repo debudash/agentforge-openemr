@@ -7,7 +7,7 @@ Deterministic and model-free. A claim survives only if:
 3. every number it states appears in the cited records (dates, values, units, doses),
    apart from a small allowlist the caller supplies (today's date, the comparison
    window, the patient's age) and small integer counts,
-4. it does not phrase a clinical recommendation (product boundary, USERS.md NG-2).
+4. it does not phrase a clinical recommendation (product boundary, USER.md NG-2).
 
 Anything else is removed and reported, never silently dropped (FR20).
 """

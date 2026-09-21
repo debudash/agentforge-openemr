@@ -123,7 +123,7 @@ guarantee would be paying roughly double at every tier in the next section.
 
 Workload assumption: a hospitalist carrying **15 patients** with **3 follow-up questions each**, 22
 working days per month. The demo's 5-patient list is a cost-and-time concession, not a clinical figure
-(USERS.md section 1.1). At that load a seat costs **$22.52/month** naive on Sonnet 5 and **$9.22/month**
+(USER.md section 1.1). At that load a seat costs **$22.52/month** naive on Sonnet 5 and **$9.22/month**
 optimised — a useful anchor against any per-seat price.
 
 | Users | Patients/day | Model calls/day | Naive (Sonnet 5) | + cache + batch | + Haiku tiering |

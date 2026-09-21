@@ -191,6 +191,6 @@ the current groups and prints them afterwards; `fix_acl.php` repairs an account 
 
 ## Why this matters
 
-`USERS.md` scopes the agent to one clinician's patients, and `AUDIT.md` S3 notes
+`USER.md` scopes the agent to one clinician's patients, and `AUDIT.md` S3 notes
 that user-level OAuth scopes reach every patient with no care-team restriction.
 An assigned provider per patient is what makes provider-scoped access testable.

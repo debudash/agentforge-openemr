@@ -4,7 +4,7 @@ What is tested, how the suite is structured, why it is structured that way, and 
 
 **Run of record:** 2026-09-16, agent `nvidia/nemotron-3-super-120b-a12b:free` via OpenRouter, local stack. Results file `copilot/evals/stage1/results/20260916-174707-all.json`.
 
-Companion documents: [KEY_METRICS.md](KEY_METRICS.md) (what the numbers are held against), [copilot/evals/stage1/GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (what counts as grounded), [USERS.md](USERS.md) (the use cases), [SECURITY_TESTS.md](SECURITY_TESTS.md) (per-control evidence).
+Companion documents: [KEY_METRICS.md](KEY_METRICS.md) (what the numbers are held against), [copilot/evals/stage1/GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (what counts as grounded), [USER.md](USER.md) (the use cases), [SECURITY_TESTS.md](SECURITY_TESTS.md) (per-control evidence).
 
 ---
 

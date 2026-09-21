@@ -3,7 +3,7 @@
 These are *demo* tables reviewed for the synthetic dataset in this repository. They are
 not a clinical knowledge base. Every flag derived from them is labelled with the table
 version and the words "demo reference", never presented as coming from the record
-(USERS.md NG-7; PRD "Laboratory range" boundary; AUDIT D5).
+(USER.md NG-7; PRD "Laboratory range" boundary; AUDIT D5).
 
 Codes are the LOINC codes actually present in procedure_result (measured 2026-09-15).
 """

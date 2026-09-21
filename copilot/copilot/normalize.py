@@ -1,4 +1,4 @@
-"""Turn raw chart records into what the model is allowed to see (USERS.md REQ-NORM-1).
+"""Turn raw chart records into what the model is allowed to see (USER.md REQ-NORM-1).
 
 Applies the AUDIT.md data-quality mitigations before any text reaches the model:
 - D1: medication status comes from end_date, never from the `active` flag alone
