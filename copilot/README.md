@@ -93,6 +93,11 @@ Health: `GET /health` (process alive; checks nothing else, so a dependency outag
 `COPILOT_ALLOWED_MODELS`; empty means the agent model). `/ready` reports it. Free OpenRouter slugs
 share one per-account quota, so a `rate_limit` reason on an upload means the quota, not the file.
 
+**Week 2 gate.** `python -m evals.stage2.gate` replays 50 recorded cases through the real code
+(no model, ~10 s) and fails on regression against `evals/stage2/baseline.json`. Install the
+pre-push hook once per clone with `.\hooks\install-hooks.ps1`. See
+[evals/stage2/README.md](evals/stage2/README.md).
+
 A runnable API collection covering the whole workflow is in [api/](../api/).
 
 ## Testing locally, and the gate in front of Railway

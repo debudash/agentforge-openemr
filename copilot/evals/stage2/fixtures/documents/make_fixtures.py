@@ -42,8 +42,13 @@ PAGES = [
 ]
 
 
+BACKSLASH = chr(92)   # written this way so no tool can mangle the escapes in this file
+
+
 def _escape(text: str) -> str:
-    return text.replace("\\", "\\\\").replace("(", "\(").replace(")", "\)")
+    return (text.replace(BACKSLASH, BACKSLASH + BACKSLASH)
+                .replace("(", BACKSLASH + "(")
+                .replace(")", BACKSLASH + ")"))
 
 
 def build_pdf(pages: list[list[str]]) -> bytes:
@@ -87,3 +92,8 @@ if __name__ == "__main__":
     target = HERE / "metro-labs-jane-doe.pdf"
     target.write_bytes(build_pdf(PAGES))
     print(f"wrote {target} ({target.stat().st_size} bytes)")
+    # A page with no text layer at all: what a scan looks like to the checks. Citations into it
+    # cannot be verified against text and are kept, which is the documented limit.
+    scan = HERE / "scan-blank.pdf"
+    scan.write_bytes(build_pdf([[]]))
+    print(f"wrote {scan} ({scan.stat().st_size} bytes)")

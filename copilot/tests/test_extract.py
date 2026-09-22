@@ -129,3 +129,10 @@ def test_extract_reports_a_model_failure_by_category(pdf, settings):
     with pytest.raises(ExtractionFailed) as err:
         extract_lab_document(DOC_ID, pdf, ScriptedLLM([]), settings, "cid-w")   # nothing scripted: the call raises
     assert str(err.value).startswith("model call failed")
+
+
+def test_a_value_absent_from_its_own_quote_is_demoted(pdf):
+    bad = proposed()
+    bad.results[0].value = field("5.4", "Sodium                  140         mmol/L", 1)   # real line, wrong value
+    _, demoted = demote_uncited(bad, DOC_ID, page_texts(pdf, 6), 2)
+    assert demoted == ["results[0].value: value is not in the cited quote"]

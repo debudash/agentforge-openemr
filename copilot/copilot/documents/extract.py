@@ -3,7 +3,8 @@
 The model proposes; two deterministic checks decide what survives:
 
 1. Every citation must point at the document being read and at a page it has.
-2. When a page has a text layer, the cited quote must actually appear on that page. A quote
+2. The value must appear in the quote that cites it; the quote is the evidence.
+3. When a page has a text layer, the cited quote must actually appear on that page. A quote
    that is not on the page is an invented citation, and the field it supports is demoted to
    unsupported (null, confidence 0) and listed in unsupported_fields.
 
@@ -112,6 +113,9 @@ def demote_uncited(document: LabDocument, doc_id: int, texts: list[str], pages: 
             reason = "cites a different document"
         elif not 1 <= int(citation.get("page", 0)) <= pages:
             reason = f"cites page {citation.get('page')} of {pages}"
+        elif _normalize(str(field["value"])) not in _normalize(citation.get("quote", "")):
+            # The quote is the evidence; a value that is not in it was not read from it.
+            reason = "value is not in the cited quote"
         else:
             page_text = _normalize(texts[citation["page"] - 1]) if citation["page"] - 1 < len(texts) else ""
             if page_text and _normalize(citation.get("quote", "")) not in page_text:
@@ -161,7 +165,9 @@ def extract_lab_document(doc_id: int, pdf_bytes: bytes, llm: LLM, settings: Sett
     document, demoted = demote_uncited(proposed, doc_id, texts, pages)
     # The model's own bookkeeping is replaced by what we know to be true.
     document = document.model_copy(update={"source_id": f"doc:{doc_id}", "page_count": pages})
-    unsupported = document.unsupported()
+    # One entry per unsupported field: a demoted one appears with its reason, not twice.
+    demoted_paths = {entry.split(":", 1)[0] for entry in demoted}
+    unsupported = [path for path in document.unsupported() if path not in demoted_paths]
     duration_ms = int((time.perf_counter() - started) * 1000)
     emit("document_extracted", correlation_id, doc_id=doc_id, pages=pages, results=len(document.results),
          unsupported=len(unsupported), demoted=len(demoted), duration_ms=duration_ms, model=settings.vision_model,

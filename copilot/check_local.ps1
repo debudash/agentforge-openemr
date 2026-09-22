@@ -37,6 +37,9 @@ if (Test-Path $marker) { Remove-Item $marker }
 
 Step "unit and service tests" { & $python -m pytest -q }
 
+# Week 2 gate: 50 recorded cases through the real code, no model, no key. Always runs.
+Step "Week 2 eval gate (stage2, deterministic)" { & $python -m evals.stage2.gate }
+
 if (-not $SkipGolden) {
     Step "golden gate (stage1, live model)" { & $python -m evals.run_evals --stage stage1 --suite golden --pace 8 }
 }

@@ -323,6 +323,10 @@ cover document images and extracted fields in traces.
 `copilot/evals/stage2/`, 50 cases, boolean rubrics only. Stage 1's 9 golden and 7 behavioural
 cases stay untouched and keep running, which is what keeps the Week 1 baseline verifiable.
 
+**As built: no model in the gate.** Every case replays a recorded model output through the real
+code. A gate a rate limit can silence is not a gate, and the grader's injected regression must
+fail it every time. See [copilot/evals/stage2/README.md](copilot/evals/stage2/README.md).
+
 | Rubric | True when |
 |---|---|
 | `schema_valid` | Extraction validates against the strict schema, unsupported fields null with confidence 0 |
@@ -407,7 +411,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 1 | **Done.** `documents/schemas.py`; `Citation` gains the v2 fields; verifier learns `document:` and `guideline:` | Week 1 citations still resolve; unsupported fields cannot validate as supported (`test_document_schemas.py`, `test_verify.py`) |
 | 2 | **Done.** `DocumentWriter.php`; `api.php` actions `attach` and `persist_extraction` | An extracted lab reads back as a FHIR Observation (`status: preliminary`) and is selectable in Lab Overview (`test_uc_document_writer.py`) |
 | 3 | **Built.** `documents/extract.py`, `POST /documents/extract`, `attach` extracts then persists; `/ready` checks the vision model | Proven with a scripted model (`test_extract.py`) and fail-closed live. A successful live extraction is pending a vision model with quota: OpenRouter's free tier is rate-limited per account, and the build exhausted it (§9) |
-| 4 | **Eval gate on that slice**, hook installed, `test_gate.py` proving it fails | An injected regression blocks a push |
+| 4 | **Done.** `evals/stage2/gate.py`, 50 cases, `baseline.json`, `hooks/pre-push`; `test_gate.py` removes four guards in turn | An injected regression blocks a push (each of the four fails the gate) |
 | 5 | `intake_form`, no clinical writes, "reported, not reconciled" wording | Intake facts cited to the form, never merged into `lists` |
 | 6 | Hybrid RAG plus rerank over the corpus | Guideline evidence cited separately, barred from patient-fact claims |
 | 7 | Supervisor graph with logged handoffs | Routing reconstructable from logs; no-documents path degrades to Week 1 |
