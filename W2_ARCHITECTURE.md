@@ -304,6 +304,13 @@ Free OpenRouter vision slug by default; a paid vision model behind `COPILOT_VISI
 provider allowlist from Week 1 applies unchanged, so an unapproved vision model fails closed
 before any document leaves the process.
 
+**What the free tier actually does.** OpenRouter rate-limits free models per account, not per
+model. During the stage 3 build three different free vision slugs (Gemma 4 31B, Qwen 3.8 27B,
+Gemma 4 26B) all answered `429` after the agent's three backoffs, so the extraction path was
+verified fail-closed rather than end-to-end live. The model that reads a document is one
+variable, `COPILOT_VISION_MODEL`; the paid slug already on the allowlist is the switch. A model
+that does not exist fails the same way with `OpenAIModelNotFoundError` named in the reason.
+
 **Document images are more sensitive than structured fields**, and the free slugs may be logged
 provider-side. The default path is therefore demo-data-only, stated in `AUDIT.md`, and the paid
 path is what a real deployment would use. `COPILOT_TRACE_REDACT` already exists and extends to
@@ -399,7 +406,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 0 | **Done.** Co-Pilot tab in the patient record via `PatientMenuEvent`; scope enforced from session `pid` | Out-of-panel patient is refused and audited from the new entry point (`usecases/test_uc_patient_tab.py`) |
 | 1 | **Done.** `documents/schemas.py`; `Citation` gains the v2 fields; verifier learns `document:` and `guideline:` | Week 1 citations still resolve; unsupported fields cannot validate as supported (`test_document_schemas.py`, `test_verify.py`) |
 | 2 | **Done.** `DocumentWriter.php`; `api.php` actions `attach` and `persist_extraction` | An extracted lab reads back as a FHIR Observation (`status: preliminary`) and is selectable in Lab Overview (`test_uc_document_writer.py`) |
-| 3 | `attach_and_extract` with the VLM, one document type (`lab_pdf`) | One real lab PDF becomes cited claims in a brief |
+| 3 | **Built.** `documents/extract.py`, `POST /documents/extract`, `attach` extracts then persists; `/ready` checks the vision model | Proven with a scripted model (`test_extract.py`) and fail-closed live. A successful live extraction is pending a vision model with quota: OpenRouter's free tier is rate-limited per account, and the build exhausted it (§9) |
 | 4 | **Eval gate on that slice**, hook installed, `test_gate.py` proving it fails | An injected regression blocks a push |
 | 5 | `intake_form`, no clinical writes, "reported, not reconciled" wording | Intake facts cited to the form, never merged into `lists` |
 | 6 | Hybrid RAG plus rerank over the corpus | Guideline evidence cited separately, barred from patient-fact claims |

@@ -117,7 +117,7 @@ def created():
 
 def attach(doctor, headers, pid, name="metro-labs.pdf", doc_type="lab_pdf"):
     return doctor.post(f"{API}?action=attach&context=patient",
-                       data={"pid": pid, "doc_type": doc_type},
+                       data={"pid": pid, "doc_type": doc_type, "extract": "0"},   # stage 2: store only, no model
                        files={"file": (name, MINIMAL_PDF, "application/pdf")},
                        headers=headers, timeout=60)
 
@@ -136,7 +136,7 @@ def test_attach_stores_the_document_under_lab_report(doctor, headers, created):
     body = resp.json()
     doc_id = body["doc_id"]
     created["documents"].append(doc_id)
-    assert body["doc_type"] == "lab_pdf" and body["processed"] is False
+    assert body["doc_type"] == "lab_pdf" and body["processed"] is False and body["reason"] == "stored only"
 
     rows = db_query(f"SELECT d.foreign_id, d.mimetype, c.name FROM documents d "
                     f"JOIN categories_to_documents cd ON cd.document_id = d.id JOIN categories c ON c.id = cd.category_id WHERE d.id = {doc_id}")

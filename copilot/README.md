@@ -89,6 +89,10 @@ any patient not assigned to you. The Week 1 tab is unchanged.
 
 Health: `GET /health` (process alive; checks nothing else, so a dependency outage never gets a working service killed) and `GET /ready` (probes the model provider endpoint, the LangSmith API and OpenEMR, plus the provider allowlist and shared secret; 503 naming whichever failed). `/healthz` and `/readyz` remain as aliases. Set `COPILOT_OPENEMR_URL` for the OpenEMR probe: the agent never calls OpenEMR in normal operation, so it cannot infer the address. The service refuses to open sessions while not ready.
 
+**Week 2 documents.** `COPILOT_VISION_MODEL` names the model that reads lab PDFs (it must be on
+`COPILOT_ALLOWED_MODELS`; empty means the agent model). `/ready` reports it. Free OpenRouter slugs
+share one per-account quota, so a `rate_limit` reason on an upload means the quota, not the file.
+
 A runnable API collection covering the whole workflow is in [api/](../api/).
 
 ## Testing locally, and the gate in front of Railway

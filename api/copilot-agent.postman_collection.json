@@ -121,7 +121,7 @@
             "ready"
           ]
         },
-        "description": "Can the service actually do its job. Probes the model provider, the observability backend and OpenEMR, and checks the provider allowlist and shared secret. Returns 503 when any dependency is unreachable or misconfigured -- it does not return 200 unconditionally."
+        "description": "Can the service actually do its job. Probes the model provider, the observability backend and OpenEMR, and checks the provider allowlist and shared secret. Returns 503 when any dependency is unreachable or misconfigured -- it does not return 200 unconditionally. Week 2 adds the vision model that reads documents to the same allowlist check."
       },
       "event": [
         {
@@ -134,7 +134,8 @@
               "console.log('model_provider', JSON.stringify(c.model_provider));",
               "console.log('observability', JSON.stringify(c.observability));",
               "console.log('openemr', JSON.stringify(c.openemr));",
-              "pm.test(\"names every dependency\", function () { pm.expect(c).to.have.all.keys('model_provider','shared_secret','observability','openemr'); });"
+              "console.log('vision_model', JSON.stringify(c.vision_model));",
+              "pm.test(\"names every dependency\", function () { pm.expect(c).to.have.all.keys('model_provider','vision_model','shared_secret','observability','openemr'); });"
             ]
           }
         }

@@ -10,3 +10,7 @@ pydantic==2.13.5
 httpx==0.28.1
 python-dotenv==1.1.1
 pytest==9.1.1
+# Week 2: document reading (pure wheels, no system dependencies)
+pypdf==6.19.0
+pypdfium2==5.13.0
+pillow==12.3.0

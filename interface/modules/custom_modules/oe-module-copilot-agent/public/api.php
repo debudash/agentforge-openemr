@@ -92,6 +92,37 @@ function audit(string $event, string $username, string $group, bool $success, st
     }
 }
 
+/**
+ * Week 2: read a stored document with the agent, then persist what it read. The document stays in
+ * the chart whatever happens here; a failed extraction leaves it stored and unprocessed.
+ *
+ * @return array<string, mixed>
+ */
+function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid, int $docId, string $docType,
+                           string $bytes, string $mime, string $filename, int $eid, string $correlationId): array
+{
+    $result = $client->post('/documents/extract', [
+        'pid' => $pid, 'doc_id' => $docId, 'doc_type' => $docType, 'filename' => $filename, 'mime' => $mime,
+        'content_base64' => base64_encode($bytes),
+    ], $correlationId);
+    if ($result['status'] !== 200 || !is_array($result['json'])) {
+        return ['processed' => false, 'reason' => 'extraction failed (agent status ' . $result['status'] . ')',
+                'detail' => $result['json']['detail'] ?? null];
+    }
+    $extraction = $result['json'];
+    if ($docType !== 'lab_pdf') {
+        return ['processed' => false, 'reason' => 'only lab_pdf extractions are persisted as results'];
+    }
+    $written = $writer->persistLabDocument($pid, $docId, (array) ($extraction['document'] ?? []), $eid, (string) ($extraction['model'] ?? 'unknown'));
+    return $written + [
+        'processed' => true,
+        'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
+        'extraction_ms' => $extraction['duration_ms'] ?? null,
+        'model' => $extraction['model'] ?? null,
+        'agent_correlation_id' => $extraction['correlation_id'] ?? null,
+    ];
+}
+
 $username = '';
 try {
     $scope = PanelScope::forCurrentUser();
@@ -109,7 +140,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -145,7 +176,44 @@ try {
             // Document id, type and size: enough to trace it, nothing that describes its content.
             audit('copilot-document-attached', $username, $authGroup, true,
                 'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' bytes=' . (int) ($file['size'] ?? 0), $pid);
-            respond(200, ['doc_id' => $docId, 'doc_type' => $docType, 'processed' => $writer->orderFor($docId) !== null], $correlationId);
+            $outcome = ['processed' => false, 'reason' => 'stored only'];
+            if (($input['extract'] ?? '1') !== '0') {
+                $outcome = extractAndPersist($client, $writer, $pid, $docId, $docType, (string) file_get_contents((string) $file['tmp_name']),
+                    (string) mime_content_type((string) $file['tmp_name']), basename((string) ($file['name'] ?? 'document')),
+                    $sessionPid === $pid ? $sessionEncounter : 0, $correlationId);
+                audit('copilot-document-extracted', $username, $authGroup, (bool) $outcome['processed'],
+                    'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=' . (int) $outcome['processed']
+                    . ' results=' . count($outcome['source_ids'] ?? []) . ' skipped=' . count($outcome['skipped'] ?? [])
+                    . ' unsupported=' . count($outcome['unsupported_fields'] ?? []) . ' ms=' . ($outcome['extraction_ms'] ?? '-'), $pid);
+            }
+            respond(200, ['doc_id' => $docId, 'doc_type' => $docType] + $outcome, $correlationId);
+
+        case 'extract':
+            // Week 2: (re)read a document already in the chart. Idempotent: an extracted document is returned as is.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docId = (int) ($input['doc_id'] ?? 0);
+            $docType = (string) ($input['doc_type'] ?? 'lab_pdf');
+            $writer = new DocumentWriter($scope);
+            if (!$writer->documentBelongsTo($docId, $pid)) {
+                throw new ScopeDeniedException($pid);
+            }
+            $existing = $writer->orderFor($docId);
+            if ($existing !== null) {
+                respond(200, ['doc_id' => $docId, 'processed' => true, 'already_persisted' => true, 'order_id' => $existing,
+                              'source_ids' => $writer->sourceIdsFor($docId)], $correlationId);
+            }
+            $stored = new \Document($docId);
+            $bytes = $stored->get_data();
+            if (!is_string($bytes) || $bytes === '') {
+                respond(404, ['state' => 'unable_to_answer', 'reason' => 'the stored document could not be read'], $correlationId);
+            }
+            $outcome = extractAndPersist($client, $writer, $pid, $docId, $docType, $bytes, (string) $stored->get_mimetype(),
+                (string) $stored->get_name(), $sessionPid === $pid ? $sessionEncounter : 0, $correlationId);
+            audit('copilot-document-extracted', $username, $authGroup, (bool) $outcome['processed'],
+                'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=' . (int) $outcome['processed']
+                . ' results=' . count($outcome['source_ids'] ?? []) . ' skipped=' . count($outcome['skipped'] ?? [])
+                . ' unsupported=' . count($outcome['unsupported_fields'] ?? []) . ' ms=' . ($outcome['extraction_ms'] ?? '-'), $pid);
+            respond(200, ['doc_id' => $docId, 'doc_type' => $docType, 'already_persisted' => false] + $outcome, $correlationId);
 
         case 'persist_extraction':
             // Week 2: the module writes what the agent extracted. Idempotent per document.

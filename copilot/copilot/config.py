@@ -35,6 +35,12 @@ class Settings:
     # The eval judge may use a different (usually stronger) model than the agent; same provider,
     # and it must be on the same allowlist. Empty means "same model as the agent".
     judge_model: str = os.environ.get("COPILOT_JUDGE_MODEL", "")
+    # Week 2: the model that reads document images. Defaults to the agent model; must be on the
+    # allowlist like any other. Free slugs may log inputs provider-side, so the default path is
+    # demo-data only (ARCHITECTURE.md, AUDIT.md).
+    vision_model: str = os.environ.get("COPILOT_VISION_MODEL", "") or os.environ.get("COPILOT_MODEL", "claude-sonnet-5")
+    max_document_pages: int = int(os.environ.get("COPILOT_MAX_DOCUMENT_PAGES", "6"))
+    max_document_bytes: int = int(os.environ.get("COPILOT_MAX_DOCUMENT_BYTES", str(8 * 1024 * 1024)))
     # OpenRouter reasoning models think before answering and count that against max_tokens;
     # on structured, tool-grounded calls the thinking sometimes runs away until the cap and the
     # answer is lost (measured: 185 hidden tokens normally, 3000+ when it spirals). Off by default.
