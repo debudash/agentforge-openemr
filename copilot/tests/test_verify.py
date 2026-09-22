@@ -124,3 +124,29 @@ def test_citations_for_documents_and_guidelines_carry_v2_fields(chart101, today)
     assert doc.label == "lab_pdf metro-labs.pdf"
     guide = cites["guideline:uspstf-htn-2021"]
     assert guide.source_type == "guideline" and guide.label == "USPSTF hypertension screening 3.2"
+
+
+def test_a_decimal_or_a_percentage_is_never_a_small_count(chart101, today):
+    idx = index_with_documents(chart101, today)
+    idx["guideline:medlineplus-a1c#result-ranges"] = {"kind": "guideline", "title": "A1C", "section": "Result ranges",
+                                                      "text": "Diabetes: A1C of 6.5% or higher."}
+    a1c = "guideline:medlineplus-a1c#result-ranges"
+    assert check_claim(Claim(text="Diabetes is an A1C of 6.5% or higher.", source_ids=[a1c]), idx, set(), allow_guideline_only=True) is None
+    reason = check_claim(Claim(text="Diabetes is an A1C of 7.0% or higher.", source_ids=[a1c]), idx, set(), allow_guideline_only=True)
+    assert reason and "7" in reason
+    reason = check_claim(Claim(text="Diabetes is an A1C of 7% or higher.", source_ids=[a1c]), idx, set(), allow_guideline_only=True)
+    assert reason and "7" in reason
+    # A bare small integer is still a count, not a value.
+    assert check_claim(Claim(text="There are 7 active medications.", source_ids=["prescription:7001"]), idx, set()) is None
+
+
+def test_evidence_may_attribute_a_recommendation_but_not_give_one(chart101, today):
+    idx = index_with_documents(chart101, today)
+    idx["guideline:uspstf-statin-2022#recommendation"] = {"kind": "guideline", "title": "Statins", "section": "Recommendation",
+                                                          "text": "The USPSTF recommends that clinicians prescribe a statin for adults aged 40 to 75 years."}
+    sid = "guideline:uspstf-statin-2022#recommendation"
+    quoted = Claim(text="The USPSTF recommends that clinicians prescribe a statin for adults aged 40 to 75 years.", source_ids=[sid])
+    assert check_claim(quoted, idx, set(), allow_guideline_only=True) is None, "attribution is evidence"
+    assert check_claim(quoted, idx, set()) is not None, "the same sentence is not allowed as a claim about the patient"
+    direct = Claim(text="You should start her on a statin.", source_ids=[sid])
+    assert "recommendation" in check_claim(direct, idx, set(), allow_guideline_only=True)

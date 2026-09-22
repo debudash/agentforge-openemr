@@ -348,4 +348,9 @@ async def metrics(request: Request, _: bytes = Depends(signed)) -> dict[str, Any
             "forced_relookup": events.get("followup_relookup", 0),
             "topic_check_failed": events.get("topic_check_failed", 0),
         },
+        # Week 2: how often guidance was searched, and how often the index was missing.
+        "retrieval": {
+            "searches": events.get("guideline_search", 0),
+            "index_unavailable": events.get("guideline_index_unavailable", 0),
+        },
     }

@@ -1,6 +1,6 @@
 # Stage 2 evals: the Week 2 gate
 
-50 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
+62 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
 
 ```
 python -m evals.stage2.gate                    # run against baseline.json; exit 1 on regression
@@ -52,11 +52,13 @@ regression each time.
 | E01–E18 | extraction | A recorded `LabDocument` proposal against the two-page fixture PDF: faithful, invented value, wrong page, another document, honest nulls, schema violations, a scan with no text layer |
 | C01–C10 | citation | Claims through the verifier with document and guideline entries in the index |
 | R01–R12 | refusal | Follow-up questions with a scripted model: other patient, advice, off-topic, injection in a record, loop exhausted, restated without a lookup |
+| I01–I06 | extraction | Intake-form proposals against the one-page intake fixture, including the injected instruction line |
+| G01–G06 | retrieval | `search_guidelines` against the real corpus (BM25 only), model scripted: evidence kept apart, guideline ids barred from patient claims, numbers checked against the chunk, guidance never a recommendation, empty search left empty |
 | B01–B05 | brief | Rounding briefs from scripted drafts, including a failed source |
 | M01–M05 | missing_data | All-null extraction, empty reads cited as absences, a timed-out source named |
 
-Fixtures: `fixtures/documents/metro-labs-jane-doe.pdf` (generated, text layer, two pages) and
-`scan-blank.pdf` (no text layer). Charts are stage 1's three fixture patients.
+Fixtures: `fixtures/documents/metro-labs-jane-doe.pdf` (generated, text layer, two pages),
+`intake-jane-doe.pdf` (one page) and `scan-blank.pdf` (no text layer). Charts are stage 1's three fixture patients.
 
 ## Judge
 

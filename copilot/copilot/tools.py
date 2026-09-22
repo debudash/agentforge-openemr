@@ -36,6 +36,10 @@ class ChartContext:
     # Every source_id a tool returned in this turn. A follow-up claim may cite only these:
     # a fact restated from memory without a fresh lookup is not grounded in this turn.
     returned_ids: set[str] = field(default_factory=set)
+    # Week 2: the guideline index for this turn (None means the tool reports itself unavailable), and
+    # every chunk it returned, keyed by citable id, so the verifier can resolve guideline citations.
+    guidelines: Any = None
+    evidence: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def note(self, payload: Any) -> Any:
         """Record the source_ids in a tool result before it is returned to the model."""
@@ -103,6 +107,30 @@ def _result(ctx: ChartContext, source_name: str, records: list[dict[str, Any]], 
 
 def make_tools(ctx: ChartContext) -> list[BaseTool]:
     """Build the tool set bound to one ChartContext."""
+
+    @tool
+    def search_guidelines(query: str) -> str:
+        """Short excerpts from public clinical guidance (USPSTF, MedlinePlus) matching the query. Use only when asked what guidance or evidence says. Results are guideline: source_ids for the "evidence" list; never cite them on a claim about the patient."""
+        ctx.calls.append("search_guidelines")
+        if ctx.on_call:
+            ctx.on_call("search_guidelines", {"pid_requested_matches_scope": True})
+        if ctx.guidelines is None:
+            return _dump({"result": "error", "reason": "guideline search is not available in this deployment", "records": []})
+        from .guidelines.retrieve import conditions_from_problems
+
+        conditions = conditions_from_problems([p.title for p in ctx.chart.problems])
+        hits = ctx.guidelines.search(query, conditions=conditions)
+        records = []
+        for hit in hits:
+            record = hit.chunk.record()
+            ctx.evidence[hit.chunk.source_id] = record
+            records.append({"source_id": hit.chunk.source_id, "title": hit.chunk.title, "section": hit.chunk.section,
+                            "text": hit.chunk.text, "publisher": hit.chunk.publisher, "published": hit.chunk.published,
+                            "url": hit.chunk.url, "score": round(hit.score, 4)})
+        note = ("Quote these as evidence, citing their source_ids in the evidence list. They are general guidance, "
+                "not statements about this patient, and must not be turned into a recommendation.")
+        return _dump({"result": "ok" if records else "empty", "records": records, "note": note,
+                      **({} if records else {"source_id": "empty:guidelines"})}, ctx)
 
     @tool
     def get_patient_context(pid: int) -> str:
@@ -253,4 +281,4 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         return _dump({"result": "ok", "records": [{"source_id": f"rule:{o.rule_id}", **o.model_dump()} for o in outcomes]}, ctx)
 
     return [get_patient_context, get_problems, get_medications, get_allergies, get_labs,
-            get_encounters, get_immunizations, get_vitals, get_compliance_signals, run_constraint_checks]
+            get_encounters, get_immunizations, get_vitals, get_compliance_signals, run_constraint_checks, search_guidelines]

@@ -22,7 +22,7 @@ from . import constraints, normalize
 from .config import Settings
 from .llm import classify_model_error, error_excerpt
 from .prompts import BRIEF_SYSTEM, FINALIZE_INSTRUCTION, FOLLOWUP_SYSTEM, TOPIC_CHECK_SYSTEM
-from .schemas import AgentResponse, AnswerDraft, BriefDraft, Chart, RemovedClaim, ResponseState, RuleOutcome, TopicCheck, VerifiedClaim
+from .schemas import AgentResponse, AnswerDraft, BriefDraft, Chart, RemovedClaim, ResponseState, RuleOutcome, TopicCheck, VerifiedClaim, source_type_for
 from .telemetry import emit, traced
 from .tools import ChartContext, make_tools
 from .verify import citations_for, verify_brief, verify_claims
@@ -235,6 +235,11 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             return response, [HumanMessage(content=question), AIMessage(content=SCOPE_STATEMENT)]
 
         ctx = ChartContext(chart, today, settings.recent_lab_days)
+        try:
+            from .guidelines.retrieve import guideline_index
+            ctx.guidelines = guideline_index(settings)
+        except Exception as exc:  # noqa: BLE001 - retrieval missing is a degraded tool, not a dead turn
+            emit("guideline_index_unavailable", correlation_id, error_type=type(exc).__name__)
         tools = make_tools(ctx)
         tool_by_name = {t.name: t for t in tools}
         index = verification_index(chart, ctx)
@@ -298,6 +303,8 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             # A follow-up claim may cite only what a tool returned in this turn (plus the derived ids
             # those tools carry). Facts restated from memory without a fresh lookup are removed: the
             # model cannot re-emit an earlier answer to an unrelated question and have it verify.
+            # Chunks retrieved this turn become citable, under their own source type (rules 1 and 12).
+            index.update(ctx.evidence)
             off_topic = bool(draft is not None and draft.off_topic)
             if off_topic and draft is not None and draft.claims:
                 # The flag wins: an off-topic question carries no chart facts, whatever else the model wrote.
@@ -306,6 +313,17 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             else:
                 kept, removed = ([], []) if draft is None else verify_claims(
                     draft.claims, index, allowed_numbers(chart, today, settings, question), turn_ids=ctx.returned_ids)
+            # Evidence is verified apart from claims: same rules, plus it must cite a guideline. An
+            # evidence entry with no guideline id is a patient claim in the wrong list, and is removed.
+            evidence_kept: list = []
+            if draft is not None and draft.evidence and not off_topic:
+                with_guideline = [c for c in draft.evidence if any(source_type_for(s) == "guideline" for s in c.source_ids)]
+                removed += [RemovedClaim(text=c.text, reason="evidence claim cites no guideline") for c in draft.evidence if c not in with_guideline]
+                evidence_kept, evidence_removed = verify_claims(
+                    with_guideline, index, allowed_numbers(chart, today, settings, question), turn_ids=ctx.returned_ids,
+                    allow_guideline_only=True)
+                removed += evidence_removed
+            ctx.evidence_kept = evidence_kept
             return draft, failure, off_topic, kept, removed
 
         iterations, loop_exhausted, model_failure = run_rounds(settings.max_iterations)
@@ -352,11 +370,12 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             # A boundary statement or an honest "not found" is a valid complete answer with no claims,
             # but only when nothing else went wrong on the way.
             state, reason = ResponseState.COMPLETE, "no chart facts were requested or found; statement only"
-        cited = [sid for c in kept for sid in c.source_ids]
+        evidence = getattr(ctx, "evidence_kept", [])
+        cited = [sid for c in kept for sid in c.source_ids] + [sid for c in evidence for sid in c.source_ids]
         response = AgentResponse(
             correlation_id=correlation_id, state=state, state_reason=reason, pid=chart.patient.pid, kind="answer",
             comparison_window=comparison_window(today, settings.comparison_hours), generated_at=chart.generated_at,
-            claims=kept, missing=draft.missing if draft else None, boundary=draft.boundary if draft else None,
+            claims=kept, evidence=evidence, missing=draft.missing if draft else None, boundary=draft.boundary if draft else None,
             off_topic=off_topic, citations=citations_for(cited, index), removed_claims=removed, sources=chart.sources,
             tool_calls=ctx.calls, iterations=iterations, duration_ms=int((time.perf_counter() - started) * 1000),
             langsmith_run_id=run["run_id"],
@@ -364,7 +383,7 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
 
         emit("followup_answered", correlation_id, pid=chart.patient.pid, state=state.value, iterations=iterations,
              loop_exhausted=loop_exhausted, off_topic=off_topic, tool_calls=ctx.calls, scope_denials=len(ctx.denials),
-             claims_kept=len(kept), claims_removed=len(removed), duration_ms=response.duration_ms)
+             claims_kept=len(kept), claims_removed=len(removed), evidence_kept=len(evidence), duration_ms=response.duration_ms)
 
         # Memory holds only the question and the verified answer text: no tool payloads, no drafts and
         # no citation ids. A later turn that needs one of these facts has to look it up again, which

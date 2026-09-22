@@ -215,6 +215,12 @@ class AnswerDraft(BaseModel):
         default=None,
         description="Set when the question asks for a diagnosis, treatment, dose change or order: the product boundary statement",
     )
+    evidence: list[Claim] = Field(
+        default_factory=list,
+        description="Guideline evidence only, kept apart from claims about the patient. Each cites guideline: ids "
+                    "returned by search_guidelines this turn, quotes what the guideline says, and never applies it "
+                    "to this patient as advice",
+    )
     off_topic: bool = Field(
         default=False,
         description="True when the question is not about the selected patient's record at all (weather, small talk, general knowledge); then give no claims and put the one-sentence reply in 'missing'",
@@ -301,6 +307,8 @@ class AgentResponse(BaseModel):
     generated_at: str
     sections: list[VerifiedSection] = Field(default_factory=list)
     claims: list[VerifiedClaim] = Field(default_factory=list)
+    # Week 2, rule 12: guideline evidence is a separate section, never mixed into claims.
+    evidence: list[VerifiedClaim] = Field(default_factory=list)
     missing: str | None = None
     boundary: str | None = None
     off_topic: bool = False

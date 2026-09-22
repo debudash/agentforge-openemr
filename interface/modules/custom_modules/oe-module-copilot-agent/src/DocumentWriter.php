@@ -161,6 +161,34 @@ final class DocumentWriter
         return (int) $document->get_id();
     }
 
+    /**
+     * The patient's lab reports and intake forms with whether each has been read (Week 2, stage 7).
+     * Sidecars are excluded: they are extractions, not documents to read. Category decides the type.
+     *
+     * @return list<array{doc_id: int, doc_type: string, name: string, date: string, processed: bool}>
+     */
+    public function documents(int $pid): array
+    {
+        $this->scope->assertInScope($pid);
+        $rows = QueryUtils::fetchRecords(
+            'SELECT d.id, d.name, d.date, d.docdate, c.name AS category FROM documents d '
+            . 'JOIN categories_to_documents cd ON cd.document_id = d.id JOIN categories c ON c.id = cd.category_id '
+            . 'WHERE d.foreign_id = ? AND d.deleted = 0 AND c.name IN (?, ?) AND d.name NOT LIKE ? ORDER BY d.id',
+            [$pid, 'Lab Report', 'Medical Record', 'copilot-extraction-%']
+        );
+        $out = [];
+        foreach ($rows as $row) {
+            $docId = (int) $row['id'];
+            $docType = $row['category'] === 'Lab Report' ? 'lab_pdf' : 'intake_form';
+            $out[] = [
+                'doc_id' => $docId, 'doc_type' => $docType, 'name' => (string) $row['name'],
+                'date' => substr((string) ($row['docdate'] ?: $row['date']), 0, 10),
+                'processed' => $this->isProcessed($docId, $pid, $docType),
+            ];
+        }
+        return $out;
+    }
+
     /** @return list<string> */
     public function sourceIdsFor(int $docId): array
     {

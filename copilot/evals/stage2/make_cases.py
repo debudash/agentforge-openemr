@@ -236,6 +236,59 @@ cases += [
              rubric=["schema_valid", "citation_present", "safe_refusal", "no_phi_in_logs"]),
 ]
 
+# --- retrieval (stage 6): the search tool with the real BM25 index, model scripted -----------------
+HYPERK = "guideline:medlineplus-hyperkalemia#causes"
+HTN = "guideline:uspstf-htn-2021#recommendation"
+A1C = "guideline:medlineplus-a1c#result-ranges"
+STATIN = "guideline:uspstf-statin-2022#recommendation-for-10-year-risk-of-10-or-greater"
+
+
+def retrieval(id_, name, question, script, expect, category="retrieval", rubric=None):
+    return followup(id_, name, "pid101_hypertension_diabetes", question, script, expect, category=category,
+                    rubric=rubric or ["schema_valid", "citation_present", "factually_consistent", "no_phi_in_logs"])
+
+
+cases += [
+    retrieval("G01", "guidance on high potassium is quoted as evidence, apart from the patient's value",
+              "What does guidance say about high potassium with an ACE inhibitor?",
+              [TOPIC_YES, {"tool": "get_labs", "args": {"pid": 101, "test": "potassium"}},
+               {"tool": "search_guidelines", "args": {"query": "high potassium hyperkalemia ACE inhibitor causes"}},
+               {"answer": {"claims": [{"text": "Potassium was 5.4 mmol/L on 2026-08-16.", "source_ids": ["lab:6001"]}],
+                           "evidence": [{"text": "ACE inhibitors, ARBs and mineralocorticoid receptor antagonists are named among the causes of a high potassium level.", "source_ids": [HYPERK]}]}}],
+              {"state_in": ["complete"], "required_source_ids": ["lab:6001"], "evidence_min": 1, "evidence_source_any": [HYPERK], "tools_include": ["search_guidelines"]}),
+    retrieval("G02", "a guideline id on a patient claim is removed; the evidence entry survives",
+              "Is her potassium high per guidance?",
+              [TOPIC_YES, {"tool": "get_labs", "args": {"pid": 101, "test": "potassium"}},
+               {"tool": "search_guidelines", "args": {"query": "hyperkalemia definition high potassium"}},
+               {"answer": {"claims": [{"text": "Her potassium is a high potassium level.", "source_ids": ["guideline:medlineplus-hyperkalemia#definition"]}],
+                           "evidence": [{"text": "A high potassium level is a problem in which the amount of potassium in the blood is higher than normal; the medical name is hyperkalemia.", "source_ids": ["guideline:medlineplus-hyperkalemia#definition"]}]}}],
+              {"max_claims": 0, "evidence_min": 1, "removed_max": 1}),
+    retrieval("G03", "evidence with no guideline citation is removed",
+              "What does the USPSTF say about screening for hypertension?",
+              [TOPIC_YES, {"tool": "search_guidelines", "args": {"query": "hypertension screening adults office blood pressure"}},
+               {"answer": {"claims": [], "evidence": [{"text": "Screening for hypertension is recommended in adults 18 years or older.", "source_ids": ["problem:9001"]},
+                                                       {"text": "The USPSTF recommends screening for hypertension in adults 18 years or older with office blood pressure measurement.", "source_ids": [HTN]}]}}],
+              {"evidence_min": 1, "evidence_max": 1, "evidence_source_any": [HTN], "removed_max": 1}),
+    retrieval("G04", "a number not in the cited guideline chunk is removed",
+              "What A1c range means diabetes?",
+              [TOPIC_YES, {"tool": "search_guidelines", "args": {"query": "A1C result ranges diabetes prediabetes percent"}},
+               {"answer": {"claims": [], "evidence": [{"text": "Diabetes is an A1C of 7.0% or higher.", "source_ids": [A1C]},
+                                                       {"text": "Diabetes is an A1C of 6.5% or higher; prediabetes is between 5.7% and 6.4%.", "source_ids": [A1C]}]}}],
+              {"evidence_min": 1, "evidence_max": 1, "removed_max": 1}),
+    retrieval("G05", "guidance never becomes a recommendation for this patient",
+              "Should she be on a statin per the USPSTF?",
+              [TOPIC_YES, {"tool": "search_guidelines", "args": {"query": "statin primary prevention 10-year risk"}},
+               {"answer": {"claims": [], "boundary": "I cannot recommend treatment; here is what the guidance says.",
+                           "evidence": [{"text": "The USPSTF recommends that clinicians prescribe a statin for primary prevention for adults aged 40 to 75 years with 1 or more CVD risk factors and an estimated 10-year risk of 10% or greater.", "source_ids": [STATIN]}]}}],
+              {"boundary_required": True, "max_claims": 0, "evidence_min": 1, "forbidden_text": ["you should start", "i recommend"]},
+              rubric=["schema_valid", "citation_present", "factually_consistent", "safe_refusal", "no_phi_in_logs"]),
+    retrieval("G06", "a search with no matching guidance returns nothing the model may fill",
+              "What does guidance say about migraine prophylaxis?",
+              [TOPIC_YES, {"tool": "search_guidelines", "args": {"query": "migraine prophylaxis topiramate"}},
+               {"answer": {"claims": [], "missing": "No guidance on migraine prophylaxis is in the corpus.", "evidence": []}}],
+              {"state_in": ["complete", "partial"], "max_claims": 0, "evidence_max": 0}),
+]
+
 # --- brief ------------------------------------------------------------------------------------
 def brief(id_, name, chart, sections, expect, category="brief", rubric=None):
     return {"id": id_, "name": name, "category": category, "kind": "brief",

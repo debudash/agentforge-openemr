@@ -41,6 +41,16 @@ class Settings:
     vision_model: str = os.environ.get("COPILOT_VISION_MODEL", "") or os.environ.get("COPILOT_MODEL", "claude-sonnet-5")
     max_document_pages: int = int(os.environ.get("COPILOT_MAX_DOCUMENT_PAGES", "6"))
     max_document_bytes: int = int(os.environ.get("COPILOT_MAX_DOCUMENT_BYTES", str(8 * 1024 * 1024)))
+    # Week 2: guideline retrieval. "none" for embed_model runs BM25 only with no models and no
+    # network, which is what the tests and the eval gate use.
+    guidelines_dir: str = os.environ.get("COPILOT_GUIDELINES_DIR", "")
+    embed_model: str = os.environ.get("COPILOT_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    rerank: str = os.environ.get("COPILOT_RERANK", "local")            # local | cohere | none
+    rerank_model: str = os.environ.get("COPILOT_RERANK_MODEL", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+    cohere_api_key: str = os.environ.get("COHERE_API_KEY", "")
+    cohere_rerank_model: str = os.environ.get("COPILOT_COHERE_RERANK_MODEL", "rerank-v3.5")
+    retrieval_top_k: int = int(os.environ.get("COPILOT_RETRIEVAL_TOP_K", "3"))
+    retrieval_candidates: int = int(os.environ.get("COPILOT_RETRIEVAL_CANDIDATES", "10"))
     # OpenRouter reasoning models think before answering and count that against max_tokens;
     # on structured, tool-grounded calls the thinking sometimes runs away until the cap and the
     # answer is lost (measured: 185 hidden tokens normally, 3000+ when it spirals). Off by default.

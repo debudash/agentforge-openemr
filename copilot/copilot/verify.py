@@ -36,6 +36,13 @@ _RECOMMENDATION = re.compile(
     r"the diagnosis is likely|most likely diagnosis|i would diagnose|prescribe)\b",
     re.I,
 )
+# Evidence entries quote guidance that says "recommends"; that is attribution, not advice to this
+# patient. Only direct, second-person or prescriptive phrasing is barred there (rule 4, rule 12).
+_DIRECT_ADVICE = re.compile(
+    r"\b(?:you should|i recommend|we recommend|i would recommend|start (?:him|her|them|the patient) on|"
+    r"the diagnosis is likely|most likely diagnosis|i would diagnose)\b",
+    re.I,
+)
 _SMALL_COUNT_MAX = 12
 
 
@@ -79,6 +86,8 @@ def removal_reason_code(reason: str) -> str:
         return "restated_without_lookup"
     if text.startswith("cites guideline evidence only"):
         return "guideline_only"
+    if text.startswith("evidence claim cites no guideline"):
+        return "evidence_without_guideline"
     if text.startswith("phrases a clinical recommendation"):
         return "recommendation"
     if text.startswith("value(s) not found"):
@@ -115,22 +124,28 @@ def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers:
         stale = [sid for sid in claim.source_ids if sid not in turn_ids]
         if stale:
             return f"cites records no tool returned in this turn (restated without a lookup): {', '.join(stale)}"
-    if _RECOMMENDATION.search(text):
+    if (_DIRECT_ADVICE if allow_guideline_only else _RECOMMENDATION).search(text):
         return "phrases a clinical recommendation or diagnosis (product boundary)"
     evidence: set[str] = set()
     for sid in claim.source_ids:
         evidence |= _record_numbers(index[sid])
     unsupported = []
-    for number in numbers_in(text):
+    for match in _NUMBER.finditer(text):
+        raw = match.group(1)
+        number = _norm(raw)
         if number in evidence or number in allowed_numbers:
             continue
         try:
             value = float(number)
         except ValueError:
             continue
-        if value.is_integer() and 0 <= value <= _SMALL_COUNT_MAX:
-            continue  # small counts ("3 active medications") are not record values
-        unsupported.append(number)
+        # Small counts ("3 active medications") are not record values. A decimal ("7.0") or a
+        # percentage ("7%") is a measured value however small, and must be in the cited record.
+        count_like = "." not in raw and not text[match.end():match.end() + 2].lstrip().startswith("%")
+        if count_like and value.is_integer() and 0 <= value <= _SMALL_COUNT_MAX:
+            continue
+        if number not in unsupported:
+            unsupported.append(number)
     if unsupported:
         return f"value(s) not found in the cited records: {', '.join(unsupported)}"
     return None

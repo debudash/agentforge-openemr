@@ -98,4 +98,4 @@ Two rules added:
 | # | Rule | Enforced by |
 |---|---|---|
 | 11 | Every extracted fact shown to the clinician carries a document citation with a page, and its extraction confidence is displayed. A field the model could not read is null with confidence 0, never guessed: the schema refuses a value without a citation. | `documents/schemas.py`, verifier, UI |
-| 12 | Guideline evidence sits in its own response section, structurally and visually apart from patient facts. | schema, judge |
+| 12 | Guideline evidence sits in its own response section, structurally and visually apart from patient facts. An evidence entry must cite a `guideline:` id (`evidence_without_guideline`); a claim about the patient may not cite a guideline alone (`guideline_only`). | `AnswerDraft.evidence`, verifier, UI, judge |

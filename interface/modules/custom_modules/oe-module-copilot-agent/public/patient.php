@@ -99,6 +99,8 @@ if ($gate === 'ok') {
         .cpa-cite { font-size: .8rem; margin-left: .3rem; }
         .cpa-claim { margin-bottom: .35rem; }
         .cpa-evidence { background: #f7f7f7; border-left: 3px solid #999; padding: .4rem .6rem; font-size: .85rem; margin: .3rem 0 .6rem; }
+        .cpa-evidence-block { border: 1px dashed #7b8a99; border-radius: .3rem; padding: .4rem .6rem; margin-top: .5rem; background: #fbfcfe; }
+        .cpa-evidence-title { font-size: .75rem; color: #4a5a6a; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem; }
         .cpa-chat { max-height: 45vh; overflow-y: auto; }
         .cpa-turn-q { background: #eef3ff; }
         .cpa-turn-a { background: #f3fff3; }
@@ -363,6 +365,13 @@ if ($gate === 'ok') {
         if (res.boundary) { turn.appendChild(el("div", "", res.boundary)); }
         renderClaims(res.claims || [], cites, turn);
         if (res.missing) { turn.appendChild(el("div", "text-muted", res.missing)); }
+        // Rule 12: guideline evidence sits apart from patient facts, in its own labelled block.
+        if (res.evidence && res.evidence.length) {
+            var ev = el("div", "cpa-evidence-block");
+            ev.appendChild(el("div", "cpa-evidence-title", "Guideline evidence (general guidance, not a statement about this patient)"));
+            renderClaims(res.evidence, cites, ev);
+            turn.appendChild(ev);
+        }
         if (!res.claims || !res.claims.length) { if (!res.boundary && !res.missing) { turn.appendChild(el("div", "text-muted", res.state_reason || res.reason || "")); } }
         head.appendChild(traceChip(res));
         var det = el("details", "mt-1");

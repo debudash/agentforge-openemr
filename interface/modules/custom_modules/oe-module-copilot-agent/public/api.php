@@ -150,7 +150,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -265,6 +265,13 @@ try {
                 'cid=' . $correlationId . ' doc=' . $docId . ' order=' . $written['order_id'] . ' results=' . count($written['source_ids'])
                 . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'], $pid);
             respond(200, $written + ['already_persisted' => false], $correlationId);
+
+        case 'documents':
+            // Week 2: the patient's lab reports and intake forms and whether each has been read.
+            $pid = (int) ($input['pid'] ?? 0);
+            $documents = (new DocumentWriter($scope))->documents($pid);
+            respond(200, ['pid' => $pid, 'documents' => $documents,
+                          'unprocessed' => count(array_filter($documents, static fn(array $d): bool => !$d['processed']))], $correlationId);
 
         case 'open_patient':
             // One patient, reached from its own record. Scope was asserted above. The chart read

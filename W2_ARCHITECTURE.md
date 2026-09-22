@@ -287,7 +287,7 @@ This follows the requirement's closing note: the best submissions feel narrower 
 |---|---|
 | Corpus | 15–25 chunks of public-domain US guidance (USPSTF, CDC, NIH) on hypertension, diabetes and lipids, matching the existing fixture charts. Committed as text with source URLs. |
 | Sparse | BM25 (`rank_bm25`), in-process, no service |
-| Dense | Chroma, embedded, local `sentence-transformers` embeddings — offline, no key |
+| Dense | Local `sentence-transformers` embeddings (all-MiniLM-L6-v2), in process. **As built without Chroma**: 20 chunks fit in one array, and a vector store would be a second thing to run and explain for no retrieval gain |
 | Rerank | Local cross-encoder by default; Cohere Rerank behind `COPILOT_RERANK=cohere` |
 | Fusion | Reciprocal rank fusion over both lists, then rerank, then top 3 |
 | Improvements | Section-aware chunking that never splits a recommendation statement, plus a condition filter derived from the chart's own problem list |
@@ -295,6 +295,15 @@ This follows the requirement's closing note: the best submissions feel narrower 
 Local-first by default so the demo runs offline and costs nothing, with the paid reranker as a
 one-variable switch mirroring the vision-model switch. Only the top reranked chunks reach the
 answer model, and each arrives with its `guideline:` citation already attached.
+
+**As built.** The corpus is five public-domain sources (three USPSTF recommendation statements,
+two MedlinePlus pages), one chunk per `##` section, 20 chunks, each committed with its URL and
+retrieval date. The agent's `search_guidelines` tool returns chunks as `guideline:<doc>#<section>`
+ids; the model puts what they say in a separate `evidence` list. The verifier checks evidence
+under the same rules as claims, plus two of its own: an evidence entry must cite a guideline, and
+a claim about the patient may not cite a guideline alone. The unit tests and the eval gate run
+retrieval BM25-only with no models (`COPILOT_EMBED_MODEL=none`), so a push never downloads
+anything; the service runs the full path, and the two models are fetched at image build.
 
 ---
 
@@ -413,7 +422,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 3 | **Built.** `documents/extract.py`, `POST /documents/extract`, `attach` extracts then persists; `/ready` checks the vision model | Proven with a scripted model (`test_extract.py`) and fail-closed live. A successful live extraction is pending a vision model with quota: OpenRouter's free tier is rate-limited per account, and the build exhausted it (§9) |
 | 4 | **Done.** `evals/stage2/gate.py`, 50 cases, `baseline.json`, `hooks/pre-push`; `test_gate.py` removes four guards in turn | An injected regression blocks a push (each of the four fails the gate) |
 | 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
-| 6 | Hybrid RAG plus rerank over the corpus | Guideline evidence cited separately, barred from patient-fact claims |
+| 6 | **Done.** `guidelines/retrieve.py`, 20-chunk corpus, `search_guidelines` tool, `evidence` section; six retrieval cases in the gate (62) | Guideline evidence cited separately, barred from patient-fact claims (`test_guidelines.py`, G01–G06) |
 | 7 | Supervisor graph with logged handoffs | Routing reconstructable from logs; no-documents path degrades to Week 1 |
 | 8 | Fill stage 2 to 50 cases, record baselines | All five rubrics above threshold |
 | 9 | UI: click-to-source, document preview, bounding-box overlay | A claim opens its page with the quote highlighted |

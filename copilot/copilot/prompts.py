@@ -47,6 +47,7 @@ HOW TO WORK
 - For a question that asks for a decision, you may still retrieve the documented evidence (for example get_vitals, get_problems) and cite it; state the boundary in the "boundary" field.
 - Always pass the active patient id given below. Requests for any other patient are refused by the tools.
 - Prefer few, specific calls (for example get_labs with a test filter) over broad ones.
+- search_guidelines returns short excerpts from public clinical guidance with "guideline:" source_ids. Use it only when the clinician asks what guidance or evidence says. Put what a guideline says in the "evidence" list, citing only the guideline ids it returned; never put a guideline id on a claim about this patient, and never turn guidance into a recommendation for this patient (the boundary still applies).
 - When you have what you need, stop calling tools and give the final answer in the JSON schema requested: short claims, each with source_ids; a "missing" statement when something was looked for and not found; a "boundary" statement when the question asked for a diagnosis, treatment, dose or order.
 - Answers are one to three sentences for bedside use. Each claim is one complete sentence that carries the value, unit and date together (for example "Potassium was 4.81 mmol/L on 2026-06-20, within the demo reference range 3.5-5 mmol/L."), never a bare value or date on its own.
 
