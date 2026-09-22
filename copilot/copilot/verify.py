@@ -24,6 +24,7 @@ from .schemas import (
     RemovedClaim,
     VerifiedClaim,
     VerifiedSection,
+    source_type_for,
 )
 
 _NUMBER = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)(?![\w.]|\s*%?\s*(?:of|x|times)\b)")
@@ -76,6 +77,8 @@ def removal_reason_code(reason: str) -> str:
         return "wrong_patient"
     if text.startswith("cites records no tool returned"):
         return "restated_without_lookup"
+    if text.startswith("cites guideline evidence only"):
+        return "guideline_only"
     if text.startswith("phrases a clinical recommendation"):
         return "recommendation"
     if text.startswith("value(s) not found"):
@@ -88,12 +91,15 @@ def removal_reason_code(reason: str) -> str:
 
 
 def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers: set[str],
-                turn_ids: set[str] | None = None) -> str | None:
+                turn_ids: set[str] | None = None, allow_guideline_only: bool = False) -> str | None:
     """Return a removal reason, or None when the claim is supported.
 
     `index` is the active patient's whole chart. When `turn_ids` is given, a claim must also
     cite only records that a tool returned in this turn: a fact restated from memory without
     a fresh lookup is not grounded in this turn, even though the record is the patient's.
+
+    Guideline evidence is not a patient record (rule 1, Week 2). A claim citing only
+    `guideline:` ids is removed unless the caller says this section is the evidence section.
     """
     text = (claim.text or "").strip()
     if not text:
@@ -103,6 +109,8 @@ def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers:
     missing = [sid for sid in claim.source_ids if sid not in index]
     if missing:
         return f"cites records that are not in this patient's chart: {', '.join(missing)}"
+    if not allow_guideline_only and all(source_type_for(sid) == "guideline" for sid in claim.source_ids):
+        return "cites guideline evidence only; a claim about this patient must cite a record, document or rule"
     if turn_ids is not None:
         stale = [sid for sid in claim.source_ids if sid not in turn_ids]
         if stale:
@@ -130,12 +138,13 @@ def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers:
 
 def verify_claims(claims: list[Claim], index: dict[str, dict[str, Any]],
                   allowed_numbers: set[str] | None = None,
-                  turn_ids: set[str] | None = None) -> tuple[list[VerifiedClaim], list[RemovedClaim]]:
+                  turn_ids: set[str] | None = None,
+                  allow_guideline_only: bool = False) -> tuple[list[VerifiedClaim], list[RemovedClaim]]:
     kept: list[VerifiedClaim] = []
     removed: list[RemovedClaim] = []
     allowed = allowed_numbers or set()
     for claim in claims:
-        reason = check_claim(claim, index, allowed, turn_ids)
+        reason = check_claim(claim, index, allowed, turn_ids, allow_guideline_only)
         if reason is None:
             kept.append(VerifiedClaim(text=claim.text.strip(), source_ids=list(dict.fromkeys(claim.source_ids))))
         else:
@@ -180,6 +189,10 @@ def _label(kind: str, record: dict[str, Any]) -> str:
             return f"{record.get('rule_id', '')}: {record.get('outcome', '')}"
         case "signal":
             return str(record.get("text", ""))[:80]
+        case "doc":
+            return f"{record.get('doc_type', 'document')} {record.get('name', '')}".strip()
+        case "guideline":
+            return f"{record.get('title', '')} {record.get('section', '')}".strip()
         case _:
             return kind
 
@@ -192,5 +205,12 @@ def citations_for(source_ids: list[str], index: dict[str, dict[str, Any]]) -> li
             continue
         kind = sid.split(":", 1)[0]
         date_value = record.get("date") or record.get("begdate") or record.get("date_added") or record.get("dob")
-        out.append(Citation(source_id=sid, type=kind, label=_label(kind, record), date=str(date_value)[:10] if date_value else None))
+        out.append(Citation(
+            source_id=sid, type=kind, label=_label(kind, record),
+            date=str(date_value)[:10] if date_value else None,
+            source_type=source_type_for(sid),
+            page_or_section=record.get("page_or_section"),
+            field_or_chunk_id=record.get("field_or_chunk_id"),
+            quote_or_value=record.get("quote_or_value"),
+        ))
     return out

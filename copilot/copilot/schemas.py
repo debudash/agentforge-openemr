@@ -12,7 +12,7 @@ from datetime import date
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ResponseState(str, Enum):
@@ -221,11 +221,47 @@ class AnswerDraft(BaseModel):
     )
 
 
+SourceType = Literal["record", "document", "guideline", "rule", "signal", "empty"]
+
+_SOURCE_TYPE_BY_PREFIX: dict[str, str] = {
+    "doc": "document", "guideline": "guideline", "rule": "rule", "signal": "signal", "empty": "empty",
+}
+
+
+def source_type_for(source_id: str) -> str:
+    """The citation class a source_id belongs to. Every Week 1 record prefix is "record"."""
+    return _SOURCE_TYPE_BY_PREFIX.get(source_id.split(":", 1)[0], "record")
+
+
 class Citation(BaseModel):
+    """Week 2 citation contract: {source_type, source_id, page_or_section, field_or_chunk_id, quote_or_value}.
+
+    `type`, `label` and `date` are what the Week 1 UI renders and are kept. A Week 1 citation
+    ("lab:6001") validates unchanged and reads as source_type "record" with the other three null.
+    """
+
     source_id: str
     type: str
     label: str
     date: str | None = None
+    source_type: SourceType = "record"
+    page_or_section: str | None = None
+    field_or_chunk_id: str | None = None
+    quote_or_value: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_source_type(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "source_type" not in data and isinstance(data.get("source_id"), str):
+            data = {**data, "source_type": source_type_for(data["source_id"])}
+        return data
+
+    @model_validator(mode="after")
+    def _source_type_matches_id(self) -> "Citation":
+        expected = source_type_for(self.source_id)
+        if self.source_type != expected:
+            raise ValueError(f"source_type {self.source_type!r} does not match source_id {self.source_id!r} ({expected})")
+        return self
 
 
 class VerifiedClaim(BaseModel):
