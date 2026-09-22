@@ -31,11 +31,17 @@ and scope boundary unchanged.
 
 ## 2. Invocation moves into the chart
 
-A second menu entry is appended in `Bootstrap.php` with `requirement = 1`, which is OpenEMR's flag
-for patient-context items (`dem1`, the patient Dashboard, is the sibling entry). It targets `pat`,
-so it opens inside the patient file rather than a new top-level tab. As in Week 1, the entry is
-appended through `MenuEvent` rather than by editing `standard.json`, so nothing conflicts on a
-merge from OpenEMR master.
+**As built (stage 0).** OpenEMR dispatches `PatientMenuEvent::MENU_UPDATE` when it builds the
+tabs at the top of a patient record — Dashboard, History, Documents and so on. `Bootstrap.php`
+listens and inserts a **Co-Pilot** tab after Documents, for hospitalists only. The tab opens
+`public/patient.php`, which reads the active patient from the session
+(`PatientSessionUtil::getPid()`), never from a query parameter: the entry sets `pid = 'false'` so
+the renderer does not append one. As in Week 1, nothing in `standard.json` is edited, so there is
+no merge conflict with OpenEMR master.
+
+The page runs its own agent session (`api.php?context=patient`, session id suffixed `|patient`),
+so opening a patient never replaces the rounding-list session in the other tab. The brief cache
+is shared, so a brief already prefetched from the rounding list is reused instantly.
 
 Two consequences, both load-bearing.
 
@@ -365,13 +371,32 @@ Logs carry ids and counts, never document text, extracted values or patient iden
 
 ---
 
+## 12a. Confirmed operating decisions
+
+Recorded so the build has one place to check rather than a conversation to re-read.
+
+| # | Decision |
+|---|---|
+| 1 | **The Week 1 top-level tab is frozen.** No document awareness, no new-document badges, behaviour identical to what was submitted. It is the baseline the README must keep separable; Week 2 behaviour lives only in the patient-context tab |
+| 2 | **Sample documents are synthetic**, committed under `copilot/evals/stage2/fixtures/documents/`. One clean digital PDF with a text layer, so bounding boxes resolve, and one deliberately scanned-looking image PDF with no text layer, so the page-level citation fallback is exercised rather than assumed |
+| 3 | **Demo patient** is the one already on the hospitalist's rounding list on the deployed instance, so the demo flows from the list into the chart. Eval fixtures stay on pid101 / pid202 / pid303 |
+| 4 | **Encounter association**: attach to the patient's current encounter when one exists, otherwise leave `encounter_id` at 0. No encounter is ever auto-created — that is clinically consequential and nothing in the requirements asks for it |
+| 5 | **The brief gains a "what changed" section** listing new documents with type and load date, above the existing brief. The no-documents path renders no section at all, which is why the Week 1 golden snapshots keep passing |
+| 6 | **KEY_METRICS.md keeps its Week 1 five metrics and verdicts intact** and appends a Week 2 section: extraction accuracy, citation resolution rate, retrieval precision, rubric pass rates, cost per document. One file, two labelled parts |
+| 7 | **Four of the five rubrics are deterministic.** `schema_valid`, `citation_present`, `factually_consistent` and `no_phi_in_logs` all check code-verifiable facts. Only `safe_refusal` needs judgement, behind a paid-judge env switch, so the gate never depends on a free model being available |
+
+Decision 7 is the one that matters most for the gate. Week 1's free judge was throttled on most
+turns and its verdicts discarded; a gate that can be silenced by a rate limit is not a gate.
+
+---
+
 ## 13. Implementation sequence
 
 Thin vertical slice first, gate early, breadth last. Each stage ends green.
 
 | # | Stage | Ends when |
 |---|---|---|
-| 0 | Patient-context tab, `requirement = 1`, scope enforced from session `pid` | Out-of-panel patient is refused and audited from the new entry point |
+| 0 | **Done.** Co-Pilot tab in the patient record via `PatientMenuEvent`; scope enforced from session `pid` | Out-of-panel patient is refused and audited from the new entry point (`usecases/test_uc_patient_tab.py`) |
 | 1 | Schemas and the citation contract v2, with validation tests | Week 1 citations still resolve; unsupported fields cannot validate as supported |
 | 2 | Module write path: document upload, then the `procedure_*` chain | An extracted lab reads back as a FHIR Observation and appears in Lab Overview |
 | 3 | `attach_and_extract` with the VLM, one document type (`lab_pdf`) | One real lab PDF becomes cited claims in a brief |

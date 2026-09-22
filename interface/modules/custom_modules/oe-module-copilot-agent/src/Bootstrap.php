@@ -20,6 +20,7 @@ namespace OpenEMR\Modules\CopilotAgent;
 
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Menu\MenuEvent;
+use OpenEMR\Menu\PatientMenuEvent;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -34,6 +35,9 @@ class Bootstrap
 
     /** Second tab: the admin-only service health view. Its own target so it opens beside the co-pilot. */
     private const HEALTH_TARGET = "cph";
+
+    /** Menu id of the Co-Pilot entry in the patient record's own navbar (Week 2). */
+    private const PATIENT_TAB_ID = "copilot";
 
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
@@ -51,6 +55,59 @@ class Bootstrap
     public function registerMenuItems(): void
     {
         $this->eventDispatcher->addListener(MenuEvent::MENU_UPDATE, $this->addCopilotMenuItem(...));
+        $this->eventDispatcher->addListener(PatientMenuEvent::MENU_UPDATE, $this->addPatientTab(...));
+    }
+
+    /**
+     * Append a Co-Pilot tab to the patient record's navbar, beside Dashboard, History and Documents.
+     *
+     * This is the Week 2 entry point: the page reads the active patient from the session, so the
+     * panel check happens server-side against whatever chart OpenEMR has open. `pid` is 'false'
+     * because the renderer would otherwise append the pid to the URL, and a pid in the URL is
+     * exactly what the page must not trust. PatientMenuRole has already made the standard URLs
+     * absolute by the time this fires, so the URL here is given ready to use.
+     */
+    public function addPatientTab(PatientMenuEvent $event): PatientMenuEvent
+    {
+        $menu = $event->getMenu();
+        if (!is_array($menu)) {
+            return $event;
+        }
+        foreach ($menu as $item) {
+            if (($item->menu_id ?? '') === self::PATIENT_TAB_ID) {
+                return $event;
+            }
+        }
+
+        [$isHospitalist] = $this->currentRoles();
+        if (!$isHospitalist) {
+            return $event;
+        }
+
+        $tab = new stdClass();
+        $tab->requirement = 0;
+        $tab->target = 'main';
+        $tab->menu_id = self::PATIENT_TAB_ID;
+        $tab->label = xlt("Co-Pilot");
+        $tab->url = self::MODULE_INSTALLATION_PATH . "/public/patient.php";
+        $tab->on_click = 'top.restoreSession()';
+        $tab->pid = 'false';
+        $tab->children = [];
+        $tab->acl_req = ["patients", "demo"];
+        $tab->global_req = [];
+
+        // After Documents when it is there, so the tab sits with the chart's own record views.
+        $position = count($menu);
+        foreach ($menu as $index => $item) {
+            if (($item->menu_id ?? '') === 'documents') {
+                $position = $index + 1;
+                break;
+            }
+        }
+        array_splice($menu, $position, 0, [$tab]);
+        $event->setMenu($menu);
+
+        return $event;
     }
 
     /**

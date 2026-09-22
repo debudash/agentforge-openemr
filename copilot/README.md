@@ -83,6 +83,10 @@ Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is 
 co-pilot by design (PRD RBAC matrix) and gets a **CopilotHealth** tab instead, showing the
 service's counters since it last started.
 
+**Week 2 entry point.** Open any patient record: a **Co-Pilot** tab sits beside Dashboard and
+Documents. It reads the patient from the chart you have open and refuses, with an audit entry,
+any patient not assigned to you. The Week 1 tab is unchanged.
+
 Health: `GET /health` (process alive; checks nothing else, so a dependency outage never gets a working service killed) and `GET /ready` (probes the model provider endpoint, the LangSmith API and OpenEMR, plus the provider allowlist and shared secret; 503 naming whichever failed). `/healthz` and `/readyz` remain as aliases. Set `COPILOT_OPENEMR_URL` for the OpenEMR probe: the agent never calls OpenEMR in normal operation, so it cannot infer the address. The service refuses to open sessions while not ready.
 
 A runnable API collection covering the whole workflow is in [api/](../api/).

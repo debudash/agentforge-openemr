@@ -38,6 +38,10 @@ header('Cache-Control: no-store');
 
 // Superglobals are read only here, at the entry point, and parsed immediately.
 $action = is_string($_GET['action'] ?? null) ? $_GET['action'] : '';
+// Week 2: the patient-record tab runs its own agent session, so it never replaces the
+// rounding-list session a clinician may have open in the other tab. Anything else is the
+// Week 1 rounding context, whose session id is unchanged.
+$context = (($_GET['context'] ?? '') === 'patient') ? 'patient' : 'rounds';
 $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $csrfHeader = (string) ($_SERVER['HTTP_X_COPILOT_CSRF'] ?? '');
 // Same derivation as index.php (the session is read-only past globals.php).
@@ -96,7 +100,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -105,9 +109,54 @@ try {
         respond(503, ['state' => 'unable_to_answer', 'reason' => 'the co-pilot agent service is not configured for this site'], $correlationId);
     }
     $client = new AgentClient($config);
-    $sessionId = hash('sha256', session_id() . '|' . $scope->userId());
+    $sessionId = hash('sha256', session_id() . '|' . $scope->userId() . ($context === 'patient' ? '|patient' : ''));
 
     switch ($action) {
+        case 'open_patient':
+            // One patient, reached from its own record. Scope was asserted above. The chart read
+            // and the agent call are the same as 'open' with a list of one.
+            $pid = (int) ($input['pid'] ?? 0);
+            $date = date('Y-m-d');
+            $appointment = null;
+            foreach ($scope->roundingList($date) as $booked) {
+                if ($booked['pid'] === $pid) {
+                    $appointment = $booked;
+                    break;
+                }
+            }
+            $readStarted = microtime(true);
+            $chart = (new ChartReader($scope, $config))->read($pid, $appointment);
+            $readMs = (int) round((microtime(true) - $readStarted) * 1000);
+            $result = $client->post('/session/open', [
+                'session_id' => $sessionId,
+                'user' => ['id' => $scope->userId(), 'username' => $username, 'name' => $scope->displayName(), 'groups' => $scope->groups()],
+                'charts' => [$chart],
+            ], $correlationId);
+            if ($result['status'] !== 200 || $result['json'] === null) {
+                audit('copilot-open', $username, $authGroup, false, 'cid=' . $correlationId . ' entry=patient agent status=' . $result['status'], $pid);
+                respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent service refused the session (status ' . $result['status'] . ')',
+                              'detail' => $result['json']['detail'] ?? null], $correlationId);
+            }
+            audit('copilot-open', $username, $authGroup, true, 'cid=' . $correlationId . ' entry=patient chart_read_ms=' . $readMs, $pid);
+            respond(200, [
+                'date' => $date,
+                'user' => ['name' => $scope->displayName(), 'username' => $username, 'panel_size' => $scope->panelSize()],
+                'patient' => [
+                    'pid' => $pid,
+                    'name' => preg_replace('/\d+/', '', (string) $chart['patient']['name']),
+                    'dob' => $chart['patient']['dob'],
+                    'age' => $chart['patient']['age'],
+                    'sex' => $chart['patient']['sex'],
+                    'time' => $appointment['time'] ?? '',
+                    'title' => $appointment['title'] ?? '',
+                    'sources' => $chart['sources'],
+                ],
+                'chart_read_ms' => $readMs,
+                'prefetch_budget_s' => $result['json']['prefetch_budget_s'] ?? 90,
+                'disclaimer' => $result['json']['disclaimer'] ?? 'Demo data only. Not clinically validated for patient care.',
+                'rejected' => $result['json']['rejected'] ?? [],
+            ], $correlationId);
+
         case 'open':
             $date = date('Y-m-d');
             $list = $scope->roundingList($date);
@@ -198,8 +247,9 @@ try {
             respond(400, ['state' => 'unable_to_answer', 'reason' => 'unknown action'], $correlationId);
     }
 } catch (ScopeDeniedException $e) {
-    audit('copilot-scope-denied', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action, $e->pid);
-    respond(403, ['state' => 'access_denied', 'reason' => 'that patient is not on your rounding list'], $correlationId);
+    audit('copilot-scope-denied', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action . ' entry=' . $context, $e->pid);
+    respond(403, ['state' => 'access_denied', 'reason' => $context === 'patient'
+        ? 'that patient is not assigned to you' : 'that patient is not on your rounding list'], $correlationId);
 } catch (AgentUnavailableException $e) {
     error_log('oe-module-copilot-agent: ' . $e->getMessage());
     audit('copilot-agent-unavailable', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action);
