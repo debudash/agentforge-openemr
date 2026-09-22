@@ -25,13 +25,17 @@ final class AgentClient
      * @param array<string, mixed> $payload
      * @return array{status:int, json:array<string, mixed>|null}
      */
-    public function post(string $path, array $payload, string $correlationId): array
+    /**
+     * @param int|null $timeoutSeconds overrides the configured request timeout for one call. The
+     *                                 supervisor may read several documents in one request (Week 2).
+     */
+    public function post(string $path, array $payload, string $correlationId, ?int $timeoutSeconds = null): array
     {
         $body = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($body === false) {
             throw new AgentUnavailableException('payload could not be encoded');
         }
-        return $this->request('POST', $path, $body, $correlationId);
+        return $this->request('POST', $path, $body, $correlationId, $timeoutSeconds);
     }
 
     /** @return array{status:int, json:array<string, mixed>|null} */
@@ -41,7 +45,7 @@ final class AgentClient
     }
 
     /** @return array{status:int, json:array<string, mixed>|null} */
-    private function request(string $method, string $path, string $body, string $correlationId): array
+    private function request(string $method, string $path, string $body, string $correlationId, ?int $timeoutSeconds = null): array
     {
         $timestamp = (string) time();
         $signature = hash_hmac('sha256', $timestamp . '.' . $method . '.' . $path . '.' . $body, $this->config->sharedSecret);
@@ -54,7 +58,7 @@ final class AgentClient
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_TIMEOUT => $this->config->requestTimeoutSeconds,
+            CURLOPT_TIMEOUT => $timeoutSeconds ?? $this->config->requestTimeoutSeconds,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 'X-Copilot-Timestamp: ' . $timestamp,

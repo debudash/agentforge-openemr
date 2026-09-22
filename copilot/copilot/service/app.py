@@ -11,6 +11,8 @@ Endpoints (all signed except the two health probes):
   GET  /readyz                  model provider approved, secret configured, tracing state
   GET  /metrics                 counters and latency percentiles, no clinical content
   POST /documents/extract       Week 2: read one lab PDF or intake form into its schema (the module persists it)
+  POST /session/{sid}/supervise         Week 2: the supervisor graph; pauses when the module must persist
+  POST /session/{sid}/supervise/resume  Week 2: finish the graph after persistence with the re-read chart
 """
 
 from __future__ import annotations
@@ -46,7 +48,7 @@ def vision_llm() -> LLM:
     """The document-reading model, built once. Raises ProviderNotApproved: fail closed."""
     global _vision
     if _vision is None:
-        _vision = build_llm(settings, settings.vision_model)
+        _vision = build_llm(settings, settings.vision_model, rate_limit_retries=settings.vision_rate_limit_retries)
     return _vision
 tracing_evidence: dict[str, Any] = {}
 started_at = time.time()
@@ -286,6 +288,79 @@ async def session_close(sid: str, request: Request, _: bytes = Depends(signed)) 
     closed = store.close(sid)
     emit("session_closed", correlation(request), session=sid[:8], existed=closed)
     return {"closed": closed}
+
+
+# -- the supervisor graph (Week 2) ---------------------------------------------------
+class DocumentRef(BaseModel):
+    doc_id: int = Field(ge=1)
+    doc_type: Literal["lab_pdf", "intake_form"]
+    name: str = ""
+    date: str = ""
+    processed: bool = False
+    content_base64: str | None = None
+
+
+class SuperviseRequest(BaseModel):
+    pid: int
+    documents: list[DocumentRef] = Field(default_factory=list)
+
+
+class PersistedRef(BaseModel):
+    doc_id: int
+    doc_type: Literal["lab_pdf", "intake_form"]
+    source_ids: list[str] = Field(default_factory=list)
+    order_id: int | None = None
+    sidecar_doc_id: int | None = None
+    skipped: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class ResumeRequest(BaseModel):
+    pid: int
+    persisted: list[PersistedRef] = Field(default_factory=list)
+    chart: Chart | None = None
+
+
+def _count_supervised(summary: dict[str, Any]) -> None:
+    counters["supervise_runs"] += 1
+    counters["supervise_documents_read"] += len(summary.get("extractions", []))
+    counters["supervise_documents_failed"] += len(summary.get("failed", []))
+    counters["supervise_handoffs"] += len(summary.get("handoffs", []))
+    if summary.get("phase") == "done" and summary.get("brief"):
+        counters["supervise_briefs"] += 1
+        counters["supervise_changes"] += len(summary.get("changes", []))
+
+
+@app.post("/session/{sid}/supervise")
+async def session_supervise(sid: str, request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """Run the graph: detect unread documents, extract, hand back for persistence, or brief straight away."""
+    cid = correlation(request)
+    payload = SuperviseRequest.model_validate_json(body)
+    for doc in payload.documents:
+        if doc.content_base64 and len(doc.content_base64) * 3 // 4 > settings.max_document_bytes:
+            raise HTTPException(status_code=413, detail=f"document {doc.doc_id} too large")
+    started = time.perf_counter()
+    summary = await store.supervise(sid, payload.pid, [d.model_dump() for d in payload.documents], vision_llm, cid)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="no such session or patient")
+    record_latency("supervise_ms", int((time.perf_counter() - started) * 1000))
+    _count_supervised(summary)
+    return {"correlation_id": cid, **summary}
+
+
+@app.post("/session/{sid}/supervise/resume")
+async def session_supervise_resume(sid: str, request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """The module has persisted and re-read the chart; the graph finishes with the brief and what changed."""
+    cid = correlation(request)
+    payload = ResumeRequest.model_validate_json(body)
+    started = time.perf_counter()
+    summary = await store.supervise_resume(sid, payload.pid, [p.model_dump() for p in payload.persisted], payload.chart, vision_llm, cid)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="no such session or patient")
+    if summary.get("phase") == "denied":
+        raise HTTPException(status_code=403, detail=summary.get("reason"))
+    record_latency("supervise_ms", int((time.perf_counter() - started) * 1000))
+    _count_supervised(summary)
+    return {"correlation_id": cid, **summary}
 
 
 # -- documents (Week 2) ---------------------------------------------------------

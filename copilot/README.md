@@ -98,6 +98,11 @@ MedlinePlus). `search_guidelines` retrieves with BM25 plus local embeddings and 
 cross-encoder rerank; `COPILOT_EMBED_MODEL=none` runs BM25 only with no model download. Evidence
 is returned in its own `evidence` list, cited to `guideline:` ids, never on a claim about the patient.
 
+**Week 2 supervisor.** Opening the Co-Pilot tab in a patient record runs the graph: unread lab
+reports and intake forms are read, persisted by the module, and the brief is regenerated from the
+re-read chart with a "What changed" section above it. The routing (every handoff and its reason)
+is shown under Run details and logged as `supervisor_handoff` events.
+
 **Week 2 gate.** `python -m evals.stage2.gate` replays 50 recorded cases through the real code
 (no model, ~10 s) and fails on regression against `evals/stage2/baseline.json`. Install the
 pre-push hook once per clone with `.\hooks\install-hooks.ps1`. See

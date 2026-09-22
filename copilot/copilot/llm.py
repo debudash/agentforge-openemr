@@ -154,7 +154,7 @@ class ScriptedLLM:
         raise RuntimeError(f"scripted LLM has no {schema.__name__} response")
 
 
-def build_llm(settings: Settings, model_name: str | None = None) -> LLM:
+def build_llm(settings: Settings, model_name: str | None = None, rate_limit_retries: int = 3) -> LLM:
     """Build the agent model, or another allowlisted model of the same provider (the eval judge)."""
     name = model_name or settings.model
     approved, reason = settings.provider_approved(name)
@@ -184,7 +184,7 @@ def build_llm(settings: Settings, model_name: str | None = None) -> LLM:
                              "X-Title": "OpenEMR Clinical Co-Pilot"},
             extra_body=extra_body,
         )
-        return LangChainLLM(model)
+        return LangChainLLM(model, rate_limit_retries)
 
     from langchain_anthropic import ChatAnthropic  # imported here so tests without the package can use ScriptedLLM
 
@@ -197,4 +197,4 @@ def build_llm(settings: Settings, model_name: str | None = None) -> LLM:
         api_key=settings.anthropic_api_key,
         base_url=settings.anthropic_base_url,
     )
-    return LangChainLLM(model)
+    return LangChainLLM(model, rate_limit_retries)

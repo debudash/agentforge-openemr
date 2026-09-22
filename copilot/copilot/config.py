@@ -40,6 +40,10 @@ class Settings:
     # demo-data only (ARCHITECTURE.md, AUDIT.md).
     vision_model: str = os.environ.get("COPILOT_VISION_MODEL", "") or os.environ.get("COPILOT_MODEL", "claude-sonnet-5")
     max_document_pages: int = int(os.environ.get("COPILOT_MAX_DOCUMENT_PAGES", "6"))
+    # A document read waits through fewer rate-limit retries than an answer: on a dead free-tier
+    # quota the third retry never succeeds, and several documents in one run would outlast the
+    # module's request timeout. One retry, then "could not be read", said plainly.
+    vision_rate_limit_retries: int = int(os.environ.get("COPILOT_VISION_RATE_LIMIT_RETRIES", "1"))
     max_document_bytes: int = int(os.environ.get("COPILOT_MAX_DOCUMENT_BYTES", str(8 * 1024 * 1024)))
     # Week 2: guideline retrieval. "none" for embed_model runs BM25 only with no models and no
     # network, which is what the tests and the eval gate use.

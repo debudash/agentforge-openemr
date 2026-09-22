@@ -172,11 +172,14 @@ if ($gate === 'ok') {
             </div>
             <div class="cpa-meta" id="cpa-brief-reason"></div>
         </div>
+        <div class="card-body cpa-changes" id="cpa-changes" hidden></div>
         <div class="card-body" id="cpa-brief"></div>
         <div class="card-body border-top">
             <details>
-                <summary><?php echo xlt("Run details, constraint checks and data sources"); ?></summary>
+                <summary><?php echo xlt("Run details, routing, constraint checks and data sources"); ?></summary>
                 <div class="cpa-runinfo mt-2" id="cpa-brief-window"></div>
+                <table class="table table-sm mt-2" id="cpa-handoffs"><caption class="sr-only"><?php echo xlt("Supervisor routing"); ?></caption>
+                    <thead><tr><th><?php echo xlt("Handoff"); ?></th><th><?php echo xlt("Reason"); ?></th><th><?php echo xlt("Time"); ?></th></tr></thead><tbody></tbody></table>
                 <table class="table table-sm mt-2" id="cpa-rules"><caption class="sr-only"><?php echo xlt("Rule engine outcomes"); ?></caption>
                     <thead><tr><th><?php echo xlt("Rule"); ?></th><th><?php echo xlt("Outcome"); ?></th><th><?php echo xlt("Detail"); ?></th></tr></thead><tbody></tbody></table>
                 <div class="cpa-meta" id="cpa-sources"></div>
@@ -319,6 +322,45 @@ if ($gate === 'ok') {
             setTimeout(waitForBrief, 2000);
         });
     }
+    // Week 2: the supervisor runs on open. It checks for unread documents, reads them, has them
+    // persisted, and returns the brief plus what changed. If it cannot run, the Week 1 path
+    // (wait for the prefetched brief) still works.
+    function renderChanges(res) {
+        var box = document.getElementById("cpa-changes"); box.innerHTML = ""; box.hidden = true;
+        var docs = res.documents || [];
+        var head = el("div", "cpa-meta", docs.length + " document(s) on file" + (res.failed && res.failed.length ? " · " + res.failed.length + " could not be read" : ""));
+        if (res.changes && res.changes.length) {
+            box.hidden = false;
+            box.appendChild(el("h5", "mt-2", "What changed"));
+            renderClaims(res.changes, citationMap(res.citations), box);
+            box.appendChild(head);
+        } else if (docs.length) {
+            box.hidden = false;
+            box.appendChild(el("h5", "mt-2", "What changed"));
+            box.appendChild(el("div", "text-muted", "No new documents since the last read."));
+            box.appendChild(head);
+        }
+    }
+    function renderHandoffs(handoffs) {
+        var body = document.querySelector("#cpa-handoffs tbody"); body.innerHTML = "";
+        (handoffs || []).forEach(function (h) {
+            var tr = el("tr");
+            tr.appendChild(el("td", "", h.from + " → " + h.to)); tr.appendChild(el("td", "", h.reason));
+            tr.appendChild(el("td", "", (h.duration_ms !== undefined ? h.duration_ms + " ms" : ""))); body.appendChild(tr);
+        });
+    }
+    function supervise() {
+        setState("Checking for new documents…", "");
+        api("supervise", { pid: PID }).then(function (res) {
+            if (res.http_status !== 200 || !res.brief) {
+                document.getElementById("cpa-brief-reason").textContent = res.reason ? "Supervisor unavailable: " + res.reason + ". Showing the prefetched brief." : "";
+                waitForBrief(); return;
+            }
+            renderChanges(res);
+            renderBrief(res.brief);
+            renderHandoffs(res.handoffs);
+        }).catch(function () { waitForBrief(); });
+    }
     function open() {
         api("open_patient", { pid: PID }).then(function (res) {
             if (res.http_status !== 200) {
@@ -329,7 +371,7 @@ if ($gate === 'ok') {
             document.getElementById("cpa-patient-name").textContent = p.name;
             document.getElementById("cpa-patient-ids").textContent = " · " + (p.sex || "") + ", " + (p.age !== null ? p.age + " y" : "") + ", DOB " + (p.dob || "?")
                 + " · pid " + p.pid + (p.time ? " · " + p.time + " " + p.title : "") + " · chart read in " + res.chart_read_ms + " ms";
-            waitForBrief();
+            supervise();
         });
     }
 

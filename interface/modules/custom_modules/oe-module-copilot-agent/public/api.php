@@ -150,7 +150,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents', 'supervise'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -265,6 +265,77 @@ try {
                 'cid=' . $correlationId . ' doc=' . $docId . ' order=' . $written['order_id'] . ' results=' . count($written['source_ids'])
                 . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'], $pid);
             respond(200, $written + ['already_persisted' => false], $correlationId);
+
+        case 'supervise':
+            // Week 2 stage 7: the supervisor graph for one patient. The agent decides and reads;
+            // this side lists the documents, hands over their bytes, persists what was read, re-reads
+            // the chart and resumes. Every write still happens here, under this session, audited.
+            $pid = (int) ($input['pid'] ?? 0);
+            $writer = new DocumentWriter($scope);
+            $documents = $writer->documents($pid);
+            foreach ($documents as &$document) {
+                if ($document['processed']) {
+                    continue;
+                }
+                $bytes = (new \Document((int) $document['doc_id']))->get_data();
+                if (is_string($bytes) && $bytes !== '') {
+                    $document['content_base64'] = base64_encode($bytes);
+                }
+            }
+            unset($document);
+            $eid = $sessionPid === $pid ? $sessionEncounter : 0;
+            // Several documents may each wait through a rate-limit retry; give the graph room.
+            $result = $client->post('/session/' . $sessionId . '/supervise', ['pid' => $pid, 'documents' => $documents], $correlationId, 300);
+            if ($result['status'] !== 200 || !is_array($result['json'])) {
+                audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' agent status=' . $result['status'], $pid);
+                respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not run the supervisor (status ' . $result['status'] . ')',
+                              'detail' => $result['json']['detail'] ?? null], $correlationId);
+            }
+            $summary = $result['json'];
+            if (($summary['phase'] ?? '') === 'extracted') {
+                $persisted = [];
+                foreach ((array) ($summary['extractions'] ?? []) as $extraction) {
+                    $docId = (int) ($extraction['doc_id'] ?? 0);
+                    $docType = (string) ($extraction['doc_type'] ?? 'lab_pdf');
+                    $extracted = is_array($extraction['result'] ?? null) ? $extraction['result'] : [];
+                    if ($docType === 'lab_pdf') {
+                        $written = $writer->persistLabDocument($pid, $docId, (array) ($extracted['document'] ?? []), $eid, (string) ($extracted['model'] ?? 'unknown'));
+                        $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => $written['source_ids'],
+                                        'order_id' => $written['order_id'], 'skipped' => $written['skipped']];
+                        $note = 'results=' . count($written['source_ids']) . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'];
+                    } else {
+                        $sidecar = $writer->persistIntakeSidecar($pid, $docId, $extracted, $eid);
+                        $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => ['doc:' . $docId], 'sidecar_doc_id' => $sidecar, 'skipped' => []];
+                        $note = 'sidecar=' . $sidecar;
+                    }
+                    audit('copilot-document-extracted', $username, $authGroup, true,
+                        'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=1 ' . $note
+                        . ' unsupported=' . count($extracted['unsupported_fields'] ?? []), $pid);
+                }
+                // The chart as it is now, with the new rows, is what the brief is generated from.
+                $appointment = null;
+                foreach ($scope->roundingList(date('Y-m-d')) as $booked) {
+                    if ($booked['pid'] === $pid) {
+                        $appointment = $booked;
+                        break;
+                    }
+                }
+                $chart = (new ChartReader($scope, $config))->read($pid, $appointment);
+                $result = $client->post('/session/' . $sessionId . '/supervise/resume',
+                    ['pid' => $pid, 'persisted' => $persisted, 'chart' => $chart], $correlationId, 300);
+                if ($result['status'] !== 200 || !is_array($result['json'])) {
+                    audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' resume agent status=' . $result['status'], $pid);
+                    respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not finish after persistence (status ' . $result['status'] . ')',
+                                  'detail' => $result['json']['detail'] ?? null, 'persisted' => $persisted], $correlationId);
+                }
+                $summary = $result['json'] + ['persisted' => $persisted];
+            }
+            $brief = $summary['brief'] ?? null;
+            audit('copilot-supervise', $username, $authGroup, ($summary['phase'] ?? '') === 'done',
+                'cid=' . $correlationId . ' documents=' . count($documents) . ' unread=' . count(array_filter($documents, static fn(array $d): bool => !$d['processed']))
+                . ' read=' . count($summary['extractions'] ?? []) . ' failed=' . count($summary['failed'] ?? []) . ' changes=' . count($summary['changes'] ?? [])
+                . ' handoffs=' . count($summary['handoffs'] ?? []) . ' state=' . ($brief['state'] ?? '-') . ' brief_ms=' . ($brief['duration_ms'] ?? '-'), $pid);
+            respond(200, ['documents' => array_map(static function (array $d): array { unset($d['content_base64']); return $d; }, $documents)] + $summary, $correlationId);
 
         case 'documents':
             // Week 2: the patient's lab reports and intake forms and whether each has been read.

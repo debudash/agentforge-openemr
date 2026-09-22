@@ -108,9 +108,21 @@ cannot be explained is the named pitfall.
 retrieve evidence, so it cannot produce an unverified claim. Every claim in the final response
 still originates in the evidence-retriever and passes the Week 1 verifier.
 
-**No-new-documents path.** The extractor returns `{documents: [], reason: "no unprocessed
-documents"}` and the supervisor hands straight to the retriever. The brief is then identical to
-Week 1's, which is a useful property: the Week 2 path degrades exactly to the Week 1 path.
+**No-new-documents path.** With nothing unread the supervisor hands straight to the retriever.
+The brief is then identical to Week 1's, which is a useful property: the Week 2 path degrades
+exactly to the Week 1 path.
+
+**As built: the graph pauses while the module writes.** The agent cannot read OpenEMR documents
+and must not write to OpenEMR, so the module lists the patient's documents, hands the unread
+ones' bytes to `POST /session/{sid}/supervise`, and the graph runs supervisor → intake-extractor
+→ supervisor. There the supervisor calls LangGraph's `interrupt`: control returns to the module
+with the extractions and a logged handoff "supervisor → module". The module persists through
+`DocumentWriter`, re-reads the chart, and calls `/supervise/resume` with the persisted ids and the
+re-read chart. The graph resumes from its checkpoint, the retriever generates the brief from that
+chart, and the supervisor assembles "what changed": one deterministic sentence per document read,
+cited to `doc:<id>`, run through the verifier like every other claim. A document that could not
+be read (the free tier's rate limit is the usual reason) gets its own sentence saying so, and the
+brief still comes. The supervisor node holds no tools and calls no model; a test asserts it.
 
 ---
 
@@ -423,7 +435,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 4 | **Done.** `evals/stage2/gate.py`, 50 cases, `baseline.json`, `hooks/pre-push`; `test_gate.py` removes four guards in turn | An injected regression blocks a push (each of the four fails the gate) |
 | 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
 | 6 | **Done.** `guidelines/retrieve.py`, 20-chunk corpus, `search_guidelines` tool, `evidence` section; six retrieval cases in the gate (62) | Guideline evidence cited separately, barred from patient-fact claims (`test_guidelines.py`, G01–G06) |
-| 7 | Supervisor graph with logged handoffs | Routing reconstructable from logs; no-documents path degrades to Week 1 |
+| 7 | **Done.** `supervisor.py` (LangGraph, interrupt while the module persists), `/session/{sid}/supervise` and `/resume`, module `supervise` action, patient tab runs it on open | Routing reconstructable from logs (`test_supervisor.py`, `test_uc_supervise.py`); no-documents path degrades to Week 1 |
 | 8 | Fill stage 2 to 50 cases, record baselines | All five rubrics above threshold |
 | 9 | UI: click-to-source, document preview, bounding-box overlay | A claim opens its page with the quote highlighted |
 | 10 | Docs, cost and latency report, deploy behind the Railway gate | Graders can run the Week 2 flow without guessing |

@@ -366,7 +366,7 @@ def main(argv: list[str] | None = None) -> int:
         BASELINE.write_text(json.dumps({"recorded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                                         "cases": summary["cases"], "rubrics": summary["rubrics"],
                                         "thresholds": THRESHOLDS, "regression_points": REGRESSION_POINTS}, indent=2) + "\n",
-                            encoding="utf-8")
+                            encoding="utf-8", newline="\n")
         print(f"baseline recorded: {BASELINE.name}")
     return 1 if failures else 0
 
