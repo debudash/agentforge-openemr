@@ -110,8 +110,18 @@ function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid
                 'detail' => $result['json']['detail'] ?? null];
     }
     $extraction = $result['json'];
-    if ($docType !== 'lab_pdf') {
-        return ['processed' => false, 'reason' => 'only lab_pdf extractions are persisted as results'];
+    if ($docType === 'intake_form') {
+        // An intake form is someone else's report about the patient: stored beside the form,
+        // never merged into the clinical lists.
+        $sidecar = $writer->persistIntakeSidecar($pid, $docId, $extraction, $eid);
+        return [
+            'processed' => true, 'sidecar_doc_id' => $sidecar, 'source_ids' => ['doc:' . $docId], 'skipped' => [],
+            'attributed_to' => null,
+            'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
+            'extraction_ms' => $extraction['duration_ms'] ?? null,
+            'model' => $extraction['model'] ?? null,
+            'agent_correlation_id' => $extraction['correlation_id'] ?? null,
+        ];
     }
     $written = $writer->persistLabDocument($pid, $docId, (array) ($extraction['document'] ?? []), $eid, (string) ($extraction['model'] ?? 'unknown'));
     return $written + [
@@ -197,7 +207,10 @@ try {
             if (!$writer->documentBelongsTo($docId, $pid)) {
                 throw new ScopeDeniedException($pid);
             }
-            $existing = $writer->orderFor($docId);
+            if ($docType === 'intake_form' && ($sidecar = $writer->sidecarFor($docId, $pid)) !== null) {
+                respond(200, ['doc_id' => $docId, 'processed' => true, 'already_persisted' => true, 'sidecar_doc_id' => $sidecar], $correlationId);
+            }
+            $existing = $docType === 'lab_pdf' ? $writer->orderFor($docId) : null;
             if ($existing !== null) {
                 respond(200, ['doc_id' => $docId, 'processed' => true, 'already_persisted' => true, 'order_id' => $existing,
                               'source_ids' => $writer->sourceIdsFor($docId)], $correlationId);
@@ -224,10 +237,22 @@ try {
             if ($docId <= 0 || $extraction === null) {
                 respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_id and extraction are required'], $correlationId);
             }
-            if ($docType !== 'lab_pdf') {
-                respond(400, ['state' => 'unable_to_answer', 'reason' => 'only lab_pdf extractions are persisted as results'], $correlationId);
+            if (!in_array($docType, ['lab_pdf', 'intake_form'], true)) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_type must be lab_pdf or intake_form'], $correlationId);
             }
             $writer = new DocumentWriter($scope);
+            if ($docType === 'intake_form') {
+                $existingSidecar = $writer->sidecarFor($docId, $pid);
+                if ($existingSidecar !== null) {
+                    respond(200, ['already_persisted' => true, 'sidecar_doc_id' => $existingSidecar, 'source_ids' => ['doc:' . $docId]], $correlationId);
+                }
+                $sidecar = $writer->persistIntakeSidecar($pid, $docId,
+                    ['document' => $extraction, 'unsupported_fields' => $input['unsupported_fields'] ?? [], 'model' => (string) ($input['model'] ?? 'unknown')],
+                    $sessionPid === $pid ? $sessionEncounter : 0);
+                audit('copilot-extraction-persisted', $username, $authGroup, true,
+                    'cid=' . $correlationId . ' doc=' . $docId . ' type=intake_form sidecar=' . $sidecar, $pid);
+                respond(200, ['already_persisted' => false, 'sidecar_doc_id' => $sidecar, 'source_ids' => ['doc:' . $docId]], $correlationId);
+            }
             $existing = $writer->orderFor($docId);
             if ($existing !== null) {
                 respond(200, ['already_persisted' => true, 'order_id' => $existing, 'source_ids' => $writer->sourceIdsFor($docId),

@@ -16,7 +16,7 @@ def test_the_gate_passes_on_the_current_code(baseline):
     rows, summary = gate.run()
     failing = [r["id"] + ": " + "; ".join(r["why"]) for r in rows if not r["passed"]]
     assert not failing, failing
-    assert summary["cases"] == 50
+    assert summary["cases"] >= 50
     assert gate.compare(summary, baseline) == []
 
 

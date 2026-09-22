@@ -412,7 +412,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 2 | **Done.** `DocumentWriter.php`; `api.php` actions `attach` and `persist_extraction` | An extracted lab reads back as a FHIR Observation (`status: preliminary`) and is selectable in Lab Overview (`test_uc_document_writer.py`) |
 | 3 | **Built.** `documents/extract.py`, `POST /documents/extract`, `attach` extracts then persists; `/ready` checks the vision model | Proven with a scripted model (`test_extract.py`) and fail-closed live. A successful live extraction is pending a vision model with quota: OpenRouter's free tier is rate-limited per account, and the build exhausted it (§9) |
 | 4 | **Done.** `evals/stage2/gate.py`, 50 cases, `baseline.json`, `hooks/pre-push`; `test_gate.py` removes four guards in turn | An injected regression blocks a push (each of the four fails the gate) |
-| 5 | `intake_form`, no clinical writes, "reported, not reconciled" wording | Intake facts cited to the form, never merged into `lists` |
+| 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
 | 6 | Hybrid RAG plus rerank over the corpus | Guideline evidence cited separately, barred from patient-fact claims |
 | 7 | Supervisor graph with logged handoffs | Routing reconstructable from logs; no-documents path degrades to Week 1 |
 | 8 | Fill stage 2 to 50 cases, record baselines | All five rubrics above threshold |

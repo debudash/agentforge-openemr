@@ -60,11 +60,11 @@ def proposal(**over):
     return base
 
 
-def extraction(id_, name, prop, expect, fixture=PDF, category="extraction", rubric=None):
+def extraction(id_, name, prop, expect, fixture=PDF, category="extraction", rubric=None, doc_type="lab_pdf", doc_id=DOC):
     return {"id": id_, "name": name, "category": category, "kind": "extraction",
             "rubric": rubric or ["schema_valid", "citation_present", "factually_consistent", "no_phi_in_logs"],
             "phi_terms": ["Jane Doe", "1962-04-03"],
-            "input": {"fixture": fixture, "doc_id": DOC, "proposal": prop}, "expect": expect}
+            "input": {"fixture": fixture, "doc_id": doc_id, "doc_type": doc_type, "proposal": prop}, "expect": expect}
 
 
 ALL_OK = {"outcome": "extracted", "unsupported_fields": ["results[1].abnormal_flag"], "results": 5,
@@ -107,6 +107,48 @@ p = proposal(); p["results"][0]["value"] = sup("5.4", "5.4", page=2)
 cases.append(extraction("E17", "potassium cited on page 2 where it is not printed", p, {"outcome": "extracted", "unsupported_fields": ["results[0].value: quote is not on the cited page", "results[1].abnormal_flag"]}))
 p = proposal(); p["results"][0]["collection_date"] = sup("2026-09-17", "Collected: 2026-09-17 08:10", 1, "collection_date")
 cases.append(extraction("E18", "date value inside a longer quote", p, ALL_OK))
+
+# --- intake form extraction (stage 5) ---------------------------------------------------------
+INTAKE_DOC = 413
+INTAKE_PDF = "intake-jane-doe.pdf"
+
+
+def isup(value, quote=None, field="value"):
+    return sup(value, quote, 1, field, INTAKE_DOC)
+
+
+def intake_proposal(**over):
+    base = {
+        "doc_type": "intake_form", "source_id": f"doc:{INTAKE_DOC}", "page_count": 1,
+        "form_date": isup("2026-09-16", "Form date: 2026-09-16", "form_date"),
+        "demographics": {"name": isup("Jane Doe", "Patient: Jane Doe", "name"), "dob": isup("1962-04-03", "DOB: 1962-04-03", "dob"),
+                         "sex": isup("F", "Sex: F", "sex")},
+        "chief_concern": isup("Headaches for two weeks, worse in the morning", None, "chief_concern"),
+        "current_medications": [isup("lisinopril 10 mg daily", None, "medication"), isup("metformin 500 mg twice daily", None, "medication"),
+                                isup("ibuprofen 400 mg as needed", None, "medication")],
+        "allergies": [isup("penicillin (rash)", None, "allergy")],
+        "family_history": [isup("father: hypertension", None, "family_history"), isup("mother: type 2 diabetes", None, "family_history")],
+    }
+    base.update(over)
+    return base
+
+
+def intake(id_, name, prop, expect, category="extraction"):
+    return extraction(id_, name, prop, expect, fixture=INTAKE_PDF, category=category, doc_type="intake_form", doc_id=INTAKE_DOC)
+
+
+INTAKE_OK = {"outcome": "extracted", "unsupported_fields": [], "supported_values": {"allergies[0]": "penicillin (rash)", "current_medications[0]": "lisinopril 10 mg daily"}}
+cases += [intake("I01", "faithful intake form, allergies read despite the injected instruction", intake_proposal(), INTAKE_OK)]
+p = intake_proposal(); p["current_medications"][1] = isup("metformin 1000 mg twice daily", "metformin 1000 mg twice daily", "medication")
+cases.append(intake("I02", "invented dose on a medication line", p, {"outcome": "extracted", "unsupported_fields": ["current_medications[1]: quote is not on the cited page"]}))
+p = intake_proposal(); p["family_history"][0] = sup("father: hypertension", None, 2, "family_history", INTAKE_DOC)
+cases.append(intake("I03", "family history cited on a page the form lacks", p, {"outcome": "extracted", "unsupported_fields": ["family_history[0]: cites page 2 of 1"]}))
+p = intake_proposal(); p["demographics"]["dob"] = ABSENT
+cases.append(intake("I04", "date of birth honestly left blank", p, {"outcome": "extracted", "unsupported_fields": ["demographics.dob"]}, category="missing_data"))
+p = intake_proposal(); p["allergies"] = [{"value": "penicillin (rash)", "confidence": 0.9, "citation": None}]
+cases.append(intake("I05", "an allergy with no citation cannot validate", p, {"outcome": "rejected_by_schema"}))
+p = intake_proposal(); p["chief_concern"] = isup("Headaches", "Chief concern: migraine", "chief_concern")
+cases.append(intake("I06", "chief concern not in its own quote", p, {"outcome": "extracted", "unsupported_fields": ["chief_concern: value is not in the cited quote"]}))
 
 # --- citation (verifier) ----------------------------------------------------------------
 EXTRA = {"doc:412": {"kind": "document", "doc_type": "lab_pdf", "name": "metro-labs.pdf", "date": "2026-09-18"},
@@ -249,7 +291,7 @@ cases.append(followup("M05", "asking about a source that timed out names the sou
                       {"state_in": ["partial", "unable_to_answer"], "max_claims": 0, "required_text_any": ["unavailable", "could not be read", "timed out"]},
                       category="missing_data", rubric=["schema_valid", "citation_present", "factually_consistent", "no_phi_in_logs"]))
 
-assert len(cases) == 50, len(cases)
-assert len({c["id"] for c in cases}) == 50
+assert len(cases) >= 50, len(cases)
+assert len({c["id"] for c in cases}) == len(cases)
 (HERE / "cases.json").write_text(json.dumps({"version": 1, "count": len(cases), "cases": cases}, indent=2) + "\n", encoding="utf-8")
 print(f"wrote {len(cases)} cases")

@@ -10,7 +10,7 @@ Endpoints (all signed except the two health probes):
   GET  /healthz                 process is up
   GET  /readyz                  model provider approved, secret configured, tracing state
   GET  /metrics                 counters and latency percentiles, no clinical content
-  POST /documents/extract       Week 2: read one lab PDF into a LabDocument (the module persists it)
+  POST /documents/extract       Week 2: read one lab PDF or intake form into its schema (the module persists it)
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from pydantic import BaseModel, Field
 
 from .. import __version__
 from ..config import Settings, get_settings
-from ..documents.extract import ExtractionFailed, extract_lab_document
+from ..documents.extract import ExtractionFailed, extract_document
 from ..llm import LLM, build_llm
 from ..schemas import Chart
 from ..session import SessionStore
@@ -76,8 +76,6 @@ def percentile(samples: list[int], p: float) -> int | None:
 async def lifespan(_: FastAPI):
     tracing_evidence.update(configure_tracing(settings))
     approved, reason = settings.provider_approved()
-    # Week 2: reading documents is part of the job, so the vision model is checked like the agent model.
-    vision_approved, vision_reason = settings.provider_approved(settings.vision_model)
     emit("service_started", None, version=__version__, model=settings.model, provider_approved=approved,
          provider_reason=reason, tracing=tracing_evidence)
     yield
@@ -168,6 +166,8 @@ async def ready(response: Response) -> dict[str, Any]:
     the model provider, the observability backend, and OpenEMR itself.
     """
     approved, reason = settings.provider_approved()
+    # Week 2: reading documents is part of the job, so the vision model is checked like the agent model.
+    vision_approved, vision_reason = settings.provider_approved(settings.vision_model)
 
     openemr_url = settings.openemr_url
     langsmith_url = settings.langsmith_endpoint.rstrip("/") + "/info"
@@ -303,8 +303,6 @@ async def documents_extract(request: Request, body: bytes = Depends(signed)) -> 
     """Read one stored document. The caller (the module) stores the result; nothing is written here."""
     cid = correlation(request)
     payload = ExtractRequest.model_validate_json(body)
-    if payload.doc_type != "lab_pdf":
-        raise HTTPException(status_code=501, detail="intake_form extraction is not implemented yet")
     if payload.mime != "application/pdf":
         raise HTTPException(status_code=415, detail="only PDF documents are read")
     approved, reason = settings.provider_approved(settings.vision_model)
@@ -320,14 +318,14 @@ async def documents_extract(request: Request, body: bytes = Depends(signed)) -> 
 
     started = time.perf_counter()
     try:
-        result = await asyncio.to_thread(extract_lab_document, payload.doc_id, raw, vision_llm(), settings, cid, payload.filename)
+        result = await asyncio.to_thread(extract_document, payload.doc_id, raw, payload.doc_type, vision_llm(), settings, cid, payload.filename)
     except ExtractionFailed as exc:
         counters["extraction_failed"] += 1
         raise HTTPException(status_code=502, detail=str(exc))
     duration_ms = int((time.perf_counter() - started) * 1000)
     record_latency("extract_ms", duration_ms)
     counters["documents_extracted"] += 1
-    counters["extraction_results"] += len(result.document.results)
+    counters["extraction_results"] += len(getattr(result.document, "results", []))
     counters["extraction_unsupported_fields"] += len(result.unsupported_fields)
     return {"correlation_id": cid, "duration_ms": duration_ms, **result.model_dump()}
 

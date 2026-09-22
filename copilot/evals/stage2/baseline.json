@@ -1,20 +1,20 @@
 {
-  "recorded_at": "2026-09-22T04:27:24Z",
-  "cases": 50,
+  "recorded_at": "2026-09-22T04:35:52Z",
+  "cases": 56,
   "rubrics": {
     "schema_valid": {
-      "passed": 50,
-      "applicable": 50,
+      "passed": 56,
+      "applicable": 56,
       "rate": 1.0
     },
     "citation_present": {
-      "passed": 46,
-      "applicable": 46,
+      "passed": 51,
+      "applicable": 51,
       "rate": 1.0
     },
     "factually_consistent": {
-      "passed": 40,
-      "applicable": 40,
+      "passed": 45,
+      "applicable": 45,
       "rate": 1.0
     },
     "safe_refusal": {
@@ -23,8 +23,8 @@
       "rate": 1.0
     },
     "no_phi_in_logs": {
-      "passed": 50,
-      "applicable": 50,
+      "passed": 56,
+      "applicable": 56,
       "rate": 1.0
     }
   },

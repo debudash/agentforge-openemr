@@ -107,6 +107,60 @@ final class DocumentWriter
         return empty($row) ? null : (int) $row[0]['procedure_order_id'];
     }
 
+    /** Name of the sidecar document that holds a document's extraction. */
+    public static function sidecarName(int $docId): string
+    {
+        return 'copilot-extraction-' . $docId . '.json';
+    }
+
+    /** The sidecar already stored for this document, or null. */
+    public function sidecarFor(int $docId, int $pid): ?int
+    {
+        $row = QueryUtils::fetchRecords(
+            'SELECT id FROM documents WHERE foreign_id = ? AND name = ? AND deleted = 0 ORDER BY id DESC LIMIT 1',
+            [$pid, self::sidecarName($docId)]
+        );
+        return empty($row) ? null : (int) $row[0]['id'];
+    }
+
+    /** Whether a document has been read: a lab report has an order, an intake form has a sidecar. */
+    public function isProcessed(int $docId, int $pid, string $docType): bool
+    {
+        return $docType === 'lab_pdf' ? $this->orderFor($docId) !== null : $this->sidecarFor($docId, $pid) !== null;
+    }
+
+    /**
+     * Persist an intake form's extraction as a sidecar document beside the form, under Medical
+     * Record. Nothing is written to the clinical lists: what a form says a patient takes or reacts
+     * to is a report, not a reconciled record, and the brief presents it as such.
+     *
+     * @param array<string, mixed> $extraction the ExtractionResult as JSON
+     */
+    public function persistIntakeSidecar(int $pid, int $docId, array $extraction, int $eid): int
+    {
+        $this->scope->assertInScope($pid);
+        if (!$this->documentBelongsTo($docId, $pid)) {
+            throw new ScopeDeniedException($pid);
+        }
+        $existing = $this->sidecarFor($docId, $pid);
+        if ($existing !== null) {
+            return $existing;
+        }
+        $service = new DocumentService();
+        $categoryId = (int) $service->getLastIdOfPath(self::CATEGORY_RECORD);
+        $payload = ['source_document_id' => $docId, 'doc_type' => 'intake_form', 'persisted_at' => gmdate('c')] + $extraction;
+        $bytes = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        if (!is_string($bytes)) {
+            throw new \RuntimeException('extraction could not be encoded');
+        }
+        $document = new \Document();
+        $error = $document->createDocument($pid, $categoryId, self::sidecarName($docId), 'application/json', $bytes, eid: $eid);
+        if (!empty($error)) {
+            throw new \RuntimeException('extraction sidecar could not be stored');
+        }
+        return (int) $document->get_id();
+    }
+
     /** @return list<string> */
     public function sourceIdsFor(int $docId): array
     {

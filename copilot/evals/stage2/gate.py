@@ -66,11 +66,11 @@ def _chart(name: str):
 
 def _scripted(entries: list[dict[str, Any]]):
     """Turn the JSON script into what ScriptedLLM replays."""
-    from copilot.documents.schemas import LabDocument
+    from copilot.documents.schemas import IntakeForm, LabDocument
     from copilot.llm import ScriptedLLM
     from copilot.schemas import AnswerDraft, BriefDraft, TopicCheck
 
-    kinds = {"answer": AnswerDraft, "brief": BriefDraft, "topic": TopicCheck, "lab_document": LabDocument}
+    kinds = {"answer": AnswerDraft, "brief": BriefDraft, "topic": TopicCheck, "lab_document": LabDocument, "intake_form": IntakeForm}
     out: list[Any] = []
     for i, entry in enumerate(entries):
         if "tool" in entry:
@@ -103,17 +103,19 @@ def _phi_terms(case: dict[str, Any], chart=None) -> list[str]:
 # -- runners per kind ----------------------------------------------------------------
 
 def run_extraction(case: dict[str, Any]) -> dict[str, Any]:
-    from copilot.documents.extract import ExtractionFailed, extract_lab_document
-    from copilot.documents.schemas import ExtractionResult, LabDocument
+    from copilot.documents.extract import SCHEMAS, ExtractionFailed, extract_document
+    from copilot.documents.schemas import ExtractionResult
 
     inp = case["input"]
+    doc_type = inp.get("doc_type", "lab_pdf")
     pdf = (DOCUMENTS / inp["fixture"]).read_bytes()
     try:
-        proposal = LabDocument.model_validate(inp["proposal"])
+        proposal = SCHEMAS[doc_type].model_validate(inp["proposal"])
     except ValidationError as exc:
         return {"outcome": "rejected_by_schema", "detail": str(exc).splitlines()[0][:120]}
+    script_kind = "intake_form" if doc_type == "intake_form" else "lab_document"
     try:
-        result = extract_lab_document(inp["doc_id"], pdf, _scripted([{"lab_document": proposal.model_dump()}]), _settings(), case["id"])
+        result = extract_document(inp["doc_id"], pdf, doc_type, _scripted([{script_kind: proposal.model_dump()}]), _settings(), case["id"])
     except ExtractionFailed as exc:
         return {"outcome": "extraction_failed", "detail": str(exc)}
     ExtractionResult.model_validate(result.model_dump())   # schema_valid: what we emit re-validates

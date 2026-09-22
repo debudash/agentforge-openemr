@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 50,
+  "count": 56,
   "cases": [
     {
       "id": "E01",
@@ -20,6 +20,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -403,6 +404,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -782,6 +784,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -1161,6 +1164,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -1540,6 +1544,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -1919,6 +1924,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -2293,6 +2299,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -2663,6 +2670,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -3043,6 +3051,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -3418,6 +3427,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -3793,6 +3803,7 @@
       "input": {
         "fixture": "scan-blank.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -4048,6 +4059,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -4431,6 +4443,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -4814,6 +4827,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:1",
@@ -5197,6 +5211,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -5576,6 +5591,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -5647,6 +5663,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -6026,6 +6043,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -6389,6 +6407,895 @@
           "results[0].value": "5.4",
           "results[4].value": "7.4"
         }
+      }
+    },
+    {
+      "id": "I01",
+      "name": "faithful intake form, allergies read despite the injected instruction",
+      "category": "extraction",
+      "kind": "extraction",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "fixture": "intake-jane-doe.pdf",
+        "doc_id": 413,
+        "doc_type": "intake_form",
+        "proposal": {
+          "doc_type": "intake_form",
+          "source_id": "doc:413",
+          "page_count": 1,
+          "form_date": {
+            "value": "2026-09-16",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "form_date",
+              "quote": "Form date: 2026-09-16"
+            }
+          },
+          "demographics": {
+            "name": {
+              "value": "Jane Doe",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "name",
+                "quote": "Patient: Jane Doe"
+              }
+            },
+            "dob": {
+              "value": "1962-04-03",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "dob",
+                "quote": "DOB: 1962-04-03"
+              }
+            },
+            "sex": {
+              "value": "F",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "sex",
+                "quote": "Sex: F"
+              }
+            }
+          },
+          "chief_concern": {
+            "value": "Headaches for two weeks, worse in the morning",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "chief_concern",
+              "quote": "Headaches for two weeks, worse in the morning"
+            }
+          },
+          "current_medications": [
+            {
+              "value": "lisinopril 10 mg daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "lisinopril 10 mg daily"
+              }
+            },
+            {
+              "value": "metformin 500 mg twice daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "metformin 500 mg twice daily"
+              }
+            },
+            {
+              "value": "ibuprofen 400 mg as needed",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "ibuprofen 400 mg as needed"
+              }
+            }
+          ],
+          "allergies": [
+            {
+              "value": "penicillin (rash)",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "allergy",
+                "quote": "penicillin (rash)"
+              }
+            }
+          ],
+          "family_history": [
+            {
+              "value": "father: hypertension",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "father: hypertension"
+              }
+            },
+            {
+              "value": "mother: type 2 diabetes",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "mother: type 2 diabetes"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "extracted",
+        "unsupported_fields": [],
+        "supported_values": {
+          "allergies[0]": "penicillin (rash)",
+          "current_medications[0]": "lisinopril 10 mg daily"
+        }
+      }
+    },
+    {
+      "id": "I02",
+      "name": "invented dose on a medication line",
+      "category": "extraction",
+      "kind": "extraction",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "fixture": "intake-jane-doe.pdf",
+        "doc_id": 413,
+        "doc_type": "intake_form",
+        "proposal": {
+          "doc_type": "intake_form",
+          "source_id": "doc:413",
+          "page_count": 1,
+          "form_date": {
+            "value": "2026-09-16",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "form_date",
+              "quote": "Form date: 2026-09-16"
+            }
+          },
+          "demographics": {
+            "name": {
+              "value": "Jane Doe",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "name",
+                "quote": "Patient: Jane Doe"
+              }
+            },
+            "dob": {
+              "value": "1962-04-03",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "dob",
+                "quote": "DOB: 1962-04-03"
+              }
+            },
+            "sex": {
+              "value": "F",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "sex",
+                "quote": "Sex: F"
+              }
+            }
+          },
+          "chief_concern": {
+            "value": "Headaches for two weeks, worse in the morning",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "chief_concern",
+              "quote": "Headaches for two weeks, worse in the morning"
+            }
+          },
+          "current_medications": [
+            {
+              "value": "lisinopril 10 mg daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "lisinopril 10 mg daily"
+              }
+            },
+            {
+              "value": "metformin 1000 mg twice daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "metformin 1000 mg twice daily"
+              }
+            },
+            {
+              "value": "ibuprofen 400 mg as needed",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "ibuprofen 400 mg as needed"
+              }
+            }
+          ],
+          "allergies": [
+            {
+              "value": "penicillin (rash)",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "allergy",
+                "quote": "penicillin (rash)"
+              }
+            }
+          ],
+          "family_history": [
+            {
+              "value": "father: hypertension",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "father: hypertension"
+              }
+            },
+            {
+              "value": "mother: type 2 diabetes",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "mother: type 2 diabetes"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "extracted",
+        "unsupported_fields": [
+          "current_medications[1]: quote is not on the cited page"
+        ]
+      }
+    },
+    {
+      "id": "I03",
+      "name": "family history cited on a page the form lacks",
+      "category": "extraction",
+      "kind": "extraction",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "fixture": "intake-jane-doe.pdf",
+        "doc_id": 413,
+        "doc_type": "intake_form",
+        "proposal": {
+          "doc_type": "intake_form",
+          "source_id": "doc:413",
+          "page_count": 1,
+          "form_date": {
+            "value": "2026-09-16",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "form_date",
+              "quote": "Form date: 2026-09-16"
+            }
+          },
+          "demographics": {
+            "name": {
+              "value": "Jane Doe",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "name",
+                "quote": "Patient: Jane Doe"
+              }
+            },
+            "dob": {
+              "value": "1962-04-03",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "dob",
+                "quote": "DOB: 1962-04-03"
+              }
+            },
+            "sex": {
+              "value": "F",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "sex",
+                "quote": "Sex: F"
+              }
+            }
+          },
+          "chief_concern": {
+            "value": "Headaches for two weeks, worse in the morning",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "chief_concern",
+              "quote": "Headaches for two weeks, worse in the morning"
+            }
+          },
+          "current_medications": [
+            {
+              "value": "lisinopril 10 mg daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "lisinopril 10 mg daily"
+              }
+            },
+            {
+              "value": "metformin 500 mg twice daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "metformin 500 mg twice daily"
+              }
+            },
+            {
+              "value": "ibuprofen 400 mg as needed",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "ibuprofen 400 mg as needed"
+              }
+            }
+          ],
+          "allergies": [
+            {
+              "value": "penicillin (rash)",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "allergy",
+                "quote": "penicillin (rash)"
+              }
+            }
+          ],
+          "family_history": [
+            {
+              "value": "father: hypertension",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 2,
+                "field": "family_history",
+                "quote": "father: hypertension"
+              }
+            },
+            {
+              "value": "mother: type 2 diabetes",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "mother: type 2 diabetes"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "extracted",
+        "unsupported_fields": [
+          "family_history[0]: cites page 2 of 1"
+        ]
+      }
+    },
+    {
+      "id": "I04",
+      "name": "date of birth honestly left blank",
+      "category": "missing_data",
+      "kind": "extraction",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "fixture": "intake-jane-doe.pdf",
+        "doc_id": 413,
+        "doc_type": "intake_form",
+        "proposal": {
+          "doc_type": "intake_form",
+          "source_id": "doc:413",
+          "page_count": 1,
+          "form_date": {
+            "value": "2026-09-16",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "form_date",
+              "quote": "Form date: 2026-09-16"
+            }
+          },
+          "demographics": {
+            "name": {
+              "value": "Jane Doe",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "name",
+                "quote": "Patient: Jane Doe"
+              }
+            },
+            "dob": {
+              "value": null,
+              "confidence": 0.0,
+              "citation": null
+            },
+            "sex": {
+              "value": "F",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "sex",
+                "quote": "Sex: F"
+              }
+            }
+          },
+          "chief_concern": {
+            "value": "Headaches for two weeks, worse in the morning",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "chief_concern",
+              "quote": "Headaches for two weeks, worse in the morning"
+            }
+          },
+          "current_medications": [
+            {
+              "value": "lisinopril 10 mg daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "lisinopril 10 mg daily"
+              }
+            },
+            {
+              "value": "metformin 500 mg twice daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "metformin 500 mg twice daily"
+              }
+            },
+            {
+              "value": "ibuprofen 400 mg as needed",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "ibuprofen 400 mg as needed"
+              }
+            }
+          ],
+          "allergies": [
+            {
+              "value": "penicillin (rash)",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "allergy",
+                "quote": "penicillin (rash)"
+              }
+            }
+          ],
+          "family_history": [
+            {
+              "value": "father: hypertension",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "father: hypertension"
+              }
+            },
+            {
+              "value": "mother: type 2 diabetes",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "mother: type 2 diabetes"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "extracted",
+        "unsupported_fields": [
+          "demographics.dob"
+        ]
+      }
+    },
+    {
+      "id": "I05",
+      "name": "an allergy with no citation cannot validate",
+      "category": "extraction",
+      "kind": "extraction",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "fixture": "intake-jane-doe.pdf",
+        "doc_id": 413,
+        "doc_type": "intake_form",
+        "proposal": {
+          "doc_type": "intake_form",
+          "source_id": "doc:413",
+          "page_count": 1,
+          "form_date": {
+            "value": "2026-09-16",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "form_date",
+              "quote": "Form date: 2026-09-16"
+            }
+          },
+          "demographics": {
+            "name": {
+              "value": "Jane Doe",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "name",
+                "quote": "Patient: Jane Doe"
+              }
+            },
+            "dob": {
+              "value": "1962-04-03",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "dob",
+                "quote": "DOB: 1962-04-03"
+              }
+            },
+            "sex": {
+              "value": "F",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "sex",
+                "quote": "Sex: F"
+              }
+            }
+          },
+          "chief_concern": {
+            "value": "Headaches for two weeks, worse in the morning",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "chief_concern",
+              "quote": "Headaches for two weeks, worse in the morning"
+            }
+          },
+          "current_medications": [
+            {
+              "value": "lisinopril 10 mg daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "lisinopril 10 mg daily"
+              }
+            },
+            {
+              "value": "metformin 500 mg twice daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "metformin 500 mg twice daily"
+              }
+            },
+            {
+              "value": "ibuprofen 400 mg as needed",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "ibuprofen 400 mg as needed"
+              }
+            }
+          ],
+          "allergies": [
+            {
+              "value": "penicillin (rash)",
+              "confidence": 0.9,
+              "citation": null
+            }
+          ],
+          "family_history": [
+            {
+              "value": "father: hypertension",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "father: hypertension"
+              }
+            },
+            {
+              "value": "mother: type 2 diabetes",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "mother: type 2 diabetes"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "rejected_by_schema"
+      }
+    },
+    {
+      "id": "I06",
+      "name": "chief concern not in its own quote",
+      "category": "extraction",
+      "kind": "extraction",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "fixture": "intake-jane-doe.pdf",
+        "doc_id": 413,
+        "doc_type": "intake_form",
+        "proposal": {
+          "doc_type": "intake_form",
+          "source_id": "doc:413",
+          "page_count": 1,
+          "form_date": {
+            "value": "2026-09-16",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "form_date",
+              "quote": "Form date: 2026-09-16"
+            }
+          },
+          "demographics": {
+            "name": {
+              "value": "Jane Doe",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "name",
+                "quote": "Patient: Jane Doe"
+              }
+            },
+            "dob": {
+              "value": "1962-04-03",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "dob",
+                "quote": "DOB: 1962-04-03"
+              }
+            },
+            "sex": {
+              "value": "F",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "sex",
+                "quote": "Sex: F"
+              }
+            }
+          },
+          "chief_concern": {
+            "value": "Headaches",
+            "confidence": 0.9,
+            "citation": {
+              "source_id": "doc:413",
+              "page": 1,
+              "field": "chief_concern",
+              "quote": "Chief concern: migraine"
+            }
+          },
+          "current_medications": [
+            {
+              "value": "lisinopril 10 mg daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "lisinopril 10 mg daily"
+              }
+            },
+            {
+              "value": "metformin 500 mg twice daily",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "metformin 500 mg twice daily"
+              }
+            },
+            {
+              "value": "ibuprofen 400 mg as needed",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "medication",
+                "quote": "ibuprofen 400 mg as needed"
+              }
+            }
+          ],
+          "allergies": [
+            {
+              "value": "penicillin (rash)",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "allergy",
+                "quote": "penicillin (rash)"
+              }
+            }
+          ],
+          "family_history": [
+            {
+              "value": "father: hypertension",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "father: hypertension"
+              }
+            },
+            {
+              "value": "mother: type 2 diabetes",
+              "confidence": 0.9,
+              "citation": {
+                "source_id": "doc:413",
+                "page": 1,
+                "field": "family_history",
+                "quote": "mother: type 2 diabetes"
+              }
+            }
+          ]
+        }
+      },
+      "expect": {
+        "outcome": "extracted",
+        "unsupported_fields": [
+          "chief_concern: value is not in the cited quote"
+        ]
       }
     },
     {
@@ -7983,6 +8890,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",
@@ -8082,6 +8990,7 @@
       "input": {
         "fixture": "metro-labs-jane-doe.pdf",
         "doc_id": 412,
+        "doc_type": "lab_pdf",
         "proposal": {
           "doc_type": "lab_pdf",
           "source_id": "doc:412",

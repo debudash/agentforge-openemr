@@ -136,3 +136,47 @@ def test_a_value_absent_from_its_own_quote_is_demoted(pdf):
     bad.results[0].value = field("5.4", "Sodium                  140         mmol/L", 1)   # real line, wrong value
     _, demoted = demote_uncited(bad, DOC_ID, page_texts(pdf, 6), 2)
     assert demoted == ["results[0].value: value is not in the cited quote"]
+
+
+# --- intake forms go through the same checks -----------------------------------------
+
+INTAKE = FIXTURE.parent / "intake-jane-doe.pdf"
+
+
+def intake_field(value, quote=None, name="value", page=1):
+    from copilot.documents.schemas import DocumentCitation
+
+    return ExtractedField(value=value, confidence=0.9,
+                          citation=DocumentCitation(source_id="doc:413", page=page, field=name, quote=quote or value))
+
+
+def intake_proposed():
+    from copilot.documents.schemas import Demographics, IntakeForm
+
+    return IntakeForm(
+        source_id="doc:413", page_count=1,
+        form_date=intake_field("2026-09-16", "Form date: 2026-09-16", "form_date"),
+        demographics=Demographics(name=intake_field("Jane Doe", "Patient: Jane Doe", "name"),
+                                  dob=intake_field("1962-04-03", "DOB: 1962-04-03", "dob"), sex=intake_field("F", "Sex: F", "sex")),
+        chief_concern=intake_field("Headaches for two weeks, worse in the morning", None, "chief_concern"),
+        current_medications=[intake_field("lisinopril 10 mg daily", None, "medication")],
+        allergies=[intake_field("penicillin (rash)", None, "allergy")],
+        family_history=[intake_field("father: hypertension", None, "family_history")],
+    )
+
+
+def test_intake_faithful_extraction_passes(settings):
+    from copilot.documents.extract import extract_document
+
+    out = extract_document(413, INTAKE.read_bytes(), "intake_form", ScriptedLLM([intake_proposed()]), settings, "cid-i1")
+    assert out.doc_type == "intake_form" and out.unsupported_fields == [] and out.document.allergies[0].value == "penicillin (rash)"
+
+
+def test_intake_invented_medication_is_demoted(settings):
+    from copilot.documents.extract import extract_document
+
+    bad = intake_proposed()
+    bad.current_medications = [intake_field("lisinopril 40 mg daily", "lisinopril 40 mg daily", "medication")]
+    out = extract_document(413, INTAKE.read_bytes(), "intake_form", ScriptedLLM([bad]), settings, "cid-i2")
+    assert out.unsupported_fields == ["current_medications[0]: quote is not on the cited page"]
+    assert not out.document.current_medications[0].supported
