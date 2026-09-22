@@ -57,8 +57,12 @@ Sample sizes are one or two per row. Treat these as the shape of the numbers, no
    request to the agent, persist, re-read the chart, a second request. Two of those steps are
    OpenEMR database work and are cheap; the second agent request regenerates the brief, which is
    the Week 1 cost.
-3. **The brief itself.** Two model calls minimum (Week 1 design). The brief cache means a chart
-   that did not change costs nothing; a chart that gained a document is a new brief by design.
+3. **The brief itself.** One structured call over a deterministically packed facts sheet, with a
+   second only when the first fails validation. A follow-up question costs more than a brief does:
+   the topic check, at least one forced tool call, then the answer. The brief cache means a chart
+   that did not change costs nothing; a chart that gained a document is a new brief by design, so
+   a supervise run that reads a document pays for two — one before the document, one after the
+   chart is re-read.
 
 ## What would change first
 
