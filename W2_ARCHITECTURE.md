@@ -398,7 +398,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 |---|---|---|
 | 0 | **Done.** Co-Pilot tab in the patient record via `PatientMenuEvent`; scope enforced from session `pid` | Out-of-panel patient is refused and audited from the new entry point (`usecases/test_uc_patient_tab.py`) |
 | 1 | **Done.** `documents/schemas.py`; `Citation` gains the v2 fields; verifier learns `document:` and `guideline:` | Week 1 citations still resolve; unsupported fields cannot validate as supported (`test_document_schemas.py`, `test_verify.py`) |
-| 2 | Module write path: document upload, then the `procedure_*` chain | An extracted lab reads back as a FHIR Observation and appears in Lab Overview |
+| 2 | **Done.** `DocumentWriter.php`; `api.php` actions `attach` and `persist_extraction` | An extracted lab reads back as a FHIR Observation (`status: preliminary`) and is selectable in Lab Overview (`test_uc_document_writer.py`) |
 | 3 | `attach_and_extract` with the VLM, one document type (`lab_pdf`) | One real lab PDF becomes cited claims in a brief |
 | 4 | **Eval gate on that slice**, hook installed, `test_gate.py` proving it fails | An injected regression blocks a push |
 | 5 | `intake_form`, no clinical writes, "reported, not reconciled" wording | Intake facts cited to the form, never merged into `lists` |

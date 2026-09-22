@@ -30,6 +30,7 @@ use OpenEMR\Modules\CopilotAgent\AgentClient;
 use OpenEMR\Modules\CopilotAgent\AgentUnavailableException;
 use OpenEMR\Modules\CopilotAgent\ChartReader;
 use OpenEMR\Modules\CopilotAgent\Config;
+use OpenEMR\Modules\CopilotAgent\DocumentWriter;
 use OpenEMR\Modules\CopilotAgent\PanelScope;
 use OpenEMR\Modules\CopilotAgent\ScopeDeniedException;
 
@@ -57,10 +58,18 @@ $correlationId = sprintf(
 );
 $input = [];
 if ($method === 'POST') {
-    $raw = file_get_contents('php://input');
-    $decoded = is_string($raw) ? json_decode($raw, true) : null;
-    $input = is_array($decoded) ? $decoded : [];
+    if (!empty($_FILES)) {
+        $input = $_POST;    // a multipart upload (attach): the fields beside the file
+    } else {
+        $raw = file_get_contents('php://input');
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $input = is_array($decoded) ? $decoded : [];
+    }
 }
+// The encounter in the session belongs to the session's patient; it is only attached to a write
+// for that same patient, never to a request that names a different pid.
+$sessionPid = (int) ($_SESSION['pid'] ?? 0);
+$sessionEncounter = (int) ($_SESSION['encounter'] ?? 0);
 
 /**
  * @param array<string, mixed> $payload
@@ -100,7 +109,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask', 'open_patient'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -112,6 +121,58 @@ try {
     $sessionId = hash('sha256', session_id() . '|' . $scope->userId() . ($context === 'patient' ? '|patient' : ''));
 
     switch ($action) {
+        case 'attach':
+            // Week 2: store a document in the patient's chart. Extracting it is a separate step, so
+            // a stored document with nothing extracted yet is a normal state, not a failure.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docType = (string) ($input['doc_type'] ?? '');
+            if (!in_array($docType, ['lab_pdf', 'intake_form'], true)) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_type must be lab_pdf or intake_form'], $correlationId);
+            }
+            $file = $_FILES['file'] ?? null;
+            if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) $file['tmp_name'])) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'no file was uploaded'], $correlationId);
+            }
+            $writer = new DocumentWriter($scope);
+            $docId = $writer->storeDocument(
+                $pid,
+                (string) $file['tmp_name'],
+                basename((string) ($file['name'] ?? 'document')),
+                (string) mime_content_type((string) $file['tmp_name']),   // sniffed, never the client's claim
+                $docType === 'lab_pdf' ? DocumentWriter::CATEGORY_LAB : DocumentWriter::CATEGORY_RECORD,
+                $sessionPid === $pid ? $sessionEncounter : 0
+            );
+            // Document id, type and size: enough to trace it, nothing that describes its content.
+            audit('copilot-document-attached', $username, $authGroup, true,
+                'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' bytes=' . (int) ($file['size'] ?? 0), $pid);
+            respond(200, ['doc_id' => $docId, 'doc_type' => $docType, 'processed' => $writer->orderFor($docId) !== null], $correlationId);
+
+        case 'persist_extraction':
+            // Week 2: the module writes what the agent extracted. Idempotent per document.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docId = (int) ($input['doc_id'] ?? 0);
+            $docType = (string) ($input['doc_type'] ?? 'lab_pdf');
+            $extraction = is_array($input['extraction'] ?? null) ? $input['extraction'] : null;
+            if ($docId <= 0 || $extraction === null) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_id and extraction are required'], $correlationId);
+            }
+            if ($docType !== 'lab_pdf') {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'only lab_pdf extractions are persisted as results'], $correlationId);
+            }
+            $writer = new DocumentWriter($scope);
+            $existing = $writer->orderFor($docId);
+            if ($existing !== null) {
+                respond(200, ['already_persisted' => true, 'order_id' => $existing, 'source_ids' => $writer->sourceIdsFor($docId),
+                              'skipped' => [], 'attributed_to' => null], $correlationId);
+            }
+            $written = $writer->persistLabDocument($pid, $docId, $extraction, $sessionPid === $pid ? $sessionEncounter : 0,
+                (string) ($input['model'] ?? 'unknown'));
+            // Counts and ids only: no value extracted from the document reaches the log.
+            audit('copilot-extraction-persisted', $username, $authGroup, true,
+                'cid=' . $correlationId . ' doc=' . $docId . ' order=' . $written['order_id'] . ' results=' . count($written['source_ids'])
+                . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'], $pid);
+            respond(200, $written + ['already_persisted' => false], $correlationId);
+
         case 'open_patient':
             // One patient, reached from its own record. Scope was asserted above. The chart read
             // and the agent call are the same as 'open' with a list of one.
@@ -250,6 +311,9 @@ try {
     audit('copilot-scope-denied', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action . ' entry=' . $context, $e->pid);
     respond(403, ['state' => 'access_denied', 'reason' => $context === 'patient'
         ? 'that patient is not assigned to you' : 'that patient is not on your rounding list'], $correlationId);
+} catch (\InvalidArgumentException $e) {
+    // A bad upload (wrong type, empty file): the caller's problem, said plainly.
+    respond(400, ['state' => 'unable_to_answer', 'reason' => 'the document was not accepted: ' . $e->getMessage()], $correlationId);
 } catch (AgentUnavailableException $e) {
     error_log('oe-module-copilot-agent: ' . $e->getMessage());
     audit('copilot-agent-unavailable', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action);
