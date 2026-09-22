@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "OpenEMR Clinical Co-Pilot - agent service",
-    "description": "Runnable collection for the co-pilot agent service.\n\nSETUP (one variable, then press Run):\n  baseUrl       already points at the live demo; use http://127.0.0.1:8600 for a local service\n  sharedSecret  request it with the demo logins (see the repo README), or your own\n                COPILOT_SHARED_SECRET if you are running locally\n\nIn the Collection Runner set Delay to 2000 ms: a brief takes 10-30 s and request 4 polls itself.\n\nEvery request is HMAC-signed by a collection-level pre-request script, the same scheme the OpenEMR module uses; there is nothing to sign by hand. Run the requests in order: 3 opens a session, 4 polls until the briefs are ready, 5 through 8 exercise one patient, 9 shows the counters and 10 tears down.\n\nThe browser never talks to this service in normal use -- OpenEMR proxies every call under the clinician's session -- so this collection is the only way to drive it directly.",
+    "description": "Runnable collection for the co-pilot agent service.\n\nSETUP (one variable, then press Run):\n  baseUrl       already points at the live demo; use http://127.0.0.1:8600 for a local service\n  sharedSecret  request it with the demo logins (see the repo README), or your own\n                COPILOT_SHARED_SECRET if you are running locally\n\nIn the Collection Runner set Delay to 2000 ms: a brief takes 10-30 s and request 4 polls itself.\n\nEvery request is HMAC-signed by a collection-level pre-request script, the same scheme the OpenEMR module uses; there is nothing to sign by hand. Run the requests in order: 3 opens a session, 4 polls until the briefs are ready, 5 through 8 exercise one patient, 9 shows the counters and 10 tears down.\n\nThe browser never talks to this service in normal use -- OpenEMR proxies every call under the clinician's session -- so this collection is the only way to drive it directly.\n\nWeek 2 requests (11-13) read the fixture lab report with the vision model, run the supervisor graph, and render a page with quote boxes. They sit before the close request so the session is still open.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -442,6 +442,128 @@
               "console.log('counters', JSON.stringify(m.counters));",
               "console.log('retries', JSON.stringify(m.retries));",
               "pm.test(\"reports latency percentiles\", function () { pm.expect(m).to.have.property('latency_ms'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Week 2 · Read a lab report (vision)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/documents/extract",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "documents",
+            "extract"
+          ]
+        },
+        "description": "Week 2. Reads the fixture two-page lab report with the vision model and returns a LabDocument: every field with a page and quote citation, unsupported fields null with confidence 0. On the free tier this can answer 502 rate_limit; that is the provider's quota, said plainly, not a fault.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pid\": 101,\n  \"doc_id\": 412,\n  \"doc_type\": \"lab_pdf\",\n  \"filename\": \"metro-labs-jane-doe.pdf\",\n  \"mime\": \"application/pdf\",\n  \"content_base64\": \"JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9Db3VyaWVyID4+CmVuZG9iagoyIDAgb2JqCjw8IC9MZW5ndGggNzAxID4+CnN0cmVhbQpCVAovRjEgMTAgVGYKNzIgNzQwIFRkCjEzIFRMCihNRVRSTyBDTElOSUNBTCBMQUJTKSBUaiBUKgooMTIwMCBIYXJib3IgU3RyZWV0LCBTcHJpbmdmaWVsZCkgVGogVCoKKExBQk9SQVRPUlkgUkVQT1JUKSBUaiBUKgooKSBUaiBUKgooUGF0aWVudDogSmFuZSBEb2UgICAgICAgIERPQjogMTk2Mi0wNC0wMyAgICAgICAgU2V4OiBGKSBUaiBUKgooT3JkZXJpbmcgcHJvdmlkZXI6IERhbmEgUmV5ZXMpIFRqIFQqCihDb2xsZWN0ZWQ6IDIwMjYtMDktMTcgMDg6MTAgICAgICAgIFJlcG9ydGVkOiAyMDI2LTA5LTE4IDE0OjIyKSBUaiBUKgooU3BlY2ltZW46IFNlcnVtICAgICAgICBBY2Nlc3Npb246IE1DTC0yNi0xMTgyMDQpIFRqIFQqCigpIFRqIFQqCihUZXN0ICAgICAgICAgICAgICAgICAgICBSZXN1bHQgICAgICBVbml0cyAgICAgIFJlZmVyZW5jZSBSYW5nZSAgICBGbGFnKSBUaiBUKgooUG90YXNzaXVtICAgICAgICAgICAgICAgNS40ICAgICAgICAgbW1vbC9MICAgICAzLjUtNS4wICAgICAgICAgICAgSCkgVGogVCoKKFNvZGl1bSAgICAgICAgICAgICAgICAgIDE0MCAgICAgICAgIG1tb2wvTCAgICAgMTM1LTE0NSkgVGogVCoKKENyZWF0aW5pbmUgICAgICAgICAgICAgIDEuMyAgICAgICAgIG1nL2RMICAgICAgMC42LTEuMiAgICAgICAgICAgIEgpIFRqIFQqCigpIFRqIFQqCihDb250aW51ZWQgb24gcGFnZSAyKSBUaiBUKgpFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0OTggPj4Kc3RyZWFtCkJUCi9GMSAxMCBUZgo3MiA3NDAgVGQKMTMgVEwKKE1FVFJPIENMSU5JQ0FMIExBQlMgICAgICAgIEphbmUgRG9lICAgICAgICBBY2Nlc3Npb246IE1DTC0yNi0xMTgyMDQgICAgICAgIFBhZ2UgMikgVGogVCoKKCkgVGogVCoKKFRlc3QgICAgICAgICAgICAgICAgICAgIFJlc3VsdCAgICAgIFVuaXRzICAgICAgUmVmZXJlbmNlIFJhbmdlICAgIEZsYWcpIFRqIFQqCihHbHVjb3NlICAgICAgICAgICAgICAgICAxMTIgICAgICAgICBtZy9kTCAgICAgIDcwLTk5ICAgICAgICAgICAgICBIKSBUaiBUKgooSGVtb2dsb2JpbiBBMWMgICAgICAgICAgNy40ICAgICAgICAgJSAgICAgICAgICA0LjAtNS42ICAgICAgICAgICAgSCkgVGogVCoKKCkgVGogVCoKKENvbW1lbnQ6IEhlbW9seXNpcyBpbmRleCB3aXRoaW4gbGltaXRzLikgVGogVCoKKFJldmlld2VkIGJ5OiBNZXRybyBDbGluaWNhbCBMYWJzLCBDTElBIDk5RDk5OTk5OTkpIFRqIFQqCihFbmQgb2YgcmVwb3J0KSBUaiBUKgpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUiA1IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDYgMCBSID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA4MyAwMDAwMCBuIAowMDAwMDAwODM1IDAwMDAwIG4gCjAwMDAwMDA5NjEgMDAwMDAgbiAKMDAwMDAwMTUxMCAwMDAwMCBuIAowMDAwMDAxNjM2IDAwMDAwIG4gCjAwMDAwMDE2OTkgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDcgMCBSID4+CnN0YXJ0eHJlZgoxNzQ4CiUlRU9GCg==\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"read, or refused with a named reason\", function () { pm.expect([200, 502, 503]).to.include(pm.response.code); });",
+              "if (pm.response.code === 200) { var d = pm.response.json(); console.log(\"results\", d.document.results.length, \"unsupported\", d.unsupported_fields);",
+              "  pm.test(\"every supported value carries a page and quote\", function () { d.document.results.forEach(function (r) { if (r.value.value !== null) { pm.expect(r.value.citation.page).to.be.a(\"number\"); pm.expect(r.value.citation.quote).to.be.a(\"string\"); } }); }); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Week 2 · Supervise (nothing unread)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/session/{{sessionId}}/supervise",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "session",
+            "{{sessionId}}",
+            "supervise"
+          ]
+        },
+        "description": "Week 2. The supervisor graph for the session's patient with no unread documents: it hands straight to the evidence retriever and returns the brief with the routing. Run after request 3 has opened the session.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pid\": 101,\n  \"documents\": []\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "var d = pm.response.json();",
+              "pm.test(\"finished with a brief and logged handoffs\", function () { pm.expect(d.phase).to.eql(\"done\"); pm.expect(d.brief).to.be.an(\"object\"); pm.expect(d.handoffs.length).to.be.above(1); d.handoffs.forEach(function (h) { pm.expect(h.reason).to.be.a(\"string\").and.not.empty; }); });",
+              "console.log(\"routing\", d.handoffs.map(function (h) { return h.from + \" -> \" + h.to; }).join(\", \"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. Week 2 · Page with quote boxes (click-to-source)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/documents/page",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "documents",
+            "page"
+          ]
+        },
+        "description": "Week 2. Page 1 of the fixture report as an image, with a box where 'Potassium' is printed. No model: a box is where the text layer says the text is, or found is false.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pid\": 101,\n  \"doc_id\": 412,\n  \"page\": 1,\n  \"quotes\": [\n    \"Potassium\",\n    \"Hemoglobin A1c\"\n  ],\n  \"content_base64\": \"JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9Db3VyaWVyID4+CmVuZG9iagoyIDAgb2JqCjw8IC9MZW5ndGggNzAxID4+CnN0cmVhbQpCVAovRjEgMTAgVGYKNzIgNzQwIFRkCjEzIFRMCihNRVRSTyBDTElOSUNBTCBMQUJTKSBUaiBUKgooMTIwMCBIYXJib3IgU3RyZWV0LCBTcHJpbmdmaWVsZCkgVGogVCoKKExBQk9SQVRPUlkgUkVQT1JUKSBUaiBUKgooKSBUaiBUKgooUGF0aWVudDogSmFuZSBEb2UgICAgICAgIERPQjogMTk2Mi0wNC0wMyAgICAgICAgU2V4OiBGKSBUaiBUKgooT3JkZXJpbmcgcHJvdmlkZXI6IERhbmEgUmV5ZXMpIFRqIFQqCihDb2xsZWN0ZWQ6IDIwMjYtMDktMTcgMDg6MTAgICAgICAgIFJlcG9ydGVkOiAyMDI2LTA5LTE4IDE0OjIyKSBUaiBUKgooU3BlY2ltZW46IFNlcnVtICAgICAgICBBY2Nlc3Npb246IE1DTC0yNi0xMTgyMDQpIFRqIFQqCigpIFRqIFQqCihUZXN0ICAgICAgICAgICAgICAgICAgICBSZXN1bHQgICAgICBVbml0cyAgICAgIFJlZmVyZW5jZSBSYW5nZSAgICBGbGFnKSBUaiBUKgooUG90YXNzaXVtICAgICAgICAgICAgICAgNS40ICAgICAgICAgbW1vbC9MICAgICAzLjUtNS4wICAgICAgICAgICAgSCkgVGogVCoKKFNvZGl1bSAgICAgICAgICAgICAgICAgIDE0MCAgICAgICAgIG1tb2wvTCAgICAgMTM1LTE0NSkgVGogVCoKKENyZWF0aW5pbmUgICAgICAgICAgICAgIDEuMyAgICAgICAgIG1nL2RMICAgICAgMC42LTEuMiAgICAgICAgICAgIEgpIFRqIFQqCigpIFRqIFQqCihDb250aW51ZWQgb24gcGFnZSAyKSBUaiBUKgpFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0OTggPj4Kc3RyZWFtCkJUCi9GMSAxMCBUZgo3MiA3NDAgVGQKMTMgVEwKKE1FVFJPIENMSU5JQ0FMIExBQlMgICAgICAgIEphbmUgRG9lICAgICAgICBBY2Nlc3Npb246IE1DTC0yNi0xMTgyMDQgICAgICAgIFBhZ2UgMikgVGogVCoKKCkgVGogVCoKKFRlc3QgICAgICAgICAgICAgICAgICAgIFJlc3VsdCAgICAgIFVuaXRzICAgICAgUmVmZXJlbmNlIFJhbmdlICAgIEZsYWcpIFRqIFQqCihHbHVjb3NlICAgICAgICAgICAgICAgICAxMTIgICAgICAgICBtZy9kTCAgICAgIDcwLTk5ICAgICAgICAgICAgICBIKSBUaiBUKgooSGVtb2dsb2JpbiBBMWMgICAgICAgICAgNy40ICAgICAgICAgJSAgICAgICAgICA0LjAtNS42ICAgICAgICAgICAgSCkgVGogVCoKKCkgVGogVCoKKENvbW1lbnQ6IEhlbW9seXNpcyBpbmRleCB3aXRoaW4gbGltaXRzLikgVGogVCoKKFJldmlld2VkIGJ5OiBNZXRybyBDbGluaWNhbCBMYWJzLCBDTElBIDk5RDk5OTk5OTkpIFRqIFQqCihFbmQgb2YgcmVwb3J0KSBUaiBUKgpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUiA1IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDYgMCBSID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA4MyAwMDAwMCBuIAowMDAwMDAwODM1IDAwMDAwIG4gCjAwMDAwMDA5NjEgMDAwMDAgbiAKMDAwMDAwMTUxMCAwMDAwMCBuIAowMDAwMDAxNjM2IDAwMDAwIG4gCjAwMDAwMDE2OTkgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDcgMCBSID4+CnN0YXJ0eHJlZgoxNzQ4CiUlRU9GCg==\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"200\", function () { pm.response.to.have.status(200); });",
+              "var d = pm.response.json();",
+              "pm.test(\"the printed quote is boxed, the absent one is not\", function () { pm.expect(d.boxes[0].found).to.eql(true); pm.expect(d.boxes[1].found).to.eql(false); pm.expect(d.image_base64.slice(0, 11)).to.eql(\"iVBORw0KGgo\"); });"
             ]
           }
         }

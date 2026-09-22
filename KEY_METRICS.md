@@ -115,6 +115,31 @@ A note on how failures are counted, because it changes the honesty of every rate
 
 ---
 
+## Week 2: the multimodal evidence agent
+
+Week 1's five metrics and verdicts above stand as submitted. Week 2 adds document reading, guideline
+evidence and a supervisor graph, and these are the measures that say whether that works. Figures are
+from the local stack on 2026-09-22; where a figure could not be measured, the row says so.
+
+| # | Metric | Target | Measured | Verdict |
+|---|---|---|---|---|
+| 6 | Invented citations caught: an extracted value whose quote is not on its page, not in the document, or from another document is demoted to unsupported, never shown as a fact | 100 % | 9 of 9 gate cases (E02–E05, E15, E17, I02, I03, I06) | **Met** |
+| 7 | Citation resolution: every claim, evidence entry and "what changed" line shown resolves to a record, a document page or a guideline chunk | 100 % | 66 of 66 gate cases, `citation_present` | **Met** |
+| 8 | Retrieval precision at 1 on the three probe questions (high potassium with an ACE inhibitor, hypertension screening, A1C ranges) | 3 of 3 | 3 of 3 offline (BM25 only); 2 of 2 checked in full mode with the cross-encoder | **Met** |
+| 9 | Gate rubric pass rate: schema_valid, citation_present, factually_consistent, safe_refusal, no_phi_in_logs | 100 % each; a drop over 5 points blocks the push | 100 % each; four injected regressions each failed the gate (`test_gate.py`) | **Met** |
+| 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | 10.7 s (nothing unread), 10.0 s (unread report, read rate-limited); two samples | **Met on the samples; no p95 yet** |
+| 11 | Live extraction success | one lab report read end to end on the deployed path | **Not achieved.** Three free vision slugs answered 429 after backoff; the path was verified fail-closed live, and end to end with a scripted model | **Gap** |
+| 12 | Cost per document read | under $0.05 on a paid model | Projected ~$0.03 (`W2_COST_LATENCY.md`); not measured, see 11 | **Projected only** |
+
+**Why these.** 6 and 7 are the Week 2 form of Week 1's precision: the point of citing a page and a
+quote is that a program can check it, so the measure is whether the check catches what it should.
+8 is the smallest honest retrieval measure for a 20-chunk corpus; a recall figure on 20 chunks would
+be theatre. 9 is the hard gate. 10 is what the clinician feels. 11 and 12 are stated as gaps rather
+than left out, in the same spirit as §5.
+
+**What closes 11 and 12.** One environment variable: `COPILOT_VISION_MODEL` set to a paid slug on
+the allowlist, with `COPILOT_VISION_RATE_LIMIT_RETRIES` left at 1.
+
 ## 6. Where the data comes from
 
 | Measure | Source | How to reproduce |

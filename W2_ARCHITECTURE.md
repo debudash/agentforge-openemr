@@ -446,7 +446,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 7 | **Done.** `supervisor.py` (LangGraph, interrupt while the module persists), `/session/{sid}/supervise` and `/resume`, module `supervise` action, patient tab runs it on open | Routing reconstructable from logs (`test_supervisor.py`, `test_uc_supervise.py`); no-documents path degrades to Week 1 |
 | 8 | **Done.** 66 cases across extraction, intake, citation, retrieval, refusal, brief, missing data and the supervisor graph; baseline recorded | All five rubrics at 100 % |
 | 9 | **Done.** `documents/pages.py`, `POST /documents/page`, module `page` action, chip click opens the page with the quote boxed; lab rows read from a document carry `document_id` and `page` | A claim opens its page with the quote highlighted (`test_pages.py`, `test_uc_document_page.py`) |
-| 10 | Docs, cost and latency report, deploy behind the Railway gate | Graders can run the Week 2 flow without guessing |
+| 10 | **Docs done.** README Week 2 section, `KEY_METRICS.md` Week 2 section, `W2_COST_LATENCY.md`, `USER.md` Week 2 use cases, collection requests 11–13. Railway deploy waits on the publish gate | Graders can run the Week 2 flow without guessing; the deployed app is the remaining item |
 
 Stage 4 is deliberately fourth. The eval gate is the Week 2 hard gate, and building it against a
 working slice means every later stage lands against a gate that already works.

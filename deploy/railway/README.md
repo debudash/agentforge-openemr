@@ -385,3 +385,15 @@ Carried over from [AUDIT.md](../../AUDIT.md):
 - **No phpMyAdmin, no exposed database port, no Xdebug**, unlike the dev stack (S8).
 - **The database isn't encrypted at rest** by the application (S11), so this holds synthetic data only.
 - **The admin password** replaces the default `pass`. Rotate it if it's ever shared.
+
+## Week 2 notes
+
+- New agent variables: `COPILOT_VISION_MODEL`, `COPILOT_VISION_RATE_LIMIT_RETRIES`, `COPILOT_EMBED_MODEL`,
+  `COPILOT_RERANK` (root README, "Week 2"). All optional; the vision model must be on the allowlist.
+- `Dockerfile.copilot` installs the CPU-only torch wheel before the requirements and prefetches the
+  two retrieval models at build, so the image grows by roughly 400 MB and a cold start downloads
+  nothing. The first build after this change is slower.
+- The module gained `public/patient.php` and new `api.php` actions (`attach`, `extract`, `documents`,
+  `supervise`, `page`); ship the whole module directory as before.
+- The publish gate is unchanged: `copilot/check_local.ps1` (which now runs the Week 2 eval gate)
+  then `deploy_agent.ps1`.

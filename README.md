@@ -217,6 +217,47 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 
 **Last runs: 18/18 local and 18/18 against Railway (2026-09-15).**
 
+## Week 2: documents, evidence and the supervisor
+
+Week 1 is the `main` branch and the **CopilotAgent** top-level tab: the rounding list, prefetched
+briefs and follow-up questions. It is unchanged and still works the same way on this branch. Week 2
+is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everything below is Week 2.
+
+**Branch:** `week2`. **Services:** the same two (OpenEMR and the agent); nothing new to run.
+
+**Variables** (agent `.env`, all optional; `copilot/.env.example` lists them):
+
+| Variable | Default | What it does |
+|---|---|---|
+| `COPILOT_VISION_MODEL` | the agent model | Reads lab PDFs and intake forms. Must be on `COPILOT_ALLOWED_MODELS`. Free slugs share one per-account quota and answer 429 when it is spent |
+| `COPILOT_VISION_RATE_LIMIT_RETRIES` | `1` | Retries on a 429 before the document is reported as "could not be read" |
+| `COPILOT_EMBED_MODEL` | `all-MiniLM-L6-v2` | Dense retrieval over the guideline corpus; `none` keeps BM25 only and downloads nothing |
+| `COPILOT_RERANK` | `local` | `local` cross-encoder, `cohere` (needs `COHERE_API_KEY`), or `none` |
+
+**The flow**
+
+1. Sign in as `doctor1` and open one of their patients (pids 1–25). The patient record's navbar
+   has a **Co-Pilot** tab.
+2. The tab runs the supervisor: it lists the patient's lab reports and intake forms, reads the
+   unread ones, has the module file the results, and shows **What changed** above the brief.
+   With nothing to read it shows the brief straight away. Routing is under **Run details**.
+3. To add a document: the API collection's Week 2 requests (11–13) read the fixture report, run
+   the supervisor and render a page; or POST the module's `attach` action with the session cookie
+   (`api/README.md`).
+4. Click a citation chip on a lab value that came from a report, or on a "What changed" line: the
+   page opens inline with the quote boxed, with a link to OpenEMR's own document viewer.
+5. Ask a follow-up that asks for guidance ("what does guidance say about high potassium with an
+   ACE inhibitor?"): the guideline evidence appears in its own block, cited to the corpus, and is
+   never turned into advice for the patient.
+
+**The gate:** `cd copilot; python -m evals.stage2.gate` runs 66 recorded cases through the real
+code with no model, in about ten seconds; `hooks/install-hooks.ps1` makes every push run it.
+
+**Documents:** [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
+[W2_COST_LATENCY.md](W2_COST_LATENCY.md), [KEY_METRICS.md](KEY_METRICS.md) (Week 2 section),
+[copilot/evals/stage2/README.md](copilot/evals/stage2/README.md) (the eval dataset),
+[GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (rules 11 and 12).
+
 ## What this fork adds
 
 | Path | Purpose |
