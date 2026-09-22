@@ -104,3 +104,27 @@ def test_the_supervisor_itself_never_calls_a_model(chart101, settings):
     assert vision.calls == ["structured"] and brief_llm.calls == [], "only the extractor has called a model so far"
     sup.resume("sid-6", 101, [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": ["lab:1"], "order_id": 1, "skipped": []}], "cid-s6")
     assert brief_llm.calls == ["structured"], "the retriever generated the brief; the supervisor added no calls"
+
+
+def test_supervising_a_patient_makes_it_the_active_one_so_follow_ups_work(chart101, chart303, settings):
+    """The patient tab opens, supervises, then asks. Week 1's tab selected on the way in; this path
+    must too, or every follow-up from the patient record reads as access_denied."""
+    import asyncio
+
+    from copilot.llm import ScriptedLLM
+    from copilot.schemas import AnswerDraft, ResponseState
+    from copilot.session import SessionStore
+    from langchain_core.messages import AIMessage
+
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_problems", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
+    answer = AnswerDraft(claims=[Claim(text="Essential hypertension is on the problem list.", source_ids=["problem:9001"])])
+    store = SessionStore(settings, lambda: ScriptedLLM([brief_draft(), lookup, answer]))
+    store.open("s" * 32, {"id": 8, "username": "doctor1", "name": "Dana Reyes", "groups": ["Physicians"]}, [chart101, chart303], "cid")
+    store.sessions["s" * 32].patients[303].history.append("stale")
+
+    out = asyncio.run(store.supervise("s" * 32, 101, [], lambda: ScriptedLLM([]), "cid-a"))
+
+    assert out["phase"] == "done"
+    assert store.sessions["s" * 32].active_pid == 101
+    assert store.sessions["s" * 32].patients[303].history == []      # FR5 still holds
+    assert asyncio.run(store.ask("s" * 32, 101, "how many hospitalizations?", "cid-b")).state == ResponseState.COMPLETE

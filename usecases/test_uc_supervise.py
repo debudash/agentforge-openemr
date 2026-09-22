@@ -118,3 +118,19 @@ def test_an_unread_lab_report_is_read_persisted_and_reported_or_honestly_not(doc
         for doc_id in created["documents"]:
             db_query(f"DELETE FROM categories_to_documents WHERE document_id = {doc_id}")
             db_query(f"DELETE FROM documents WHERE id = {doc_id}")
+
+
+def test_a_follow_up_after_supervising_is_answered_not_denied(doctor, headers):
+    """The clinician's actual next move: the tab briefs, then they ask a question in the box below
+    it. Supervising the patient has to make it the active one, or every follow-up from the patient
+    record comes back access_denied."""
+    open_patient(doctor, headers)
+    assert supervise(doctor, headers).status_code == 200
+
+    resp = doctor.post(f"{w.API}?action=ask&context=patient",
+                       json={"pid": w.IN_PANEL, "question": "how many hospitalizations for this patient in the last year"},
+                       headers=headers, timeout=300)
+    assert resp.status_code == 200, resp.text[:300]
+    body = resp.json()
+    assert body["state"] != "access_denied", body.get("state_reason")
+    assert body["pid"] == w.IN_PANEL and body["kind"] == "answer"

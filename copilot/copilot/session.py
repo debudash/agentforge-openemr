@@ -270,6 +270,10 @@ class SessionStore:
         session = self.get(sid)
         if session is None or pid not in session.patients:
             return None
+        # Supervising a patient is opening that patient: the follow-up box on the same page asks
+        # about this pid, and ask() answers only for the active one. select() is the single place
+        # that switches the active patient and drops every other patient's memory (FR5).
+        self.select(sid, pid, correlation_id)
         summary = await asyncio.to_thread(self.supervisor(vision_factory).start, sid, pid, documents, correlation_id)
         self._absorb_supervised(sid, pid, summary)
         return summary
