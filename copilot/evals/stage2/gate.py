@@ -339,7 +339,8 @@ def main(argv: list[str] | None = None) -> int:
 
     RESULTS.mkdir(exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    (RESULTS / f"{stamp}-gate.json").write_text(json.dumps({"summary": summary, "rows": rows, "failures": failures}, indent=2), encoding="utf-8")
+    (RESULTS / f"{stamp}-gate.json").write_text(json.dumps({"summary": summary, "rows": rows, "failures": failures}, indent=2),
+                                                 encoding="utf-8", newline="\n")
 
     if args.json:
         print(json.dumps({"summary": summary, "failures": failures}))

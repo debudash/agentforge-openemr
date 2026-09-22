@@ -144,8 +144,8 @@ def check_claim(claim: Claim, index: dict[str, dict[str, Any]], allowed_numbers:
         count_like = "." not in raw and not text[match.end():match.end() + 2].lstrip().startswith("%")
         if count_like and value.is_integer() and 0 <= value <= _SMALL_COUNT_MAX:
             continue
-        if number not in unsupported:
-            unsupported.append(number)
+        if raw not in unsupported:
+            unsupported.append(raw)   # reported as written ("7.0"), not normalised
     if unsupported:
         return f"value(s) not found in the cited records: {', '.join(unsupported)}"
     return None

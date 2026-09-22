@@ -346,5 +346,5 @@ cases.append(followup("M05", "asking about a source that timed out names the sou
 
 assert len(cases) >= 50, len(cases)
 assert len({c["id"] for c in cases}) == len(cases)
-(HERE / "cases.json").write_text(json.dumps({"version": 1, "count": len(cases), "cases": cases}, indent=2) + "\n", encoding="utf-8")
+(HERE / "cases.json").write_text(json.dumps({"version": 1, "count": len(cases), "cases": cases}, indent=2) + "\n", encoding="utf-8", newline="\n")
 print(f"wrote {len(cases)} cases")
