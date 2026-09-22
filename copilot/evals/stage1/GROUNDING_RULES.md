@@ -8,8 +8,8 @@ These rules define what "grounded" means for this agent. They are enforced three
 
 Stage 1 has two suites, run by `copilot/evals/run_evals.py --stage stage1`:
 
-- **Golden** (`golden/cases.json`, 8 cases): one turn, one correct answer, fully deterministic, plus a frozen snapshot diff. Runs on every change.
-- **Behavioural** (`behavioral/scenarios.json`, 6 scenarios): two to four turns on one patient, graded on the tool trace (which tools, in what order, how many), memory across turns, per-turn state and content, and the judge rubric.
+- **Golden** (`golden/cases.json`, 9 cases): one turn, one correct answer, fully deterministic, plus a frozen snapshot diff. Runs on every change.
+- **Behavioural** (`behavioral/scenarios.json`, 7 scenarios): two to four turns on one patient, graded on the tool trace (which tools, in what order, how many), memory across turns, per-turn state and content, and the judge rubric.
 
 A case is **not applicable** rather than failed when the model endpoint rate-limited or was unavailable for the agent's call (the agent reports it in `state_reason`); a judge that suffers the same is recorded as "judge n/a" and does not fail the case. Both are counted and reported apart, so an endpoint's quota never masquerades as an agent defect.
 
