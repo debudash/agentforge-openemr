@@ -43,6 +43,16 @@ The page runs its own agent session (`api.php?context=patient`, session id suffi
 so opening a patient never replaces the rounding-list session in the other tab. The brief cache
 is shared, so a brief already prefetched from the rounding list is reused instantly.
 
+Clicking the entry opens a tab of its own rather than taking over the chart view, so the brief and
+the chart can be read side by side. The patient navbar's renderer drops `target` and emits
+`on_click` verbatim, so the handler calls the main screen's own `navigateTab`, naming the tab
+`cpapat`, and returns false; where that API is absent the plain href still works. Because
+`navigateTab` reuses a tab of that name, clicking Co-Pilot again re-reads whichever chart is now
+open. That leaves one new state: a co-pilot tab left open while the clinician moves the chart to
+another patient. The page polls the main screen's own current-patient value and, when it no longer
+matches the patient it read, says so in a banner naming both, rather than leaving a name on screen
+to be misread.
+
 Two consequences, both load-bearing.
 
 **Patient scope stops being belt-and-braces and becomes the only barrier.** In Week 1 the

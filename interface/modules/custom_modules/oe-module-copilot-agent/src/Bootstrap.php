@@ -39,6 +39,9 @@ class Bootstrap
     /** Menu id of the Co-Pilot entry in the patient record's own navbar (Week 2). */
     private const PATIENT_TAB_ID = "copilot";
 
+    /** Its own tab in the main screen, so opening the co-pilot does not replace the chart view. */
+    private const PATIENT_TAB_TARGET = "cpapat";
+
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
     ) {
@@ -66,6 +69,9 @@ class Bootstrap
      * because the renderer would otherwise append the pid to the URL, and a pid in the URL is
      * exactly what the page must not trust. PatientMenuRole has already made the standard URLs
      * absolute by the time this fires, so the URL here is given ready to use.
+     *
+     * Clicking it opens a tab of its own rather than replacing the chart view, so the clinician
+     * can read the brief and the chart side by side.
      */
     public function addPatientTab(PatientMenuEvent $event): PatientMenuEvent
     {
@@ -84,13 +90,22 @@ class Bootstrap
             return $event;
         }
 
+        // The navbar renderer ignores `target` and emits `on_click` verbatim into the anchor, so
+        // opening a tab of our own is the click handler's job. navigateTab reuses the tab when it
+        // already exists, which is what makes a second click re-read the chart now in view.
+        // Falls back to the plain href wherever the main screen's tab API is absent.
+        $page = self::MODULE_INSTALLATION_PATH . "/public/patient.php";
+        $openInOwnTab = "if (top.navigateTab) { top.navigateTab(top.webroot_url + '" . $page . "', '"
+            . self::PATIENT_TAB_TARGET . "', function () { top.activateTabByName('"
+            . self::PATIENT_TAB_TARGET . "', true); }); return false; } top.restoreSession();";
+
         $tab = new stdClass();
         $tab->requirement = 0;
-        $tab->target = 'main';
+        $tab->target = self::PATIENT_TAB_TARGET;
         $tab->menu_id = self::PATIENT_TAB_ID;
         $tab->label = xlt("Co-Pilot");
-        $tab->url = self::MODULE_INSTALLATION_PATH . "/public/patient.php";
-        $tab->on_click = 'top.restoreSession()';
+        $tab->url = $page;
+        $tab->on_click = $openInOwnTab;
         $tab->pid = 'false';
         $tab->children = [];
         $tab->acl_req = ["patients", "demo"];

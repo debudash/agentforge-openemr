@@ -126,6 +126,11 @@ if ($gate === 'ok') {
         .cpa-rule-flag { color: #8a6d00; font-weight: 600; }
         .cpa-rule-engine_failure, .cpa-rule-unable_to_evaluate { color: #b71c1c; }
         .cpa-disclaimer { font-size: .85rem; }
+        /* Laid out here rather than with Bootstrap's d-flex, whose display is !important and would
+           outrank the hidden attribute: the banner would then show while the page believed it hidden.
+           The attribute selector outranks the plain class, so `hidden` stays the single switch. */
+        .cpa-stale { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+        .cpa-stale[hidden] { display: none; }
     </style>
 </head>
 <body class="body_top container-fluid">
@@ -163,6 +168,10 @@ if ($gate === 'ok') {
         <?php echo xlt("Set COPILOT_AGENT_URL and COPILOT_SHARED_SECRET (environment or sites/<site>/copilot-config.php)."); ?>
     </div>
 <?php else : ?>
+    <div class="alert alert-warning py-2 cpa-stale" id="cpa-stale" role="alert" hidden>
+        <span id="cpa-stale-text"></span>
+        <button type="button" class="btn btn-sm btn-warning" id="cpa-stale-reload"><?php echo xlt("Load the patient now in the chart"); ?></button>
+    </div>
     <div class="card" id="cpa-patient">
         <div class="card-header py-2">
             <div class="d-flex flex-wrap justify-content-between align-items-center">
@@ -484,8 +493,35 @@ if ($gate === 'ok') {
           .then(function () { btn.disabled = false; btn.textContent = "Ask"; });
     });
 
+    // The co-pilot now has a tab of its own, so the clinician can move the chart to another patient
+    // while this page still shows the one it read. Everything here stays labelled with the patient
+    // it belongs to, and the page says plainly when that is no longer the chart in view rather than
+    // leaving a name to be misread. Reading the main screen's own patient is enough; if it cannot be
+    // read (the page opened outside the tabbed screen), nothing is claimed either way.
+    function chartPid() {
+        try {
+            return Number(top.app_view_model.application_data.patient().pid());
+        } catch (e) {
+            return null;
+        }
+    }
+    function checkPatientStillInView() {
+        var current = chartPid();
+        var banner = document.getElementById("cpa-stale");
+        if (current === null || current === PID) { banner.hidden = true; return; }
+        document.getElementById("cpa-stale-text").textContent =
+            "The chart in view has moved to another patient (pid " + current + "). Everything below is "
+            + document.getElementById("cpa-patient-name").textContent + " (pid " + PID + ").";
+        banner.hidden = false;
+    }
+    // Showing and hiding a tab fires neither focus nor visibilitychange, so this is polled. It reads
+    // one property of the parent frame and touches no network, which is cheaper than it looks.
+    document.getElementById("cpa-stale-reload").addEventListener("click", function () { window.location.reload(); });
+    setInterval(checkPatientStillInView, 2000);
+
     window.addEventListener("beforeunload", function () { navigator.sendBeacon && api("close", {}); });
     open();
+    checkPatientStillInView();
 })();
 </script>
 <?php endif; ?>

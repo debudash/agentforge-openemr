@@ -57,6 +57,19 @@ def test_patient_record_offers_the_copilot_tab_to_a_physician(doctor):
     assert "oe-module-copilot-agent/public/patient.php" in page
 
 
+def test_the_copilot_entry_opens_a_tab_of_its_own_not_the_chart_view(doctor):
+    """Clicking it must not replace the chart the clinician is reading. The navbar renderer drops
+    `target` and emits the click handler verbatim, so the handler is where this is asserted."""
+    page = set_active_patient(doctor, IN_PANEL)
+    anchor = re.search(r'<li[^>]*id="copilot"[^>]*>\s*<a[^>]*>', page)
+    assert anchor, "no anchor rendered for the Co-Pilot entry"
+    markup = anchor.group(0)
+    assert "top.navigateTab(" in markup and "'cpapat'" in markup, markup
+    assert "top.activateTabByName('cpapat', true)" in markup, markup
+    assert "return false" in markup, "the anchor would still navigate the chart view"
+    assert '"' not in markup.split('onclick="', 1)[1].split('"', 1)[0], "a quote in the handler would break the attribute"
+
+
 def test_patient_record_does_not_offer_the_tab_to_admin(admin):
     page = set_active_patient(admin, IN_PANEL)
     assert 'id="copilot"' not in page
