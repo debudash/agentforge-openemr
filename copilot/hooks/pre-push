@@ -10,3 +10,5 @@ echo "pre-push: unit tests"
 "$PY" -m pytest -q -x --no-header -p no:cacheprovider || { echo "pre-push: unit tests failed; push blocked"; exit 1; }
 echo "pre-push: Week 2 eval gate"
 "$PY" -m evals.stage2.gate || { echo "pre-push: eval gate failed; push blocked"; exit 1; }
+echo "pre-push: UI guard"
+"$PY" -m evals.ui_guard || { echo "pre-push: UI guard failed; push blocked"; exit 1; }

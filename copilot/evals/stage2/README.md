@@ -81,3 +81,20 @@ to keep the check runnable by a grader with no runner.
 ## Results
 
 `results/<timestamp>-gate.json`, gitignored: per-case verdicts and reasons.
+
+## The UI guard
+
+The gate and the unit suite never render a page, and the use-case suite asserts on markup a
+server returned. None of them can see a rule in a stylesheet winning over an attribute, which is
+how a banner once showed while `element.hidden` read true: Bootstrap's `.d-flex` declares
+`display` with `!important` after Reboot's `[hidden]` rule, so the later rule won and everything
+that asked the page what it was showing agreed with the page.
+
+`python -m evals.ui_guard` checks that class of bug statically over the module's pages: an
+element hidden in markup or by script must not carry a display utility unless the page takes the
+hiding back with `.<class>[hidden] { display: none; }`. `test_ui_guard.py` reproduces the
+original bug and the responsive variant, so the guard cannot quietly stop catching anything. It
+runs in the pre-push hook and in `check_local.ps1`.
+
+Its limit is worth stating: it knows one failure mode. Anything else about what a clinician
+actually sees still needs a browser, which the dev stack's Selenium provides on demand.
