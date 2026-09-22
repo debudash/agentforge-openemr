@@ -15,7 +15,7 @@ import test_uc_copilot as uc
 import test_uc_document_writer as w
 from conftest import db_query
 
-VARIANTS = ["abnormal", "normal", "unreadable"]
+VARIANTS = ["abnormal", "normal", "unreadable", "wrong_patient"]
 
 
 @pytest.fixture(scope="module")
@@ -98,3 +98,49 @@ def test_purge_clears_the_folder_and_leaves_nothing_it_did_not_generate(doctor, 
     # Nothing was in the chart, so nothing in the chart was touched.
     after = db_query(f"SELECT COUNT(*) FROM documents WHERE foreign_id = {w.IN_PANEL} AND deleted = 0")[0][0]
     assert after == before
+
+
+def test_a_report_naming_another_patient_is_read_but_never_filed(doctor, headers):
+    """The cross-check the whole feature turns on: a document is filed under a patient by whoever
+    uploaded it, and people misfile things. The name printed on the report is the document's own
+    claim about whose results these are, and a mismatch is refused rather than reconciled."""
+    gen = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "wrong_patient"}).json()
+    name = gen["generated"][0]["name"]
+    pdf = doctor.get(f"{w.API}?action=demo_file&context=patient&pid={w.IN_PANEL}&name={name}", timeout=60).content
+    assert b"Marlow Ashcombe" in pdf
+
+    resp = doctor.post(f"{w.API}?action=attach&context=patient",
+                       data={"pid": w.IN_PANEL, "doc_type": "lab_pdf"},
+                       files={"file": (name, pdf, "application/pdf")}, headers=headers, timeout=300)
+    body = resp.json()
+    doc_id = body["doc_id"]
+    try:
+        if body.get("reason", "").startswith("extraction failed"):
+            pytest.skip(f"the vision model was unavailable: {body['reason']}")
+        assert body["processed"] is False, body
+        assert body.get("patient_ref_mismatch") is True and "different patient" in body["reason"]
+        # Stored for a human to look at, but nothing it says reached the chart.
+        assert db_query(f"SELECT COUNT(*) FROM procedure_result WHERE document_id = {doc_id}") == [["0"]]
+        assert db_query(f"SELECT COUNT(*) FROM documents WHERE id = {doc_id} AND deleted = 0") == [["1"]]
+    finally:
+        db_query(f"DELETE FROM categories_to_documents WHERE document_id = {doc_id}")
+        db_query(f"DELETE FROM documents WHERE id = {doc_id}")
+
+
+def test_a_report_naming_this_patient_is_filed(doctor, headers):
+    """The same path with the matching name, so the refusal above is the cross-check working and
+    not merely extraction failing."""
+    gen = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"}).json()
+    name = gen["generated"][0]["name"]
+    pdf = doctor.get(f"{w.API}?action=demo_file&context=patient&pid={w.IN_PANEL}&name={name}", timeout=60).content
+
+    body = doctor.post(f"{w.API}?action=attach&context=patient",
+                       data={"pid": w.IN_PANEL, "doc_type": "lab_pdf"},
+                       files={"file": (name, pdf, "application/pdf")}, headers=headers, timeout=300).json()
+    try:
+        if body.get("reason", "").startswith("extraction failed"):
+            pytest.skip(f"the vision model was unavailable: {body['reason']}")
+        assert body["processed"] is True and body.get("patient_ref_mismatch") is None
+        assert len(body["source_ids"]) >= 3
+    finally:
+        call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})

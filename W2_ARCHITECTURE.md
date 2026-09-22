@@ -504,6 +504,37 @@ generate, upload through the chart, one unread document found, read in 20.9 s wi
 filed pending review, "what changed" citing `doc:2183`, a follow-up answered from the newly
 ingested row, then purge removing 2 files, 1 document and 5 results.
 
+### The patient cross-check
+
+A document is filed under a patient by whoever uploaded it, and people misfile things. The name
+printed on the report is the document's own claim about whose results these are, so it is checked
+against the chart before anything it says becomes chart data.
+
+`patient_ref` had been extracted since stage 1 and described as being "for the cross-check", but
+nothing compared it to anything -- a gap found by asking what would happen if the demo generator
+produced a document for the wrong patient. `DocumentWriter::patientRefMismatch()` now closes it, on
+both write paths: the single-document `attach` and the supervisor's persist step.
+
+A mismatch is **refused, not reconciled**. Filing another patient's potassium into this chart is
+the worst outcome this feature can produce, and there is no reading of a mismatch that makes
+persisting safe. The document stays stored for a human to look at, nothing reaches the chart, and
+the brief says so -- because a document that silently produced nothing looks exactly like one that
+was never there. It **fails closed on an unreadable name** for the same reason: a report whose
+patient could not be read is not evidence that it belongs here.
+
+Matching is forgiving about form and strict about content. Case, punctuation and word order are
+ignored, so "Doe, Jane" matches "Jane Doe"; but every name part in the chart must appear, so an
+initial where the chart holds a full given name is not a match, because "J. Doe" does not
+distinguish Jane from John. The Demo Data tab's `wrong_patient` variant generates a report naming
+someone else so the refusal can be demonstrated, and a live case asserts both halves: the
+mismatched report is stored and never filed, the matching one is filed.
+
+One consequence worth recording: this broke two live tests that had been uploading the committed
+eval fixture, which names a fictional patient, to a real chart. They were misfiling a document on
+every run and passing anyway. They now build a report naming the patient they file it under
+(`usecases/labpdf.py`), which also means the extraction case genuinely exercises the persist path
+instead of skipping.
+
 **What it does not prove.** Generated documents have a clean text layer, so click-to-source always
 resolves. A real scan would not, and there is no OCR. The unreadable variant exists so that path is
 shown rather than implied away.

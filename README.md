@@ -282,6 +282,12 @@ one -- the same path any uploaded document takes -- not a shortcut that exists o
    on a deployment, use the Download button first.
 3. Open the **Co-Pilot** tab. It finds the unread document, reads it, has the results filed, and
    shows what changed with a citation into the page it read.
+The lab-report choice includes **another patient's report**, which generates a document naming
+someone else. Upload it and the co-pilot reads it, refuses to file it, and says why: the name on a
+document is checked against the chart before any of it becomes chart data, and a mismatch is
+refused rather than reconciled. Nothing reaches the record and the document stays stored for a
+human to look at.
+
 4. **Purge Docs** removes the generated files, the documents uploaded from them, and the lab rows
    those documents produced. All three, because deleting only the document would leave results
    whose citations open a page that no longer exists. It never touches anything it did not

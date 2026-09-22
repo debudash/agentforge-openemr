@@ -72,6 +72,21 @@ def test_an_unread_document_is_extracted_then_control_returns_to_the_module(char
     assert final["citations"][0]["source_type"] == "document" and final["removed"] == []
 
 
+def test_a_document_the_module_refused_to_file_says_so_rather_than_nothing(chart101, settings):
+    """The module reads the name on the report and will not file a document that names someone
+    else. A refused document that produced no rows looks exactly like one that was never there,
+    so the brief has to say which it was."""
+    sup = supervisor(chart101, settings)
+    sup.start("sid-9", 101, manifest(), "cid-s9")
+    final = sup.resume("sid-9", 101, [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": [], "skipped": [],
+                                       "refused": "the document names a different patient"}], "cid-s9")
+    assert final["phase"] == "done" and final["brief"]["state"] == "complete"
+    change = final["changes"][0]
+    assert "not filed" in change["text"] and "names a different patient" in change["text"]
+    assert "remains stored for manual review" in change["text"]
+    assert change["source_ids"] == [f"doc:{DOC}"] and final["removed"] == []
+
+
 def test_a_document_that_cannot_be_read_is_reported_and_the_brief_still_happens(chart101, settings):
     out = supervisor(chart101, settings, vision_responses=[]).start("sid-3", 101, manifest(), "cid-s3")
     assert out["phase"] == "done", "nothing to persist, so no interrupt"

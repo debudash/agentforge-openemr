@@ -200,6 +200,13 @@ class Supervisor:
             if not extraction.get("ok"):
                 record["error"] = extraction.get("error", "")
                 text = f"{label} '{name}' ({date}) could not be read; it remains stored for manual review."
+            elif (refused := persisted.get(doc_id, {}).get("refused")):
+                # The module read the document but would not file it: the name on it does not
+                # belong to this chart. Said plainly, because a document that silently produced
+                # nothing looks exactly like one that was never there.
+                record["refused"] = str(refused)
+                text = (f"{label} '{name}' ({date}) was read but not filed: {refused}. "
+                        f"It remains stored for manual review.")
             elif doc_id in persisted:
                 p = persisted[doc_id]
                 if extraction["doc_type"] == "lab_pdf":

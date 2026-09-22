@@ -13,6 +13,7 @@ import pytest
 
 import test_uc_copilot as uc
 import test_uc_document_extract as x
+import labpdf
 import test_uc_document_writer as w
 from conftest import db_query
 
@@ -81,7 +82,7 @@ def test_an_unread_lab_report_is_read_persisted_and_reported_or_honestly_not(doc
     try:
         stored = doctor.post(f"{w.API}?action=attach&context=patient",
                              data={"pid": w.IN_PANEL, "doc_type": "lab_pdf", "extract": "0"},
-                             files={"file": ("metro-labs-supervise.pdf", x.FIXTURE.read_bytes(), "application/pdf")},
+                             files={"file": ("metro-labs-supervise.pdf", labpdf.lab_report(w.IN_PANEL), "application/pdf")},
                              headers=headers, timeout=60).json()
         created["documents"].append(stored["doc_id"])
         open_patient(doctor, headers)
@@ -101,8 +102,15 @@ def test_an_unread_lab_report_is_read_persisted_and_reported_or_honestly_not(doc
             assert persisted["source_ids"] and "added to the chart" in change[0]["text"]
             rows = db_query(f"SELECT COUNT(*) FROM procedure_result WHERE document_id = {stored['doc_id']}")
             assert rows == [[str(len(persisted["source_ids"]))]]
+        elif any(p.get("refused") for p in body.get("persisted", [])):
+            # Read, but the name on it does not belong to this chart. Never reachable with the
+            # report built above, which names this patient; asserted so that a regression in the
+            # cross-check shows up as itself rather than as a missing order id.
+            assert "not filed" in change[0]["text"]
+            assert db_query(f"SELECT COUNT(*) FROM procedure_result WHERE document_id = {stored['doc_id']}") == [["0"]]
+            raise AssertionError("the report names this patient, so it should not have been refused")
         else:
-            # Could not be read (free-tier quota is the usual reason): said plainly, nothing invented.
+            # Could not be read (a provider outage is the usual reason): said plainly, nothing invented.
             assert body["failed"] and "could not be read" in change[0]["text"]
             assert ("supervisor", "module") not in edges(body)
             assert db_query(f"SELECT COUNT(*) FROM procedure_result WHERE document_id = {stored['doc_id']}") == [["0"]]

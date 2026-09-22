@@ -88,6 +88,53 @@ final class DocumentWriter
         return (int) $document->get_id();
     }
 
+    /**
+     * Rule 2, second half: the document must also say it is about this patient.
+     *
+     * A document is filed under a patient by whoever uploaded it, and people misfile things. The
+     * name printed on the report is the document's own claim about whose results these are, so it
+     * is checked against the chart before anything is written. A mismatch is refused rather than
+     * reconciled: filing someone else's potassium into this chart is the worst outcome available
+     * to this feature, and there is no reading of a mismatch that makes it safe to persist.
+     *
+     * Fails closed on an unreadable name for the same reason: a report whose patient could not be
+     * read is not evidence that it belongs here.
+     *
+     * Matching is forgiving about form and strict about content. Case, punctuation and order do
+     * not matter ("Doe, Jane" matches "Jane Doe"), but every name part in the chart must appear:
+     * an initial where the chart has a full given name is not a match, because "J. Doe" does not
+     * distinguish Jane from John.
+     *
+     * @return string|null a reason to refuse, or null when the document names this patient
+     */
+    public function patientRefMismatch(int $pid, ?string $printedName): ?string
+    {
+        $rows = QueryUtils::fetchRecords('SELECT fname, lname FROM patient_data WHERE pid = ?', [$pid]);
+        if (empty($rows)) {
+            return 'the chart could not be read to check the name on the document';
+        }
+        $printed = trim((string) $printedName);
+        if ($printed === '') {
+            return 'the patient name on the document could not be read, so it cannot be confirmed to belong to this chart';
+        }
+        $onDocument = self::nameTokens($printed);
+        foreach ([(string) $rows[0]['fname'], (string) $rows[0]['lname']] as $part) {
+            foreach (self::nameTokens($part) as $token) {
+                if (!in_array($token, $onDocument, true)) {
+                    return 'the document names a different patient';
+                }
+            }
+        }
+        return null;
+    }
+
+    /** @return list<string> */
+    private static function nameTokens(string $name): array
+    {
+        $normalised = strtolower(trim((string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', $name)));
+        return array_values(array_filter(explode(' ', $normalised), static fn(string $t): bool => $t !== ''));
+    }
+
     /** Rule 2: a document is only ever read for the patient it is filed under. */
     public function documentBelongsTo(int $docId, int $pid): bool
     {

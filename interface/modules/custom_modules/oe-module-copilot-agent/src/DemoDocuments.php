@@ -39,7 +39,7 @@ final class DemoDocuments
     /** Where generated files land, relative to the OpenEMR root. Host-visible in the dev stack. */
     public const FOLDER = 'demo/generated';
 
-    public const VARIANTS = ['abnormal', 'normal', 'unreadable'];
+    public const VARIANTS = ['abnormal', 'normal', 'unreadable', 'wrong_patient'];
 
     public function __construct(
         private readonly PanelScope $scope,
@@ -65,6 +65,11 @@ final class DemoDocuments
             throw new \InvalidArgumentException('unknown variant');
         }
         $patient = $this->patient($pid);
+        if ($variant === 'wrong_patient') {
+            // Someone else's report, to show the cross-check refusing to file it. The name is
+            // fictional and shares nothing with any chart, so the refusal is unambiguous.
+            $patient = ['name' => 'Marlow Ashcombe', 'dob' => '1958-11-02', 'sex' => 'F'];
+        }
         $directory = $this->directory();
         if (!is_dir($directory) && !mkdir($directory, 0o775, true) && !is_dir($directory)) {
             throw new \RuntimeException('could not create the demo folder');

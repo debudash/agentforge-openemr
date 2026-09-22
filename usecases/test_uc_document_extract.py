@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 import test_uc_copilot as uc
+import labpdf
 import test_uc_document_writer as w
 from conftest import db_query
 
@@ -38,7 +39,7 @@ def test_attaching_the_fixture_report_extracts_and_persists_its_values(doctor, h
     try:
         resp = doctor.post(f"{w.API}?action=attach&context=patient",
                            data={"pid": w.IN_PANEL, "doc_type": "lab_pdf"},
-                           files={"file": ("metro-labs-jane-doe.pdf", FIXTURE.read_bytes(), "application/pdf")},
+                           files={"file": ("metro-labs-report.pdf", labpdf.lab_report(w.IN_PANEL), "application/pdf")},
                            headers=headers, timeout=300)
         assert resp.status_code == 200, resp.text[:400]
         body = resp.json()

@@ -112,6 +112,21 @@ function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid
                 'detail' => $result['json']['detail'] ?? null];
     }
     $extraction = $result['json'];
+    // The document's own claim about whose results these are, checked before any of them become
+    // chart data. A misfiled report is refused outright: it stays stored for a human to look at,
+    // and nothing it says reaches the patient's record or the brief.
+    $document = (array) ($extraction['document'] ?? []);
+    $printedName = $docType === 'intake_form'
+        ? ($document['demographics']['name']['value'] ?? null)
+        : ($document['patient_ref']['value'] ?? null);
+    $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+    if ($mismatch !== null) {
+        return ['processed' => false, 'reason' => $mismatch, 'patient_ref_mismatch' => true,
+                'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
+                'extraction_ms' => $extraction['duration_ms'] ?? null,
+                'model' => $extraction['model'] ?? null,
+                'agent_correlation_id' => $extraction['correlation_id'] ?? null];
+    }
     if ($docType === 'intake_form') {
         // An intake form is someone else's report about the patient: stored beside the form,
         // never merged into the clinical lists.
@@ -300,6 +315,21 @@ try {
                     $docId = (int) ($extraction['doc_id'] ?? 0);
                     $docType = (string) ($extraction['doc_type'] ?? 'lab_pdf');
                     $extracted = is_array($extraction['result'] ?? null) ? $extraction['result'] : [];
+                    // The document's own claim about whose results these are. A report filed under
+                    // the wrong patient is refused here, before any of it becomes chart data: it
+                    // stays stored for a human, and the brief is told it was not filed.
+                    $read = (array) ($extracted['document'] ?? []);
+                    $printedName = $docType === 'intake_form'
+                        ? ($read['demographics']['name']['value'] ?? null)
+                        : ($read['patient_ref']['value'] ?? null);
+                    $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+                    if ($mismatch !== null) {
+                        $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => [],
+                                        'skipped' => [], 'refused' => $mismatch];
+                        audit('copilot-document-refused', $username, $authGroup, false,
+                            'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' reason=patient_ref_mismatch', $pid);
+                        continue;
+                    }
                     if ($docType === 'lab_pdf') {
                         $written = $writer->persistLabDocument($pid, $docId, (array) ($extracted['document'] ?? []), $eid, (string) ($extracted['model'] ?? 'unknown'));
                         $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => $written['source_ids'],

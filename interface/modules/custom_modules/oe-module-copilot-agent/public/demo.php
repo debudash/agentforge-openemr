@@ -126,6 +126,7 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
                     <option value="abnormal"><?php echo xlt("Abnormal (potassium 5.4, eGFR 58, A1c 7.4)"); ?></option>
                     <option value="normal"><?php echo xlt("Normal (nothing to flag)"); ?></option>
                     <option value="unreadable"><?php echo xlt("Unreadable (no text on the page)"); ?></option>
+                    <option value="wrong_patient"><?php echo xlt("Another patient's report (must be refused, not filed)"); ?></option>
                 </select>
                 <button type="submit" class="btn btn-primary mr-2" id="cpa-gen"><?php echo xlt("Generate New Docs"); ?></button>
                 <button type="button" class="btn btn-outline-danger" id="cpa-purge"><?php echo xlt("Purge Docs"); ?></button>
