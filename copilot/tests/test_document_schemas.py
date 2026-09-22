@@ -140,3 +140,26 @@ def test_document_citation_carries_page_and_quote():
     c = Citation(source_id="doc:412", type="doc", label="lab_pdf metro-labs.pdf",
                  page_or_section="p2", field_or_chunk_id="results[0].value", quote_or_value="Potassium 5.4 mmol/L")
     assert c.source_type == "document" and c.page_or_section == "p2"
+
+
+def test_the_models_wording_of_doc_type_never_fails_an_otherwise_good_extraction():
+    """A correct reading was thrown away because the model answered "LAB_REPORT" for doc_type.
+
+    doc_type is the caller's fact -- which document this is was settled before the model saw a
+    page -- and extract_document overwrites it with the authoritative value straight after
+    parsing. So the model's wording of it must never decide whether the extraction survives.
+    """
+    from copilot.documents.schemas import IntakeForm, LabDocument
+
+    absent = {"value": None, "confidence": 0}
+    lab = LabDocument.model_validate({
+        "doc_type": "LAB_REPORT", "source_id": "doc:1", "page_count": 2, "patient_ref": absent,
+        "report_date": absent, "performing_lab": absent, "ordering_provider": absent, "results": [],
+    })
+    assert lab.doc_type == "lab_pdf"
+
+    intake = IntakeForm.model_validate({
+        "doc_type": "Patient Intake", "source_id": "doc:2", "page_count": 1, "form_date": absent,
+        "chief_concern": absent, "demographics": {"name": absent, "dob": absent, "sex": absent},
+    })
+    assert intake.doc_type == "intake_form"

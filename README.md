@@ -258,6 +258,39 @@ code with no model, in about ten seconds; `hooks/install-hooks.ps1` makes every 
 [copilot/evals/stage2/README.md](copilot/evals/stage2/README.md) (the eval dataset),
 [GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (rules 11 and 12).
 
+## Demo Data tab: generating documents to ingest
+
+Week 2's ingestion flow needs a document to ingest, and a grader opening the deployed app has no
+PDF to hand. The **Demo Data** tab writes synthetic ones.
+
+It is **validation tooling, not a product feature**, and it is removed before production. It is off
+unless an instance turns it on: `COPILOT_DEMO_TOOLS` in the environment or in
+`sites/<site>/copilot-config.php`. Off means the tab does not render *and* the actions behind it
+refuse, so hiding the tab is never the only control.
+
+**What it does not do is as important as what it does.** It never puts a document into a chart. It
+writes files to `demo/generated/`, exactly as a lab dropping off a report would, and you upload one
+through OpenEMR's own Documents tab. The ingestion flow being demonstrated is therefore the real
+one -- the same path any uploaded document takes -- not a shortcut that exists only for the demo.
+
+1. Open a patient, then the **Demo Data** tab. Choose a lab report: abnormal (potassium 5.4, eGFR
+   58, A1c 7.4), normal, or unreadable (a page with no text). Press **Generate New Docs**.
+   It writes one lab report and one intake form, naming the patient whose chart you have open, so
+   the name on the document agrees with the chart it will be filed in.
+2. Upload the lab report through **Documents** into category *Lab Report* (the intake form into
+   *Medical Record*). On the dev stack the files are already on your disk at `demo/generated/`;
+   on a deployment, use the Download button first.
+3. Open the **Co-Pilot** tab. It finds the unread document, reads it, has the results filed, and
+   shows what changed with a citation into the page it read.
+4. **Purge Docs** removes the generated files, the documents uploaded from them, and the lab rows
+   those documents produced. All three, because deleting only the document would leave results
+   whose citations open a page that no longer exists. It never touches anything it did not
+   generate -- it matches its own `copilot-demo-` filenames and nothing else, so do not rename a
+   file before uploading it.
+
+Every generation is a genuinely new document, with a new accession and report date, so running the
+demo a second time produces a truthful "what changed" without anything having to be reset first.
+
 ## What this fork adds
 
 | Path | Purpose |

@@ -13,7 +13,7 @@ and the persisted row is what the verifier checks against (rule 3).
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -90,6 +90,18 @@ class LabDocument(BaseModel):
     ordering_provider: ExtractedField = Field(description="Drives order attribution: exact match to the signed-in user or the import provider")
     results: list[LabResult] = Field(default_factory=list)
 
+    # doc_type is the caller's fact, not the model's: which document this is was settled before
+    # the model was asked anything, and extract_document overwrites source_id and page_count with
+    # the authoritative values straight after parsing. Validating the model's *wording* of it only
+    # creates a way to throw away a correct reading -- gemini-2.5-flash-lite answers "LAB_REPORT",
+    # which is right, and failed the whole extraction. Accept what it wrote, then use ours.
+    @model_validator(mode="before")
+    @classmethod
+    def _doc_type_is_ours(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return {**data, "doc_type": "lab_pdf"}
+        return data
+
     def unsupported(self) -> list[str]:
         out = _unsupported_paths("", {"patient_ref": self.patient_ref, "report_date": self.report_date,
                                       "performing_lab": self.performing_lab, "ordering_provider": self.ordering_provider})
@@ -117,6 +129,18 @@ class IntakeForm(BaseModel):
     current_medications: list[ExtractedField] = Field(default_factory=list)
     allergies: list[ExtractedField] = Field(default_factory=list)
     family_history: list[ExtractedField] = Field(default_factory=list)
+
+    # doc_type is the caller's fact, not the model's: which document this is was settled before
+    # the model was asked anything, and extract_document overwrites source_id and page_count with
+    # the authoritative values straight after parsing. Validating the model's *wording* of it only
+    # creates a way to throw away a correct reading -- gemini-2.5-flash-lite answers "LAB_REPORT",
+    # which is right, and failed the whole extraction. Accept what it wrote, then use ours.
+    @model_validator(mode="before")
+    @classmethod
+    def _doc_type_is_ours(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return {**data, "doc_type": "intake_form"}
+        return data
 
     def unsupported(self) -> list[str]:
         out = _unsupported_paths("", {"form_date": self.form_date, "chief_concern": self.chief_concern})

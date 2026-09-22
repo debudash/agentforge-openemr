@@ -42,6 +42,11 @@ class Bootstrap
     /** Its own tab in the main screen, so opening the co-pilot does not replace the chart view. */
     private const PATIENT_TAB_TARGET = "cpapat";
 
+    /** Validation tooling, off unless COPILOT_DEMO_TOOLS says otherwise. See DemoDocuments. */
+    private const DEMO_TAB_ID = "copilotdemo";
+
+    private const DEMO_TAB_TARGET = "cpademo";
+
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
     ) {
@@ -120,6 +125,28 @@ class Bootstrap
             }
         }
         array_splice($menu, $position, 0, [$tab]);
+
+        // Validation tooling, and the only place it is registered. Off unless the environment
+        // turns it on, so a deployment that sets nothing never shows it. Deleting this block and
+        // the file it points at removes the feature. See DemoDocuments.
+        if (Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''))->demoTools) {
+            $demoPage = self::MODULE_INSTALLATION_PATH . "/public/demo.php";
+            $demo = new stdClass();
+            $demo->requirement = 0;
+            $demo->target = self::DEMO_TAB_TARGET;
+            $demo->menu_id = self::DEMO_TAB_ID;
+            $demo->label = xlt("Demo Data");
+            $demo->url = $demoPage;
+            $demo->on_click = "if (top.navigateTab) { top.navigateTab(top.webroot_url + '" . $demoPage . "', '"
+                . self::DEMO_TAB_TARGET . "', function () { top.activateTabByName('"
+                . self::DEMO_TAB_TARGET . "', true); }); return false; } top.restoreSession();";
+            $demo->pid = 'false';
+            $demo->children = [];
+            $demo->acl_req = ["patients", "demo"];
+            $demo->global_req = [];
+            array_splice($menu, $position + 1, 0, [$demo]);
+        }
+
         $event->setMenu($menu);
 
         return $event;

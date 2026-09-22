@@ -460,3 +460,50 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 
 Stage 4 is deliberately fourth. The eval gate is the Week 2 hard gate, and building it against a
 working slice means every later stage lands against a gate that already works.
+
+---
+
+## 13. Validation tooling: the Demo Data tab
+
+**Not part of the product.** It exists so the Week 2 ingestion flow can be exercised without
+hunting for a real PDF, and it is removed before production.
+
+**The decision that shaped it.** The first design generated documents straight into the chart,
+which was wrong twice over. It would have skipped the step the requirement actually names --
+*accepts a file* -- so the flow being demonstrated would not have been the flow being graded. And
+because it created chart documents, it also needed to delete them, which put a delete path against
+a clinical record inside a module that writes to charts.
+
+Writing files to a folder instead removes both problems. The helper never touches the database on
+the way in. A lab drops a report somewhere, a human uploads it, and the ingestion path that runs is
+the ordinary one. It also let the whole repeatability design go: every generation is a new document
+with a new accession and date, so a second run produces a truthful "what changed" with nothing
+reset first, which is what a real chart does anyway.
+
+| Decision | Choice | Why |
+|---|---|---|
+| Where documents are generated | Files in `demo/generated/`, never into a chart | Keeps the graded ingestion path the real one; no database writes on the way in |
+| Who writes the PDF | The module, in PHP, with a deliberately primitive writer | mPDF and dompdf are both available, but they embed subset fonts whose text layer extracts unreliably. Click-to-source depends on that text layer, so the generator uses the same Courier-and-text-operators shape the eval fixtures use, which is known to extract cleanly |
+| Patient identity on the document | Read from the chart being viewed | The document's own patient reference then agrees with the chart it is filed in. `patient_ref` is extracted for a cross-check that is **not yet enforced**; matching names keeps the demo honest rather than hiding that |
+| Values | Fixed per variant, only identifiers and dates vary | A randomised potassium would some runs fail to reach the rule engine, and a demo that behaves differently each time teaches nothing |
+| Gate | `COPILOT_DEMO_TOOLS`, default false in code | A deployment that sets nothing never exposes it. The tab is not registered *and* the actions refuse, so a stale browser tab cannot reach a live endpoint |
+| Purge | Files, the documents uploaded from them, and the lab rows those produced | Deleting only the document would leave results whose citations open a page that no longer exists -- worse than deleting nothing. Scoped to its own `copilot-demo-` filenames |
+| Removal | One file, one registration block, one action block | `src/DemoDocuments.php`, the block in `Bootstrap::addPatientTab`, the `demo_*` case in `api.php`, `public/demo.php` |
+
+**As built.** `DemoDocuments::generate()` writes a two-page lab report and a one-page intake form
+named `copilot-demo-<kind>-<timestamp>.pdf`. The lab report has three results on page 1 and two on
+page 2, so per-page citations are exercised. The intake form carries a line instructing any
+automated reader to ignore its allergies section, which the extraction disregards. `demo_file`
+streams a generated file for download, matching the requested name against the listing rather than
+treating it as a path. Every action is audited (`copilot-demo-generated`, `copilot-demo-downloaded`,
+`copilot-demo-purged`), hospitalist-only, and scope-checked like every other patient action.
+
+**Verified live, end to end**, on pid 1 (hypertension, chronic kidney disease, on lisinopril and
+naproxen -- a chart where a potassium of 5.4 is a real finding rather than merely a red number):
+generate, upload through the chart, one unread document found, read in 20.9 s with five results
+filed pending review, "what changed" citing `doc:2183`, a follow-up answered from the newly
+ingested row, then purge removing 2 files, 1 document and 5 results.
+
+**What it does not prove.** Generated documents have a clean text layer, so click-to-source always
+resolves. A real scan would not, and there is no OCR. The unreadable variant exists so that path is
+shown rather than implied away.

@@ -6,6 +6,7 @@
  * with a signed request. The browser never talks to the agent or the model (PHI4).
  *
  * Actions: open, status, select, ask, feedback, close.
+ * Week 2 adds document actions; demo_* are validation tooling, refused unless COPILOT_DEMO_TOOLS is set.
  * Every request: signed-in user, hospitalist role, CSRF token on POST, patient in scope.
  * Every outcome is audited with the correlation ID so a request can be reconstructed
  * across OpenEMR's log, the agent's event stream and the LangSmith trace (FR14, NFR6).
@@ -29,6 +30,7 @@ use OpenEMR\Common\Logging\EventAuditLogger;
 use OpenEMR\Modules\CopilotAgent\AgentClient;
 use OpenEMR\Modules\CopilotAgent\AgentUnavailableException;
 use OpenEMR\Modules\CopilotAgent\ChartReader;
+use OpenEMR\Modules\CopilotAgent\DemoDocuments;
 use OpenEMR\Modules\CopilotAgent\Config;
 use OpenEMR\Modules\CopilotAgent\DocumentWriter;
 use OpenEMR\Modules\CopilotAgent\PanelScope;
@@ -150,7 +152,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents', 'supervise', 'page'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents', 'supervise', 'page', 'demo_generate', 'demo_purge'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -371,6 +373,45 @@ try {
             $documents = (new DocumentWriter($scope))->documents($pid);
             respond(200, ['pid' => $pid, 'documents' => $documents,
                           'unprocessed' => count(array_filter($documents, static fn(array $d): bool => !$d['processed']))], $correlationId);
+
+        // -- Validation tooling. Removing this block and src/DemoDocuments.php removes the
+        // feature. Refuses outright unless the environment turned it on, so the UI being hidden
+        // is never the only thing standing between a caller and these actions.
+        case 'demo_generate':
+        case 'demo_purge':
+        case 'demo_files':
+        case 'demo_file':
+            if (!$config->demoTools) {
+                respond(403, ['state' => 'access_denied', 'reason' => 'demo tooling is not enabled on this instance'], $correlationId);
+            }
+            $demo = new DemoDocuments($scope, $openemrRoot);
+            $pid = (int) ($input['pid'] ?? $_GET['pid'] ?? 0);
+
+            if ($action === 'demo_files') {
+                respond(200, ['files' => $demo->files(), 'directory' => $demo->directory()], $correlationId);
+            }
+            if ($action === 'demo_file') {
+                $name = (string) ($_GET['name'] ?? '');
+                $bytes = $demo->read($name);        // matched against the listing, never used as a path
+                audit('copilot-demo-downloaded', $username, $authGroup, true, 'cid=' . $correlationId . ' file=' . $name, $pid);
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $name . '"');
+                header('Content-Length: ' . strlen($bytes));
+                echo $bytes;
+                exit;
+            }
+            if ($action === 'demo_generate') {
+                $written = $demo->generate($pid, (string) ($input['variant'] ?? 'abnormal'), $scope->displayName());
+                audit('copilot-demo-generated', $username, $authGroup, true,
+                    'cid=' . $correlationId . ' variant=' . (string) ($input['variant'] ?? 'abnormal')
+                    . ' files=' . count($written), $pid);
+                respond(200, ['generated' => $written, 'files' => $demo->files(), 'directory' => $demo->directory()], $correlationId);
+            }
+            $purged = $demo->purge($pid);
+            audit('copilot-demo-purged', $username, $authGroup, true,
+                'cid=' . $correlationId . ' files=' . $purged['files'] . ' documents=' . $purged['documents']
+                . ' results=' . $purged['results'], $pid);
+            respond(200, $purged + ['files_remaining' => $demo->files(), 'directory' => $demo->directory()], $correlationId);
 
         case 'open_patient':
             // One patient, reached from its own record. Scope was asserted above. The chart read
