@@ -326,6 +326,37 @@ cases += [
           {"state_in": ["partial"], "state_reason_contains": "unavailable"}, category="missing_data"),
 ]
 
+# --- supervisor (stage 7): the graph with scripted models -------------------------------------------
+LAB_DOC = {"doc_id": DOC, "doc_type": "lab_pdf", "name": "metro-labs.pdf", "date": "2026-09-18", "processed": False, "fixture": PDF}
+BRIEF_SCRIPT = [{"brief": {"sections": FULL}}]
+
+
+def supervise(id_, name, documents, vision, persisted, expect, category="supervisor"):
+    return {"id": id_, "name": name, "category": category, "kind": "supervise",
+            "rubric": ["schema_valid", "citation_present", "factually_consistent", "no_phi_in_logs"],
+            "phi_terms": ["Jane Doe", "1962-04-03"],
+            "input": {"chart": "pid101_hypertension_diabetes", "documents": documents, "brief": BRIEF_SCRIPT, "vision": vision, "persisted": persisted},
+            "expect": expect}
+
+
+cases += [
+    supervise("S01", "nothing unread: straight to the brief, no extractor", [], [], [],
+              {"phase": "done", "brief_state": "complete", "changes": 0,
+               "edges_include": [["supervisor", "evidence_retriever"], ["evidence_retriever", "supervisor"], ["supervisor", "clinician"]],
+               "edges_exclude": [["supervisor", "intake_extractor"], ["supervisor", "module"]]}),
+    supervise("S02", "an unread report is read, handed to the module, persisted, and reported", [LAB_DOC], [{"lab_document": proposal()}],
+              [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": ["lab:9001", "lab:9002", "lab:9003", "lab:9004", "lab:9005"], "order_id": 77, "skipped": []}],
+              {"phase": "done", "brief_state": "complete", "changes": 1, "changes_text_any": ["5 result(s) added", "pending clinician review"],
+               "edges_include": [["supervisor", "intake_extractor"], ["intake_extractor", "supervisor"], ["supervisor", "module"], ["module", "supervisor"],
+                                 ["supervisor", "evidence_retriever"], ["supervisor", "clinician"]]}),
+    supervise("S03", "a report that cannot be read is said so and the brief still comes", [LAB_DOC], "unavailable", [],
+              {"phase": "done", "brief_state": "complete", "changes": 1, "changes_text_any": ["could not be read"],
+               "edges_include": [["supervisor", "intake_extractor"], ["intake_extractor", "supervisor"], ["supervisor", "evidence_retriever"]],
+               "edges_exclude": [["supervisor", "module"]]}),
+    supervise("S04", "an already-read report is not read again", [dict(LAB_DOC, processed=True)], [{"lab_document": proposal()}], [],
+              {"phase": "done", "brief_state": "complete", "changes": 0, "edges_exclude": [["supervisor", "intake_extractor"]]}),
+]
+
 # --- missing data ---------------------------------------------------------------------------
 p = proposal(patient_ref=ABSENT, report_date=ABSENT, performing_lab=ABSENT, ordering_provider=ABSENT, results=[])
 cases.append(extraction("M01", "a report the model could not read at all is all nulls, not guesses", p,

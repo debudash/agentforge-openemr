@@ -103,6 +103,10 @@ reports and intake forms are read, persisted by the module, and the brief is reg
 re-read chart with a "What changed" section above it. The routing (every handoff and its reason)
 is shown under Run details and logged as `supervisor_handoff` events.
 
+**Week 2 click-to-source.** A citation into a stored document, or a lab value that came from one,
+opens the page inline with the quoted text boxed where the PDF's text layer places it, plus a link
+to OpenEMR's own viewer. A quote that cannot be located is said so; no box is ever guessed.
+
 **Week 2 gate.** `python -m evals.stage2.gate` replays 50 recorded cases through the real code
 (no model, ~10 s) and fails on regression against `evals/stage2/baseline.json`. Install the
 pre-push hook once per clone with `.\hooks\install-hooks.ps1`. See

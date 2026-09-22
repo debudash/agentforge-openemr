@@ -150,7 +150,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents', 'supervise'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents', 'supervise', 'page'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -336,6 +336,34 @@ try {
                 . ' read=' . count($summary['extractions'] ?? []) . ' failed=' . count($summary['failed'] ?? []) . ' changes=' . count($summary['changes'] ?? [])
                 . ' handoffs=' . count($summary['handoffs'] ?? []) . ' state=' . ($brief['state'] ?? '-') . ' brief_ms=' . ($brief['duration_ms'] ?? '-'), $pid);
             respond(200, ['documents' => array_map(static function (array $d): array { unset($d['content_base64']); return $d; }, $documents)] + $summary, $correlationId);
+
+        case 'page':
+            // Week 2 stage 9: click-to-source. The page a citation points at, as an image, with the
+            // quoted text boxed where the PDF's own text layer places it. Viewing is audited: it is
+            // a read of the patient's document.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docId = (int) ($input['doc_id'] ?? 0);
+            $pageNumber = max(1, (int) ($input['page'] ?? 1));
+            $quotes = array_values(array_filter(array_map('strval', (array) ($input['quotes'] ?? [])), static fn(string $q): bool => $q !== ''));
+            $writer = new DocumentWriter($scope);
+            if (!$writer->documentBelongsTo($docId, $pid)) {
+                throw new ScopeDeniedException($pid);
+            }
+            $stored = new \Document($docId);
+            $bytes = $stored->get_data();
+            if (!is_string($bytes) || $bytes === '') {
+                respond(404, ['state' => 'unable_to_answer', 'reason' => 'the stored document could not be read'], $correlationId);
+            }
+            $result = $client->post('/documents/page', ['pid' => $pid, 'doc_id' => $docId, 'page' => $pageNumber,
+                'quotes' => array_slice($quotes, 0, 20), 'content_base64' => base64_encode($bytes)], $correlationId);
+            audit('copilot-document-viewed', $username, $authGroup, $result['status'] === 200,
+                'cid=' . $correlationId . ' doc=' . $docId . ' page=' . $pageNumber . ' quotes=' . count($quotes), $pid);
+            if ($result['status'] !== 200 || !is_array($result['json'])) {
+                respond($result['status'] >= 400 && $result['status'] < 500 ? 400 : 503,
+                    ['state' => 'unable_to_answer', 'reason' => 'the page could not be rendered', 'detail' => $result['json']['detail'] ?? null], $correlationId);
+            }
+            respond(200, ['doc_id' => $docId, 'original_url' => '/controller.php?document&retrieve&patient_id=' . $pid . '&document_id=' . $docId . '&as_file=false']
+                + $result['json'], $correlationId);
 
         case 'documents':
             // Week 2: the patient's lab reports and intake forms and whether each has been read.

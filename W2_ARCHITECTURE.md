@@ -248,6 +248,14 @@ the citation degrades to `page_or_section` and the UI highlights the page rather
 UI never draws a box from coordinates a model asserted, because an invented box is a false claim
 about where evidence came from.
 
+**As built.** `POST /documents/page` renders the page (pypdfium2) and searches its text layer for
+each quote, returning normalised boxes or `found: false`. The module's `page` action checks the
+document belongs to the patient, audits the view, and proxies. In the patient tab a document
+citation, or a lab row that names its document and page, opens the page inline with the quote
+boxed and an "Open original" link to OpenEMR's own document viewer. Lab rows written by
+`DocumentWriter` carry `document_id` and the page from the provenance comment, so a value that
+came from a report is one click from the report.
+
 ---
 
 ## 7. Grounding rules: what extends, and what must not
@@ -436,8 +444,8 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
 | 6 | **Done.** `guidelines/retrieve.py`, 20-chunk corpus, `search_guidelines` tool, `evidence` section; six retrieval cases in the gate (62) | Guideline evidence cited separately, barred from patient-fact claims (`test_guidelines.py`, G01–G06) |
 | 7 | **Done.** `supervisor.py` (LangGraph, interrupt while the module persists), `/session/{sid}/supervise` and `/resume`, module `supervise` action, patient tab runs it on open | Routing reconstructable from logs (`test_supervisor.py`, `test_uc_supervise.py`); no-documents path degrades to Week 1 |
-| 8 | Fill stage 2 to 50 cases, record baselines | All five rubrics above threshold |
-| 9 | UI: click-to-source, document preview, bounding-box overlay | A claim opens its page with the quote highlighted |
+| 8 | **Done.** 66 cases across extraction, intake, citation, retrieval, refusal, brief, missing data and the supervisor graph; baseline recorded | All five rubrics at 100 % |
+| 9 | **Done.** `documents/pages.py`, `POST /documents/page`, module `page` action, chip click opens the page with the quote boxed; lab rows read from a document carry `document_id` and `page` | A claim opens its page with the quote highlighted (`test_pages.py`, `test_uc_document_page.py`) |
 | 10 | Docs, cost and latency report, deploy behind the Railway gate | Graders can run the Week 2 flow without guessing |
 
 Stage 4 is deliberately fourth. The eval gate is the Week 2 hard gate, and building it against a

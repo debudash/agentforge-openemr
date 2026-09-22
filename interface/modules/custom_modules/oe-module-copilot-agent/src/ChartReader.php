@@ -215,6 +215,9 @@ final class ChartReader
                 'date' => self::date($row['date_report'] ?? null),
                 'status' => (string) ($row['result_status'] ?? ''),
                 'order_name' => (string) ($row['procedure_name'] ?? ''),
+                // Week 2: a machine-read result names its document and page (DocumentWriter writes both).
+                'document_id' => ((int) ($row['document_id'] ?? 0)) ?: null,
+                'page' => self::pageFromComments((string) ($row['comments'] ?? '')),
             ];
             $code = $record['code'] !== '' ? $record['code'] : $record['test'];
             if (!isset($latestPerCode[$code]) || strcmp((string) $record['date'], (string) $latestPerCode[$code]['date']) > 0) {
@@ -230,6 +233,12 @@ final class ChartReader
         $out = array_values($recent);
         usort($out, static fn(array $a, array $b): int => strcmp((string) $b['date'], (string) $a['date']));
         return $out;
+    }
+
+    /** The page DocumentWriter recorded in a result's comment ("... page 2, ..."), or null. */
+    private static function pageFromComments(string $comments): ?int
+    {
+        return preg_match('/page ([0-9]+)/', $comments, $m) === 1 ? (int) $m[1] : null;
     }
 
     /** @return list<array<string, mixed>> */

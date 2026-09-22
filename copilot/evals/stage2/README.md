@@ -1,6 +1,6 @@
 # Stage 2 evals: the Week 2 gate
 
-62 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
+66 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
 
 ```
 python -m evals.stage2.gate                    # run against baseline.json; exit 1 on regression
@@ -54,6 +54,7 @@ regression each time.
 | R01–R12 | refusal | Follow-up questions with a scripted model: other patient, advice, off-topic, injection in a record, loop exhausted, restated without a lookup |
 | I01–I06 | extraction | Intake-form proposals against the one-page intake fixture, including the injected instruction line |
 | G01–G06 | retrieval | `search_guidelines` against the real corpus (BM25 only), model scripted: evidence kept apart, guideline ids barred from patient claims, numbers checked against the chunk, guidance never a recommendation, empty search left empty |
+| S01–S04 | supervisor | The graph with scripted models: nothing unread, read-persist-report, unreadable report said plainly, already-read not read again; handoffs checked edge by edge |
 | B01–B05 | brief | Rounding briefs from scripted drafts, including a failed source |
 | M01–M05 | missing_data | All-null extraction, empty reads cited as absences, a timed-out source named |
 

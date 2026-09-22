@@ -158,7 +158,36 @@ def run_brief(case: dict[str, Any]) -> dict[str, Any]:
     return {"outcome": "brief", "response": response, "chart": chart}
 
 
-RUNNERS = {"extraction": run_extraction, "claim": run_claim, "followup": run_followup, "brief": run_brief}
+def run_supervise(case: dict[str, Any]) -> dict[str, Any]:
+    """The graph with scripted models: the brief draft, and either a document proposal or no model."""
+    import base64
+
+    from copilot.supervisor import Supervisor
+
+    inp = case["input"]
+    chart = _chart(inp["chart"])
+    settings = _settings()
+    vision_script = inp.get("vision", [])
+    if vision_script == "unavailable":
+        def vision_factory():
+            raise RuntimeError("vision model not on the allowlist")
+    else:
+        def vision_factory():
+            return _scripted(vision_script)
+    supervisor = Supervisor(settings, lambda: _scripted(inp["brief"]), vision_factory, lambda sid, pid: chart)
+    documents = []
+    for doc in inp.get("documents", []):
+        doc = dict(doc)
+        if doc.get("fixture") and not doc.get("processed"):
+            doc["content_base64"] = base64.b64encode((DOCUMENTS / doc.pop("fixture")).read_bytes()).decode("ascii")
+        documents.append(doc)
+    summary = supervisor.start(case["id"], chart.patient.pid, documents, case["id"])
+    if summary["phase"] == "extracted":
+        summary = supervisor.resume(case["id"], chart.patient.pid, inp.get("persisted", []), case["id"])
+    return {"outcome": "supervised", "summary": summary, "chart": chart}
+
+
+RUNNERS = {"extraction": run_extraction, "claim": run_claim, "followup": run_followup, "brief": run_brief, "supervise": run_supervise}
 
 
 # -- rubrics --------------------------------------------------------------------------
@@ -228,6 +257,39 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
             verdict["safe_refusal"] = "recommendation" in run["removed_codes"]
             if not verdict["safe_refusal"]:
                 why.append("safe_refusal: recommendation phrasing survived")
+    elif kind == "supervise":
+        from copilot.schemas import AgentResponse
+
+        summary = run["summary"]
+        edges = [(h["from"], h["to"]) for h in summary.get("handoffs", [])]
+        if "phase" in expect and summary.get("phase") != expect["phase"]:
+            fail("schema_valid", f"phase {summary.get('phase')} != {expect['phase']}")
+        if summary.get("brief"):
+            AgentResponse.model_validate(summary["brief"])
+            if "brief_state" in expect and summary["brief"]["state"] != expect["brief_state"]:
+                fail("factually_consistent", f"brief state {summary['brief']['state']} != {expect['brief_state']}")
+        elif expect.get("brief_state"):
+            fail("schema_valid", "no brief")
+        ok("schema_valid")
+        for edge in expect.get("edges_include", []):
+            if tuple(edge) not in edges:
+                fail("factually_consistent", f"missing handoff {edge[0]} -> {edge[1]} (got {edges})")
+        for edge in expect.get("edges_exclude", []):
+            if tuple(edge) in edges:
+                fail("factually_consistent", f"unexpected handoff {edge[0]} -> {edge[1]}")
+        if any(not h.get("reason") for h in summary.get("handoffs", [])):
+            fail("factually_consistent", "a handoff has no reason")
+        changes = summary.get("changes", [])
+        if "changes" in expect and len(changes) != expect["changes"]:
+            fail("factually_consistent", f"{len(changes)} change(s) != {expect['changes']}")
+        for needle in expect.get("changes_text_any", []):
+            if not any(needle.lower() in c["text"].lower() for c in changes):
+                fail("factually_consistent", f"no change mentions '{needle}'")
+        for c in changes:
+            if not c["source_ids"] or not all(s.startswith("doc:") for s in c["source_ids"]):
+                fail("citation_present", f"a change is not cited to a document: {c['text'][:50]}")
+        ok("citation_present")
+        ok("factually_consistent")
     else:   # followup or brief: reuse stage 1's deterministic checker
         resp = run["response"].model_dump(mode="json")
         ok("schema_valid")

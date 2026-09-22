@@ -150,3 +150,14 @@ def test_evidence_may_attribute_a_recommendation_but_not_give_one(chart101, toda
     assert check_claim(quoted, idx, set()) is not None, "the same sentence is not allowed as a claim about the patient"
     direct = Claim(text="You should start her on a statin.", source_ids=[sid])
     assert "recommendation" in check_claim(direct, idx, set(), allow_guideline_only=True)
+
+
+def test_a_lab_row_read_from_a_document_cites_its_page(chart101, today):
+    idx = index_for(chart101, today)
+    idx["lab:9001"] = {"source_id": "lab:9001", "test": "Potassium", "value": "5.4", "units": "mmol/L", "date": "2026-09-18",
+                       "document_id": 412, "page": 1}
+    cite = citations_for(["lab:9001", "lab:6001"], idx)
+    from_doc, from_chart = cite[0], cite[1]
+    assert from_doc.source_type == "record" and from_doc.page_or_section == "p1" and from_doc.field_or_chunk_id == "doc:412"
+    assert from_doc.quote_or_value == "Potassium 5.4 mmol/L"
+    assert from_chart.page_or_section is None and from_chart.field_or_chunk_id is None

@@ -220,12 +220,20 @@ def citations_for(source_ids: list[str], index: dict[str, dict[str, Any]]) -> li
             continue
         kind = sid.split(":", 1)[0]
         date_value = record.get("date") or record.get("begdate") or record.get("date_added") or record.get("dob")
+        page_or_section = record.get("page_or_section")
+        field_or_chunk_id = record.get("field_or_chunk_id")
+        quote_or_value = record.get("quote_or_value")
+        if record.get("document_id") and record.get("page"):
+            # A chart row read from a document: the citation opens the page it was read from.
+            page_or_section = f"p{record['page']}"
+            field_or_chunk_id = f"doc:{record['document_id']}"
+            quote_or_value = f"{record.get('test', '')} {record.get('value', '')} {record.get('units') or ''}".strip()
         out.append(Citation(
             source_id=sid, type=kind, label=_label(kind, record),
             date=str(date_value)[:10] if date_value else None,
             source_type=source_type_for(sid),
-            page_or_section=record.get("page_or_section"),
-            field_or_chunk_id=record.get("field_or_chunk_id"),
-            quote_or_value=record.get("quote_or_value"),
+            page_or_section=page_or_section,
+            field_or_chunk_id=field_or_chunk_id,
+            quote_or_value=quote_or_value,
         ))
     return out

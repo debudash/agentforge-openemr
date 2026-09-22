@@ -99,6 +99,11 @@ if ($gate === 'ok') {
         .cpa-cite { font-size: .8rem; margin-left: .3rem; }
         .cpa-claim { margin-bottom: .35rem; }
         .cpa-evidence { background: #f7f7f7; border-left: 3px solid #999; padding: .4rem .6rem; font-size: .85rem; margin: .3rem 0 .6rem; }
+        .cpa-page-wrap { position: relative; display: inline-block; max-width: 100%; border: 1px solid #c9d1d9; margin-top: .4rem; }
+        .cpa-page-wrap img { display: block; max-width: 100%; height: auto; }
+        .cpa-box { position: absolute; border: 2px solid #d32f2f; background: rgba(211, 47, 47, .12); box-sizing: border-box; pointer-events: none; }
+        .cpa-page-flag { color: #8a6d00; }
+        .cpa-source-head { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; font-size: .85rem; }
         .cpa-evidence-block { border: 1px dashed #7b8a99; border-radius: .3rem; padding: .4rem .6rem; margin-top: .5rem; background: #fbfcfe; }
         .cpa-evidence-title { font-size: .75rem; color: #4a5a6a; text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem; }
         .cpa-chat { max-height: 45vh; overflow-y: auto; }
@@ -186,6 +191,7 @@ if ($gate === 'ok') {
                 <div class="cpa-meta" id="cpa-removed"></div>
             </details>
         </div>
+        <div class="card-body border-top cpa-source" id="cpa-source" hidden></div>
         <div class="card-body border-top">
             <h5><?php echo xlt("Follow-up questions"); ?></h5>
             <div class="cpa-chat" id="cpa-chat" aria-live="polite"></div>
@@ -259,6 +265,7 @@ if ($gate === 'ok') {
             var chip = el("button", "badge badge-light border cpa-cite", c ? (c.type + " · " + (c.date || "")) : sid);
             chip.type = "button"; chip.title = c ? c.label : sid; chip.setAttribute("aria-label", "Show evidence " + sid);
             chip.addEventListener("click", function () {
+                if (c && sourceDocument(c)) { openSource(c); return; }
                 var next = chip.parentNode.querySelector(".cpa-evidence[data-sid='" + sid + "']");
                 if (next) { next.remove(); return; }
                 var box = el("div", "cpa-evidence"); box.setAttribute("data-sid", sid);
@@ -267,6 +274,44 @@ if ($gate === 'ok') {
                 chip.parentNode.appendChild(box);
             });
             container.appendChild(chip);
+        });
+    }
+    // Click-to-source: a citation that names a stored document (a document citation, or a lab row
+    // read from one) opens that page with the quoted text boxed where the PDF's text layer puts it.
+    function sourceDocument(c) {
+        if (c.source_type === "document" && c.source_id.indexOf("doc:") === 0) { return parseInt(c.source_id.slice(4), 10); }
+        if (c.field_or_chunk_id && c.field_or_chunk_id.indexOf("doc:") === 0) { return parseInt(c.field_or_chunk_id.slice(4), 10); }
+        return null;
+    }
+    function openSource(c) {
+        var docId = sourceDocument(c);
+        var page = parseInt(String(c.page_or_section || "p1").replace(/^p/, ""), 10) || 1;
+        var quote = c.quote_or_value || "";
+        var panel = document.getElementById("cpa-source"); panel.hidden = false; panel.innerHTML = "";
+        panel.appendChild(el("div", "cpa-meta", "Loading page " + page + " of document " + docId + "…"));
+        api("page", { pid: PID, doc_id: docId, page: page, quotes: quote ? [quote] : [] }).then(function (res) {
+            panel.innerHTML = "";
+            if (res.http_status !== 200) { panel.appendChild(el("div", "text-danger", "Source page unavailable: " + (res.reason || ""))); return; }
+            var head = el("div", "cpa-source-head");
+            head.appendChild(el("strong", "", "Source: " + (c.label || c.source_id) + " · page " + res.page + " of " + res.pages));
+            var link = el("a", "ml-2", "Open original"); link.href = res.original_url; link.target = "_blank"; link.rel = "noopener"; head.appendChild(link);
+            var close = el("button", "cpa-fb-btn ml-2", "close"); close.type = "button";
+            close.addEventListener("click", function () { panel.hidden = true; panel.innerHTML = ""; }); head.appendChild(close);
+            panel.appendChild(head);
+            var found = (res.boxes || []).filter(function (b) { return b.found; });
+            if (quote && !found.length) {
+                panel.appendChild(el("div", "cpa-meta cpa-page-flag", "The quoted text was not located on this page (no text layer, or a scan); the page is shown without a box."));
+            }
+            var wrap = el("div", "cpa-page-wrap");
+            var img = document.createElement("img"); img.src = "data:image/png;base64," + res.image_base64; img.alt = "Document page " + res.page; wrap.appendChild(img);
+            found.forEach(function (b) {
+                var box = el("div", "cpa-box"); var bb = b.bbox;
+                box.style.left = (bb[0] * 100) + "%"; box.style.top = (bb[1] * 100) + "%";
+                box.style.width = ((bb[2] - bb[0]) * 100) + "%"; box.style.height = ((bb[3] - bb[1]) * 100) + "%";
+                box.title = b.quote; wrap.appendChild(box);
+            });
+            panel.appendChild(wrap);
+            panel.scrollIntoView({ block: "nearest" });
         });
     }
     function renderClaims(claims, citations, container) {

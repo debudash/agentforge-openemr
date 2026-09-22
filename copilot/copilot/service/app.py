@@ -13,6 +13,7 @@ Endpoints (all signed except the two health probes):
   POST /documents/extract       Week 2: read one lab PDF or intake form into its schema (the module persists it)
   POST /session/{sid}/supervise         Week 2: the supervisor graph; pauses when the module must persist
   POST /session/{sid}/supervise/resume  Week 2: finish the graph after persistence with the re-read chart
+  POST /documents/page          Week 2: one page as an image with boxes around cited quotes (click-to-source)
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ from pydantic import BaseModel, Field
 from .. import __version__
 from ..config import Settings, get_settings
 from ..documents.extract import ExtractionFailed, extract_document
+from ..documents.pages import locate, render
 from ..llm import LLM, build_llm
 from ..schemas import Chart
 from ..session import SessionStore
@@ -403,6 +405,39 @@ async def documents_extract(request: Request, body: bytes = Depends(signed)) -> 
     counters["extraction_results"] += len(getattr(result.document, "results", []))
     counters["extraction_unsupported_fields"] += len(result.unsupported_fields)
     return {"correlation_id": cid, "duration_ms": duration_ms, **result.model_dump()}
+
+
+class PageRequest(BaseModel):
+    pid: int
+    doc_id: int = Field(ge=1)
+    page: int = Field(ge=1)
+    quotes: list[str] = Field(default_factory=list, max_length=20)
+    content_base64: str = Field(min_length=1)
+    scale: float = Field(default=1.5, ge=0.5, le=3.0)
+
+
+@app.post("/documents/page")
+async def documents_page(request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """Click-to-source: one page as an image, with boxes where the cited quotes are. No model."""
+    cid = correlation(request)
+    payload = PageRequest.model_validate_json(body)
+    try:
+        raw = base64.b64decode(payload.content_base64, validate=True)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="content_base64 is not valid base64")
+    if len(raw) > settings.max_document_bytes:
+        raise HTTPException(status_code=413, detail="document too large")
+    try:
+        located = await asyncio.to_thread(locate, raw, payload.page, payload.quotes)
+        image = await asyncio.to_thread(render, raw, payload.page, payload.scale)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001 - an unreadable file, reported by type only
+        raise HTTPException(status_code=422, detail=f"document could not be rendered ({type(exc).__name__})")
+    counters["document_pages_rendered"] += 1
+    emit("document_page_rendered", cid, doc_id=payload.doc_id, page=payload.page, quotes=len(payload.quotes),
+         found=sum(1 for b in located["boxes"] if b["found"]))
+    return {"correlation_id": cid, **located, "image_base64": base64.b64encode(image).decode("ascii")}
 
 
 @app.get("/metrics")

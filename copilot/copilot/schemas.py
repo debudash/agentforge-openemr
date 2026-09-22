@@ -106,6 +106,9 @@ class Lab(BaseModel):
     date: str | None = None
     status: str | None = None
     order_name: str | None = None
+    # Week 2: a machine-read result names the stored document and page it came from.
+    document_id: int | None = None
+    page: int | None = None
 
 
 class Encounter(BaseModel):
