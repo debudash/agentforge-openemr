@@ -251,7 +251,18 @@ is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everythi
    never turned into advice for the patient.
 
 **The gate:** `cd copilot; python -m evals.stage2.gate` runs 66 recorded cases through the real
-code with no model, in about ten seconds; `hooks/install-hooks.ps1` makes every push run it.
+code with no model, in about ten seconds. Five boolean rubrics — `schema_valid`,
+`citation_present`, `factually_consistent`, `safe_refusal`, `no_phi_in_logs` — and it fails if any
+of them drops below its threshold or falls more than 5 points below the committed baseline.
+`hooks/install-hooks.ps1` installs the pre-push hook, so a regression blocks the push. That hook
+is what gates the build; `test_gate.py` injects four regressions and each one fails the gate.
+
+**Not done yet:** a GitLab CI pipeline that would run the same gate on every merge request and
+put the Railway deploy behind a button. It is written but **parked** at
+[deploy/railway/gitlab-ci.yml](deploy/railway/gitlab-ci.yml) rather than at the repository root,
+so nothing runs and no merge request is gated on it. Finishing it needs a runner, a masked
+`RAILWAY_TOKEN`, and one real run of the two deploy jobs, which have never been executed. See
+[deploy/railway/README.md](deploy/railway/README.md#cicd-gitlab----parked-to-be-finished-later).
 
 **Documents:** [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
 [W2_COST_LATENCY.md](W2_COST_LATENCY.md), [KEY_METRICS.md](KEY_METRICS.md) (Week 2 section),

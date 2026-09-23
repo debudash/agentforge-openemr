@@ -1,3 +1,16 @@
+# PARKED -- NOT ACTIVE. Deliberately not at the repository root.
+#
+# GitLab only reads `.gitlab-ci.yml` at the root, so while this file lives here nothing runs,
+# nothing queues, and no merge request is gated on a pipeline. That is the point: it was parked
+# during the Week 2 submission so a stuck or red pipeline could not block the merge request.
+#
+# To switch it on later:  git mv deploy/railway/gitlab-ci.yml .gitlab-ci.yml
+# Then follow "CI/CD (GitLab)" in the README beside this file -- a runner and a masked,
+# protected RAILWAY_TOKEN are both still needed, and the two deploy jobs have never been run.
+#
+# The eval gate requirement does NOT depend on any of this: it is met by the pre-push hook in
+# copilot/hooks/pre-push, which blocks a push on the same 66 cases.
+
 # CI for the Clinical Co-Pilot.
 #
 # Two stages, and the split between them is deliberate.

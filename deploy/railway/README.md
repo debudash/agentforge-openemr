@@ -398,10 +398,29 @@ Carried over from [AUDIT.md](../../AUDIT.md):
 - The publish gate is unchanged: `copilot/check_local.ps1` (which now runs the Week 2 eval gate)
   then `deploy_agent.ps1`.
 
-## CI/CD (GitLab)
+## CI/CD (GitLab) -- PARKED, to be finished later
 
-`.gitlab-ci.yml` runs the checks on every push and merge request, and puts deployment behind a
-button rather than behind a merge.
+> **Status: not active, and deliberately so.** The pipeline lives at
+> `deploy/railway/gitlab-ci.yml`, not at the repository root, and GitLab only reads
+> `.gitlab-ci.yml` at the root. So no pipeline runs, nothing queues, and no merge request is
+> gated on one. It was parked during the Week 2 submission so that a stuck or failing pipeline
+> could not block the merge.
+>
+> **Outstanding before it can be switched on:**
+> 1. `git mv deploy/railway/gitlab-ci.yml .gitlab-ci.yml`
+> 2. Register a runner, or confirm an instance runner exists (step 1 below).
+> 3. Add `RAILWAY_TOKEN` as a masked, protected CI/CD variable (step 2 below).
+> 4. Run the two deploy jobs once and fix what the first real run shows -- **they have never
+>    been executed**. The test jobs have been verified in clean containers; the deploy jobs
+>    have not, because they need the token.
+>
+> **The eval-gate requirement does not depend on any of this.** It is met by the pre-push hook
+> (`copilot/hooks/pre-push`), which blocks a push on the same 66 cases, the same five rubric
+> categories and the same 5-point regression rule. CI would be a second place to run it, not
+> the thing that satisfies it.
+
+When switched on, the pipeline runs the checks on every push and merge request, and puts
+deployment behind a button rather than behind a merge.
 
 **Tests** need no key, no network and no model: unit tests, the 66-case eval gate, the UI guard
 and `php -l` over the module. They run in `python:3.13-slim` against `copilot/requirements-ci.txt`,
