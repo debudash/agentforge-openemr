@@ -418,6 +418,10 @@ Then `railway up --service copilot-agent -c`, then the module to the sites volum
 ingest. Order matters: the agent first, because the new module calls `supervise` and the old agent
 has no such endpoint.
 
+**Shipping the module is now a script:** `.\deployailway\deploy_module.ps1`
+(`-CheckOnly` to preflight and ship nothing). It reads the module's OpenEMR dependencies, checks
+them on the target, ships with a pre-swap guard, and re-checks what it installed. 62 checks.
+
 **Ship the module with a check before the swap.** The tar goes over `railway ssh` as base64 and is
 unpacked into `copilot-module.new`; only if `openemr.bootstrap.php`, `public/api.php`,
 `public/patient.php`, `public/demo.php` and `src/DocumentWriter.php` are all present does it become
@@ -437,6 +441,35 @@ php -r '$c = include "/tmp/cfg.new"; echo implode(",", array_keys($c));'
 Verified after the deploy: `/readyz` reports `ready: true` with both models approved by the
 allowlist, the module's four pages return 200, and an unauthenticated `api.php` answers
 "Site ID is missing from session data!" rather than leaking a chart.
+
+### Run deploy checks as the web server user, not as root
+
+`railway ssh` lands as **root**, and root can write where apache cannot. The first version of the
+preflight reported the read-only web root as writable *and created it* -- which is worse than no
+check, because the module then resolves to a root-owned directory and fails to write into it. It
+had to be undone by hand.
+
+Anything that asks "can the app do X" has to ask as the app:
+
+```sh
+su -s /bin/sh apache -c "php /tmp/check.php"
+```
+
+The same caution applies to `chown` after any hand-run copy. `deploy_module.ps1` does this for you.
+
+### Two PowerShell traps on the way to `railway ssh`
+
+Both cost an hour and neither produces an obvious error:
+
+- **stderr is not failure.** The CLI prints `Using SSH key from file ...` on stderr; with
+  `$ErrorActionPreference = "Stop"`, PowerShell 5.1 turns that into a `NativeCommandError` and
+  kills the script although the command *succeeded*. Run native calls with `Continue` and judge
+  them on `$LASTEXITCODE`.
+- **A pipe adds a byte-order mark.** Piping a here-string into the CLI prefixes the stream with a
+  UTF-8 BOM -- the CLI is an npm PowerShell shim, so `$OutputEncoding` never reaches it -- and
+  `sh` then reports `cat: not found` for a line that plainly says `cat`. Base64 input corrupts the
+  same way, silently. Write the script to a file (LF, no BOM) and redirect it with
+  `cmd /c "railway ssh ... sh < file"`.
 
 ## CI/CD (GitLab) -- tests live, deploy parked
 

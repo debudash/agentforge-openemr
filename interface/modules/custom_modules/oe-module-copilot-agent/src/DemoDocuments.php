@@ -65,7 +65,16 @@ final class DemoDocuments
      */
     public function directory(): string
     {
-        $webRoot = rtrim($this->openemrRoot, '/\\') . '/' . self::FOLDER;
+        return self::resolveDirectory($this->openemrRoot);
+    }
+
+    /**
+     * The same answer without an instance, so the deploy preflight can ask the module itself
+     * where it would write on a given OpenEMR rather than repeating this logic and drifting.
+     */
+    public static function resolveDirectory(string $openemrRoot): string
+    {
+        $webRoot = rtrim($openemrRoot, '/\\') . '/' . self::FOLDER;
         if (self::isUsable($webRoot)) {
             return $webRoot;
         }
