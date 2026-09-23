@@ -250,6 +250,12 @@ is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everythi
    ACE inhibitor?"): the guideline evidence appears in its own block, cited to the corpus, and is
    never turned into advice for the patient.
 
+**The walkthrough:** `cd usecases; python journey.py` runs the whole Week 2 journey against the
+running stack the way a clinician clicks it -- quiet chart, generate, read, the follow-ups,
+click-to-source, the refusals, purge -- and prints what it observed for each. About four minutes,
+roughly fifteen live model calls, exit 1 on any failure. `--patient N` to use another chart,
+`--keep` to leave the documents in place.
+
 **The gate:** `cd copilot; python -m evals.stage2.gate` runs 73 recorded cases through the real
 code with no model, in about ten seconds. Five boolean rubrics — `schema_valid`,
 `citation_present`, `factually_consistent`, `safe_refusal`, `no_phi_in_logs` — and it fails if any
