@@ -397,3 +397,43 @@ Carried over from [AUDIT.md](../../AUDIT.md):
   `supervise`, `page`); ship the whole module directory as before.
 - The publish gate is unchanged: `copilot/check_local.ps1` (which now runs the Week 2 eval gate)
   then `deploy_agent.ps1`.
+
+## CI/CD (GitLab)
+
+`.gitlab-ci.yml` runs the checks on every push and merge request, and puts deployment behind a
+button rather than behind a merge.
+
+**Tests** need no key, no network and no model: unit tests, the 66-case eval gate, the UI guard
+and `php -l` over the module. They run in `python:3.13-slim` against `copilot/requirements-ci.txt`,
+which is `requirements.txt` without torch and sentence-transformers -- the gate forces
+`embed_model=none`, and those imports are lazy, so CI installs neither. Verified in a clean
+container: whole suite, gate and guard green without them.
+
+**Deploy is `when: manual`, and that is the point.** Nothing here has ever published to Railway
+without a person approving that specific change; a pipeline that deployed on merge would remove
+that quietly. The two jobs are the same two steps as the local scripts -- `railway up` for the
+agent image, then the module tar over `railway ssh` -- with the typed DEPLOY replaced by pressing
+play on a protected branch. Turning them into `when: on_success` trades the gate away; that is a
+decision, not a setting.
+
+### Setting it up
+
+1. **A runner.** Check *Settings -> CI/CD -> Runners* for an instance runner first. If there is
+   none, register one with a Docker executor (any machine that can reach the GitLab host):
+
+   ```bash
+   docker run -d --name gitlab-runner --restart always      -v /srv/gitlab-runner/config:/etc/gitlab-runner      -v /var/run/docker.sock:/var/run/docker.sock      gitlab/gitlab-runner:latest
+
+   docker exec -it gitlab-runner gitlab-runner register      --non-interactive --executor docker --docker-image alpine:3      --url https://labs.gauntletai.com/ --token <runner token from the project's Runners page>      --description "openemragent docker"
+   ```
+
+   The jobs pin their own images, so `--docker-image` is only the fallback.
+
+2. **The token.** *Settings -> CI/CD -> Variables*, add `RAILWAY_TOKEN` (a Railway **project**
+   token for `openemr-agent`), **Masked** and **Protected**. Protected keeps it off feature
+   branches, which is why the deploy jobs only offer themselves on `main` and `week2`.
+
+3. Push. The test jobs run; the deploy jobs wait for a click.
+
+Railway service variables (`OPENROUTER_API_KEY`, `COPILOT_SHARED_SECRET`, `COPILOT_MODEL`, ...)
+stay in Railway. CI builds and ships the image; it never runs the service, so it never needs them.

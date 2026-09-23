@@ -1,0 +1,158 @@
+# CI for the Clinical Co-Pilot.
+#
+# Two stages, and the split between them is deliberate.
+#
+# `test` runs on every push and merge request. It needs no API key, no network and no model: the
+# eval gate replays recorded cases through the real code, so the same 66 cases that block a local
+# push block a merge here. That is the whole point of a deterministic gate -- it costs ten seconds
+# and cannot flake on a provider outage.
+#
+# `deploy` is **manual on purpose**. This repository has never published to Railway without a
+# person approving that specific change, and a pipeline that deployed on merge would quietly
+# remove that. The jobs below are the same two steps the local scripts run, with the typed
+# confirmation replaced by a human pressing play on a protected branch. If you ever want deploy on
+# merge instead, change `when: manual` to `when: on_success` -- and know that you are trading the
+# gate away, not just changing a setting.
+#
+# Required CI/CD variable (Settings -> CI/CD -> Variables), masked and protected:
+#   RAILWAY_TOKEN   a Railway project token for the openemr-agent project
+#
+# The agent's own secrets (OPENROUTER_API_KEY, COPILOT_SHARED_SECRET, ...) are Railway service
+# variables and are never needed here: CI builds and ships the image, it does not run the service.
+
+stages:
+  - test
+  - deploy
+
+default:
+  interruptible: true
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  GIT_DEPTH: "50"
+
+# --------------------------------------------------------------------------------------------
+# test
+# --------------------------------------------------------------------------------------------
+
+.python:
+  image: python:3.13-slim
+  cache:
+    key:
+      files:
+        - copilot/requirements-ci.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - cd copilot
+    - pip install --quiet --root-user-action=ignore -r requirements-ci.txt
+
+unit tests:
+  extends: .python
+  stage: test
+  script:
+    - python -m pytest -q
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+eval gate:
+  extends: .python
+  stage: test
+  script:
+    # 66 recorded cases through the real code. No model, no key, no network. A drop of more than
+    # five points against the committed baseline fails the job, which is what blocks a merge.
+    - python -m evals.stage2.gate
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - copilot/evals/stage2/baseline.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+ui guard:
+  extends: .python
+  stage: test
+  script:
+    # One class of UI bug nothing else can see: an element hidden while a Bootstrap display
+    # utility keeps it on screen. Static, no browser.
+    - python -m evals.ui_guard
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+php syntax:
+  stage: test
+  image: php:8.2-cli-alpine
+  script:
+    - find interface/modules/custom_modules/oe-module-copilot-agent -name '*.php' -print0 | xargs -0 -n1 php -l
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+
+# --------------------------------------------------------------------------------------------
+# deploy -- manual, protected branches only
+# --------------------------------------------------------------------------------------------
+
+.railway:
+  image: node:22-alpine
+  before_script:
+    - test -n "$RAILWAY_TOKEN" || (echo "RAILWAY_TOKEN is not set. Add it as a masked, protected CI/CD variable." && exit 1)
+    - npm install -g @railway/cli@4
+    - railway whoami
+
+deploy agent:
+  extends: .railway
+  stage: deploy
+  environment:
+    name: production
+    url: https://openemr-production-461d.up.railway.app
+  script:
+    # Builds Dockerfile.copilot and replaces the running service. The image installs the CPU torch
+    # wheel and prefetches the two retrieval models, so a cold start downloads nothing -- and the
+    # build is slower than it looks for that reason.
+    - railway up --service copilot-agent -c
+    - echo "Checking readiness over the private network..."
+    - railway ssh --service openemr sh -c "curl -s -m 20 http://copilot-agent.railway.internal:8600/readyz"
+  when: manual
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_BRANCH == "week2"
+      when: manual
+
+deploy module:
+  extends: .railway
+  stage: deploy
+  needs: ["deploy agent"]
+  environment:
+    name: production
+    url: https://openemr-production-461d.up.railway.app
+  script:
+    # The OpenEMR module is not in the image: it lives on the persistent sites volume and is
+    # symlinked into custom_modules, so it survives a redeploy of OpenEMR itself. Shipping it is
+    # a tar over `railway ssh`, unpacked beside the live copy and swapped in one move, so a
+    # half-written module is never what the site is loading.
+    - apk add --no-cache tar coreutils
+    - tar -C interface/modules/custom_modules -cf module.tar oe-module-copilot-agent
+    - base64 -w0 module.tar > module.b64
+    - |
+      cat module.b64 | railway ssh --service openemr sh -c '
+        cd /var/www/localhost/htdocs/openemr/sites/default &&
+        base64 -d > /tmp/m.tar &&
+        rm -rf copilot-module.new && mkdir copilot-module.new &&
+        tar -C copilot-module.new --strip-components=1 -xf /tmp/m.tar &&
+        rm -rf copilot-module.old && mv copilot-module copilot-module.old &&
+        mv copilot-module.new copilot-module &&
+        chown -R apache:apache copilot-module && rm -f /tmp/m.tar &&
+        echo "module shipped"'
+  when: manual
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_BRANCH == "week2"
+      when: manual
