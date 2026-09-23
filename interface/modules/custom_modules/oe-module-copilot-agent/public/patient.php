@@ -28,7 +28,7 @@ require_once $openemrRoot . "/interface/globals.php";
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Database\QueryUtils;
 use OpenEMR\Common\Logging\EventAuditLogger;
-use OpenEMR\Common\Session\PatientSessionUtil;
+use OpenEMR\Modules\CopilotAgent\ActivePatient;
 use OpenEMR\Common\Twig\TwigContainer;
 use OpenEMR\Core\Header;
 use OpenEMR\Modules\CopilotAgent\Config;
@@ -45,7 +45,7 @@ if (!AclMain::aclCheckCore('patients', 'demo')) {
 // Same token derivation as index.php and api.php; session access stays at this entry point.
 $csrf = hash_hmac('sha256', 'copilot', (string) ($_SESSION['csrf_private_key'] ?? session_id()));
 $authGroup = (string) ($_SESSION['authProvider'] ?? '');
-$pid = PatientSessionUtil::getPid();
+$pid = ActivePatient::pid();
 $correlationId = sprintf(
     '%s-%s-4%s-%s-%s',
     bin2hex(random_bytes(4)),

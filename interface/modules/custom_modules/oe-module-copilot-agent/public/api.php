@@ -27,7 +27,7 @@ while (!is_file($openemrRoot . "/interface/globals.php") && dirname($openemrRoot
 require_once $openemrRoot . "/interface/globals.php";
 
 use OpenEMR\Common\Logging\EventAuditLogger;
-use OpenEMR\Common\Session\PatientSessionUtil;
+use OpenEMR\Modules\CopilotAgent\ActivePatient;
 use OpenEMR\Modules\CopilotAgent\AgentClient;
 use OpenEMR\Modules\CopilotAgent\AgentUnavailableException;
 use OpenEMR\Modules\CopilotAgent\ChartReader;
@@ -72,10 +72,10 @@ if ($method === 'POST') {
 // The encounter in the session belongs to the session's patient; it is only attached to a write
 // for that same patient, never to a request that names a different pid.
 //
-// Read through PatientSessionUtil, as patient.php does. The raw superglobal was empty here --
+// Read through ActivePatient, as patient.php does. The raw superglobal was empty here --
 // OpenEMR keeps the active patient behind the session wrapper -- so this read as 0 on every
 // request, which quietly meant no write ever had an encounter attached.
-$sessionPid = PatientSessionUtil::getPid();
+$sessionPid = ActivePatient::pid();
 $sessionEncounter = (int) ($_SESSION['encounter'] ?? 0);
 
 /**
