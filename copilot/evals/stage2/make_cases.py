@@ -400,6 +400,16 @@ cases += [
                       {"answer": {"claims": [], "evidence": [
                           {"text": "ACE inhibitors are named among the medicines that raise potassium.",
                            "source_ids": ["guideline:medlineplus-hyperkalemia#causes"]}]}}]),
+    supervise("S08", "a what-changed question is scoped to what arrived", [], [], [],
+              # Live, this answered with hypertension diagnosed in 2018 and four long-expired
+              # prescriptions, then hit the tool-call limit half way. A chart cannot answer "what
+              # changed" on its own: every problem carries a recent-looking list date.
+              {"phase": "done", "answer_tools_include": ["get_documents"],
+               "handoff_reason_any": ["scoped to what is new"],
+               "edges_include": [["supervisor", "evidence_retriever"]]},
+              question="what changed?",
+              script=[{"tool": "get_documents", "args": {"pid": 101}},
+                      {"answer": {"claims": [{"text": "A lab report was recorded on 2026-09-18.", "source_ids": ["doc:412"]}]}}]),
 ]
 
 # --- missing data ---------------------------------------------------------------------------

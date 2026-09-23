@@ -126,6 +126,16 @@ that has to be reproducible in a gate cannot itself be a coin flip. Case S07 ass
 through the handoff reason, because a scripted model calls whatever the script says and the reason
 is the only place the decision shows.
 
+**The supervisor also scopes a "what changed" question.** Live, it answered with hypertension
+diagnosed in 2018 and four long-expired prescriptions, then hit the tool-call limit half way
+through. Two causes, one root: a follow-up had no notion of recency at all (`comparison_window` is
+the brief's, not the answer's), and every problem and prescription row carries a recent-looking
+list date, so a model asked what changed sweeps the chart and reports old news. It also spent one
+round per tool, which is how five rounds run out. The supervisor now recognises the question,
+records "scoped to what is new" in the handoff, and tells the retriever to answer from
+`get_documents` and recent `get_labs` -- what actually arrived. The follow-up prompt separately
+says that a round may call several tools at once, which is what the budget assumed all along.
+
 **Handoff record.** Every edge writes one entry: `from`, `to`, `reason`, `correlation_id`,
 `duration_ms`, and the decision inputs (document count, doc types). The supervisor's routing is
 therefore replayable from logs alone, which is the requirement's actual test — a supervisor that

@@ -65,6 +65,19 @@ _EVIDENCE_WORDS = ("evidence", "guidance", "guideline", "recommend", "recommenda
                    "literature", "studies", "supports", "support this", "best practice", "standard of care")
 
 
+# A question about what is new, which the chart alone cannot answer: every problem and every
+# prescription carries a recent-looking list date, so a model asked "what changed" sweeps the
+# whole chart and reports hypertension from 2018 as news. What actually changed is what arrived:
+# the documents read this run and the rows they produced.
+_CHANGE_WORDS = ("what changed", "whats changed", "what's changed", "changed", "anything new",
+                 "what is new", "what's new", "whats new", "new results", "since last", "latest results",
+                 "any updates", "what has changed")
+
+
+def asks_what_changed(question: str | None) -> bool:
+    return any(word in (question or "").lower() for word in _CHANGE_WORDS)
+
+
 def needs_evidence(question: str | None) -> bool:
     lowered = (question or "").lower()
     return any(word in lowered for word in _EVIDENCE_WORDS)
@@ -165,15 +178,18 @@ class Supervisor:
 
         if state.get("question") and state.get("answer") is None:
             wants_evidence = needs_evidence(state.get("question"))
+            wants_changes = asks_what_changed(state.get("question"))
             reason = ("documents persisted; answering from the chart they produced" if state.get("persisted")
                       else "question needs the chart" if not extractions
                       else "nothing readable; answering from the chart as it is")
             if wants_evidence:
                 reason += "; and the guideline corpus"
+            if wants_changes:
+                reason += "; scoped to what is new"
             handoffs.append(_handoff("supervisor", "evidence_retriever", reason, started, question=True,
-                                     evidence_retrieval=wants_evidence))
+                                     evidence_retrieval=wants_evidence, change_scoped=wants_changes))
             emit("supervisor_handoff", cid, pid=state["pid"], to="evidence_retriever", reason=reason, kind="answer",
-                 evidence_retrieval=wants_evidence)
+                 evidence_retrieval=wants_evidence, change_scoped=wants_changes)
             return {"handoffs": handoffs, "phase": state.get("phase") or "detect"}
 
         if not state.get("question") and state.get("brief") is None:
@@ -239,7 +255,8 @@ class Supervisor:
         if question:
             response, turn = answer_followup(chart, question, list(state.get("history") or []),
                                              self.llm_factory(), self.settings, cid,
-                                             require_evidence=needs_evidence(question))
+                                             require_evidence=needs_evidence(question),
+                                             change_focused=asks_what_changed(question))
             handoff = _handoff("evidence_retriever", "supervisor",
                                f"answered: {response.state.value}, {len(response.claims)} claim(s), "
                                f"{len(response.evidence)} evidence entr(ies)", started,

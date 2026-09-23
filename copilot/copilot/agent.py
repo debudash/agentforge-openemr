@@ -221,7 +221,7 @@ def question_is_about_the_record(question: str, llm, correlation_id: str) -> boo
 
 def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm, settings: Settings,
                     correlation_id: str, today: date | None = None,
-                    require_evidence: bool = False) -> tuple[AgentResponse, list[BaseMessage]]:
+                    require_evidence: bool = False, change_focused: bool = False) -> tuple[AgentResponse, list[BaseMessage]]:
     """Answer one question. Returns the response and the two messages to append to memory.
 
     `require_evidence` is the supervisor's decision that this question needs the guideline corpus
@@ -229,6 +229,12 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
     chooses tools by feel, and asked "what evidence supports this" it reached for compliance
     signals about half the time and never opened the corpus. The decision belongs to the router,
     not to the model's mood, so it arrives here as an instruction rather than a hope.
+
+    `change_focused` is the same decision for "what changed". A chart cannot answer it on its own:
+    every problem and prescription carries a recent-looking list date, so the model sweeps
+    everything and reports hypertension diagnosed in 2018 as news, spending a round per tool until
+    the limit stops it half way. What changed is what arrived -- the documents and the rows they
+    produced -- and saying so is what keeps the answer short and true.
     """
     today = today or date.today()
     started = time.perf_counter()
@@ -262,6 +268,13 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
         system = FOLLOWUP_SYSTEM.format(max_iterations=settings.max_iterations, pid=chart.patient.pid,
                                         name=normalize.display_name(chart.patient.name), today=today.isoformat())
         messages: list[BaseMessage] = [SystemMessage(content=system), *history, HumanMessage(content=question)]
+        if change_focused:
+            messages.append(HumanMessage(content=(
+                "This question asks what is new. Call get_documents and get_labs together in one round, "
+                f"with since_days={settings.comparison_hours // 24 + 7} on get_labs, and answer from what they return: "
+                "the documents on file, whether each has been read, and the results that came from them. "
+                "Do not list long-standing problems or medications unless the question asked about them; "
+                "a problem recorded years ago is not something that changed.")))
         if require_evidence:
             messages.append(HumanMessage(content=(
                 "This question asks what the evidence or guidance says. Call search_guidelines before answering, "
