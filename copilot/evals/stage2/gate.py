@@ -181,7 +181,10 @@ def run_supervise(case: dict[str, Any]) -> dict[str, Any]:
         if doc.get("fixture") and not doc.get("processed"):
             doc["content_base64"] = base64.b64encode((DOCUMENTS / doc.pop("fixture")).read_bytes()).decode("ascii")
         documents.append(doc)
-    summary = supervisor.start(case["id"], chart.patient.pid, documents, case["id"])
+    # A question makes the graph answer instead of brief: same nodes, same handoffs, the
+    # supervisor deciding whether the document has to be read first (stage 3).
+    summary = supervisor.start(case["id"], chart.patient.pid, documents, case["id"],
+                               question=inp.get("question"), history=[])
     if summary["phase"] == "extracted":
         summary = supervisor.resume(case["id"], chart.patient.pid, inp.get("persisted", []), case["id"])
     return {"outcome": "supervised", "summary": summary, "chart": chart}
@@ -270,6 +273,22 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
                 fail("factually_consistent", f"brief state {summary['brief']['state']} != {expect['brief_state']}")
         elif expect.get("brief_state"):
             fail("schema_valid", "no brief")
+        # A question run produces an answer where a chart opening produces a brief.
+        if summary.get("answer"):
+            answer = AgentResponse.model_validate(summary["answer"])
+            if "answer_state" in expect and answer.state.value != expect["answer_state"]:
+                fail("factually_consistent", f"answer state {answer.state.value} != {expect['answer_state']}")
+            if expect.get("answer_min_claims") is not None and len(answer.claims) < expect["answer_min_claims"]:
+                fail("citation_present", f"{len(answer.claims)} claim(s) < {expect['answer_min_claims']}")
+            for claim in answer.claims:
+                if not claim.source_ids:
+                    fail("citation_present", "an answer claim cites nothing")
+            if expect.get("answer_tools_include"):
+                missing = [t for t in expect["answer_tools_include"] if t not in answer.tool_calls]
+                if missing:
+                    fail("factually_consistent", f"answer did not call {missing} (called {answer.tool_calls})")
+        elif expect.get("answer_state") or expect.get("answer_min_claims") is not None:
+            fail("schema_valid", "no answer")
         ok("schema_valid")
         for edge in expect.get("edges_include", []):
             if tuple(edge) not in edges:
@@ -279,6 +298,12 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
                 fail("factually_consistent", f"unexpected handoff {edge[0]} -> {edge[1]}")
         if any(not h.get("reason") for h in summary.get("handoffs", [])):
             fail("factually_consistent", "a handoff has no reason")
+        for needle in expect.get("handoff_reason_any", []):
+            # What the supervisor decided, in its own words. A scripted model calls whatever the
+            # script says, so the reason is the only place the decision itself shows up.
+            if not any(needle.lower() in str(h.get("reason", "")).lower() for h in summary.get("handoffs", [])):
+                fail("factually_consistent",
+                     f"no handoff reason mentions '{needle}' (got {[h.get('reason') for h in summary.get('handoffs', [])]})")
         changes = summary.get("changes", [])
         if "changes" in expect and len(changes) != expect["changes"]:
             fail("factually_consistent", f"{len(changes)} change(s) != {expect['changes']}")

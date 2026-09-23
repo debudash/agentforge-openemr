@@ -1,6 +1,6 @@
 # Stage 2 evals: the Week 2 gate
 
-66 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
+70 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
 
 ```
 python -m evals.stage2.gate                    # run against baseline.json; exit 1 on regression
@@ -98,3 +98,19 @@ runs in the pre-push hook and in `check_local.ps1`.
 
 Its limit is worth stating: it knows one failure mode. Anything else about what a clinician
 actually sees still needs a browser, which the dev stack's Selenium provides on demand.
+
+## Stage 3 in the gate
+
+S05-S07 cover the follow-up path through the graph, added when questions stopped bypassing the
+supervisor: a question with nothing unread going straight to the retriever, a question asked while
+a document is still unread being routed to extraction first, and the supervisor sending an
+evidence question to the guideline corpus.
+
+S07 asserts the **handoff reason**, not the tool call. A scripted model calls whatever the script
+says, so a case checking only `search_guidelines` would pass with the routing removed; the reason
+is the only place the supervisor's decision appears. Verified by deleting the decision and
+re-running: S07 fails, the gate fails.
+
+R13 covers the terse-question refusal, which was the live failure that started the work: "what
+changed" was refused eight times in nine because a turn that looked nothing up was taken to be
+off-topic.

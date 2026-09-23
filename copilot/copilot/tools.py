@@ -264,6 +264,33 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         return _result(ctx, "vitals", records, None if records else "no vital signs recorded")
 
     @tool
+    def get_documents(pid: int) -> str:
+        """Lab reports and intake forms on file for this patient, newest first: type, name, date, whether the co-pilot has read it, and how many results it produced. An intake form also carries what it reported -- medications, allergies, family history, chief concern -- which is reported by the patient on a form and not reconciled into the chart, so say so when citing it."""
+        denied = ctx.check("get_documents", pid)
+        if denied:
+            return denied
+        records = []
+        for document in ctx.chart.documents:
+            record = {
+                "source_id": document.source_id, "doc_type": document.doc_type, "name": document.name,
+                "date": document.date, "read_by_copilot": document.processed, "results_written": document.results,
+            }
+            if document.reported:
+                # Named for what it is at every level, and each value says it too. A model copying
+                # a value into a claim then carries the attribution with it, instead of writing
+                # "the patient is taking lisinopril" about a form the patient filled in -- seen
+                # live, and exactly the conflation an intake form must never cause (NG-2).
+                reported = {}
+                for key, value in document.reported.items():
+                    if isinstance(value, list):
+                        reported[key] = [f"reported on intake, not reconciled: {item}" for item in value]
+                    else:
+                        reported[key] = f"reported on intake, not reconciled: {value}"
+                record["reported_on_intake_not_reconciled"] = reported
+            records.append(record)
+        return _result(ctx, "documents", records)
+
+    @tool
     def get_compliance_signals(pid: int) -> str:
         """Care-plan adherence signals: open 'review due' items, medications past their end date still flagged active, follow-up gaps, immunization gaps. Each is cited."""
         denied = ctx.check("get_compliance_signals", pid)
@@ -285,4 +312,5 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         return _dump({"result": "ok", "records": [{"source_id": f"rule:{o.rule_id}", **o.model_dump()} for o in outcomes]}, ctx)
 
     return [get_patient_context, get_problems, get_medications, get_allergies, get_labs,
-            get_encounters, get_immunizations, get_vitals, get_compliance_signals, run_constraint_checks, search_guidelines]
+            get_encounters, get_immunizations, get_vitals, get_documents, get_compliance_signals,
+            run_constraint_checks, search_guidelines]

@@ -88,6 +88,12 @@ final class ChartReader
         $chart['encounters'] = $this->section('encounters', fn(): array => $this->encounters($pid), $sources);
         $chart['immunizations'] = $this->section('immunizations', fn(): array => $this->immunizations($puuid), $sources);
         $chart['vitals'] = $this->section('vitals', fn(): array => $this->vitals($puuid), $sources);
+        // Week 2: the lab reports and intake forms on file, and for an intake form the facts read
+        // out of it. Without this the agent could answer about a lab value that came from a
+        // document but not about the document, and never about an intake form at all -- its facts
+        // are deliberately kept out of the clinical lists, so the sidecar is the only place they
+        // exist. Bytes stay out: this is a manifest, not the documents themselves.
+        $chart['documents'] = $this->section('documents', fn(): array => $this->documents($pid), $sources);
         $chart['sources'] = $sources;
 
         return $chart;
@@ -101,6 +107,74 @@ final class ChartReader
      * @param array<string, array<string, mixed>> $sources
      * @return list<array<string, mixed>>
      */
+    /**
+     * Lab reports and intake forms on file, newest first, with what was read out of each.
+     *
+     * An intake form's facts live in a sidecar document rather than in the chart's lists, because
+     * a form is someone else's report about the patient and is not reconciled. That makes the
+     * sidecar the only place they exist, so it is read back here and offered as `reported`, whose
+     * name is meant to keep saying what it is every time anyone looks at it.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function documents(int $pid): array
+    {
+        $writer = new DocumentWriter($this->scope);
+        $out = [];
+        foreach ($writer->documents($pid) as $document) {
+            $docId = (int) $document['doc_id'];
+            $entry = [
+                'source_id' => 'doc:' . $docId,
+                'doc_id' => $docId,
+                'doc_type' => $document['doc_type'],
+                'name' => $document['name'],
+                'date' => $document['date'],
+                'processed' => (bool) $document['processed'],
+                'results' => count($writer->sourceIdsFor($docId)),
+            ];
+            if ($document['doc_type'] === 'intake_form' && $document['processed']) {
+                $entry['reported'] = $this->intakeFacts($writer, $docId, $pid);
+            }
+            $out[] = $entry;
+        }
+        usort($out, static fn(array $a, array $b): int => $b['doc_id'] <=> $a['doc_id']);
+        return $out;
+    }
+
+    /**
+     * The facts an intake form reported, from its sidecar. Reported, never reconciled.
+     *
+     * @return array<string, mixed>
+     */
+    private function intakeFacts(DocumentWriter $writer, int $docId, int $pid): array
+    {
+        $sidecarId = $writer->sidecarFor($docId, $pid);
+        if ($sidecarId === null) {
+            return [];
+        }
+        $bytes = (new \Document($sidecarId))->get_data();
+        $payload = is_string($bytes) ? json_decode($bytes, true) : null;
+        $document = is_array($payload) ? (array) ($payload['document'] ?? []) : [];
+        $values = static function (array $items): array {
+            $out = [];
+            foreach ($items as $item) {
+                $value = is_array($item) ? ($item['value'] ?? null) : null;
+                if (is_string($value) && $value !== '') {
+                    $out[] = $value;
+                }
+            }
+            return $out;
+        };
+        $single = static fn(array $field): ?string => is_string($field['value'] ?? null) && $field['value'] !== '' ? $field['value'] : null;
+        return array_filter([
+            'chief_concern' => $single((array) ($document['chief_concern'] ?? [])),
+            'form_date' => $single((array) ($document['form_date'] ?? [])),
+            'medications' => $values((array) ($document['current_medications'] ?? [])),
+            'allergies' => $values((array) ($document['allergies'] ?? [])),
+            'family_history' => $values((array) ($document['family_history'] ?? [])),
+        ], static fn($v): bool => $v !== null && $v !== []);
+    }
+
     private function section(string $name, callable $read, array &$sources): array
     {
         $started = microtime(true);

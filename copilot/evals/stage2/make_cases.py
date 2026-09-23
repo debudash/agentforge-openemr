@@ -343,12 +343,17 @@ LAB_DOC = {"doc_id": DOC, "doc_type": "lab_pdf", "name": "metro-labs.pdf", "date
 BRIEF_SCRIPT = [{"brief": {"sections": FULL}}]
 
 
-def supervise(id_, name, documents, vision, persisted, expect, category="supervisor"):
+def supervise(id_, name, documents, vision, persisted, expect, category="supervisor", question=None, script=None):
+    """A graph run. With `question` the retriever answers instead of briefing, and `script` is what
+    the answering model says -- the tool round and the draft, as in any other follow-up case."""
+    inp = {"chart": "pid101_hypertension_diabetes", "documents": documents,
+           "brief": script if question else BRIEF_SCRIPT, "vision": vision, "persisted": persisted}
+    if question:
+        inp["question"] = question
     return {"id": id_, "name": name, "category": category, "kind": "supervise",
             "rubric": ["schema_valid", "citation_present", "factually_consistent", "no_phi_in_logs"],
             "phi_terms": ["Jane Doe", "1962-04-03"],
-            "input": {"chart": "pid101_hypertension_diabetes", "documents": documents, "brief": BRIEF_SCRIPT, "vision": vision, "persisted": persisted},
-            "expect": expect}
+            "input": inp, "expect": expect}
 
 
 cases += [
@@ -367,6 +372,34 @@ cases += [
                "edges_exclude": [["supervisor", "module"]]}),
     supervise("S04", "an already-read report is not read again", [dict(LAB_DOC, processed=True)], [{"lab_document": proposal()}], [],
               {"phase": "done", "brief_state": "complete", "changes": 0, "edges_exclude": [["supervisor", "intake_extractor"]]}),
+    # Stage 3: a follow-up is routed by the supervisor exactly as a chart opening is. Before this,
+    # ask() went straight to the retriever -- no supervisor, no routing, no handoff record.
+    supervise("S05", "a question with nothing unread goes straight to the retriever", [], [], [],
+              {"phase": "done", "answer_state": "complete", "answer_min_claims": 1,
+               "edges_include": [["supervisor", "evidence_retriever"], ["evidence_retriever", "supervisor"], ["supervisor", "clinician"]],
+               "edges_exclude": [["supervisor", "intake_extractor"]]},
+              question="what was the last potassium?",
+              script=[{"tool": "get_labs", "args": {"pid": 101}},
+                      {"answer": {"claims": [{"text": "Potassium was 5.4 mmol/L on 2026-08-16.", "source_ids": ["lab:6001"]}]}}]),
+    supervise("S06", "a question asked while a report is unread reads it first", [LAB_DOC], [{"lab_document": proposal()}],
+              [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": ["lab:9001"], "order_id": 91, "skipped": []}],
+              {"phase": "done", "answer_state": "complete", "answer_min_claims": 1,
+               "edges_include": [["supervisor", "intake_extractor"], ["intake_extractor", "supervisor"], ["supervisor", "module"],
+                                 ["module", "supervisor"], ["supervisor", "evidence_retriever"]]},
+              question="what changed?",
+              script=[{"tool": "get_labs", "args": {"pid": 101}},
+                      {"answer": {"claims": [{"text": "Potassium was 5.4 mmol/L on 2026-08-16.", "source_ids": ["lab:6001"]}]}}]),
+    supervise("S07", "the supervisor sends an evidence question to the guideline corpus", [], [], [],
+              # The decision the requirement names: left to itself the model reached for compliance
+              # signals and never opened the corpus, 0 of 3 live runs.
+              {"phase": "done", "answer_tools_include": ["search_guidelines"],
+               "edges_include": [["supervisor", "evidence_retriever"]],
+               "handoff_reason_any": ["guideline corpus"]},
+              question="what evidence supports the recommendation?",
+              script=[{"tool": "search_guidelines", "args": {"pid": 101, "query": "hyperkalemia ACE inhibitor"}},
+                      {"answer": {"claims": [], "evidence": [
+                          {"text": "ACE inhibitors are named among the medicines that raise potassium.",
+                           "source_ids": ["guideline:medlineplus-hyperkalemia#causes"]}]}}]),
 ]
 
 # --- missing data ---------------------------------------------------------------------------

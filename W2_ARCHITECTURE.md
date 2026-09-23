@@ -109,6 +109,23 @@ LangGraph, already a dependency. One supervisor, two workers, explicit handoffs.
          and the documents behind it with type and load date
 ```
 
+**As built: a question runs the same graph as a chart opening.** Stage 3 asks the supervisor to
+decide three things, and at first it decided all three for the brief and none of them for a
+question: `ask` went straight to the retriever, so a follow-up had no supervisor, no routing and no
+handoff record -- and a question asked moments after an upload was answered from the chart as it
+had been *before* anyone uploaded anything. Both entry points now build the same document manifest
+and enter at the supervisor. The retriever answers where it would otherwise brief; everything else
+about the graph is unchanged.
+
+**The supervisor decides evidence retrieval, not the model.** Asked "what evidence supports the
+recommendation", the model reached for compliance signals and never opened the corpus -- 0 of 3
+live runs. The intent is now read from the question by the supervisor, recorded in the handoff
+reason, and passed to the retriever as an instruction: 3 of 3 runs, 2-4 verified guideline entries
+each. `needs_evidence()` is a word list rather than a model call, deliberately: a routing decision
+that has to be reproducible in a gate cannot itself be a coin flip. Case S07 asserts the decision
+through the handoff reason, because a scripted model calls whatever the script says and the reason
+is the only place the decision shows.
+
 **Handoff record.** Every edge writes one entry: `from`, `to`, `reason`, `correlation_id`,
 `duration_ms`, and the decision inputs (document count, doc types). The supervisor's routing is
 therefore replayable from logs alone, which is the requirement's actual test — a supervisor that

@@ -248,6 +248,10 @@ def _provenance(kind: str, record: dict[str, Any]) -> tuple[str | None, str | No
             return "rules", str(record.get("rule_id") or "rule"), value("summary")
         case "signal":
             return "signals", "text", value("text")
+        case "doc":
+            # A document cited as a whole: the chart section it sits in, its type, and what it is.
+            # A citation that points into a page carries that page instead, set by its own reader.
+            return "documents", str(record.get("doc_type") or "document"), value("name", "date")
         case "empty":
             # An absence is citable, and what it says is that nothing came back.
             return str(record.get("source") or "chart"), "count", "no records returned"

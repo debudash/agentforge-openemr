@@ -160,9 +160,13 @@ def test_a_document_change_citation_opens_the_page_naming_the_patient(chart101, 
 
 
 def test_a_document_that_could_not_be_read_offers_no_page_to_open(chart101, settings):
+    """It still identifies itself -- a citation with nothing in it helps no one -- but it names
+    the chart section rather than a page, because there is no page it managed to read."""
     out = supervisor(chart101, settings, vision_responses=[]).start("sid-11", 101, manifest(), "cid-s11")
     citation = [c for c in out["citations"] if c["source_id"] == f"doc:{DOC}"][0]
-    assert citation["page_or_section"] is None and citation["quote_or_value"] is None
+    assert citation["page_or_section"] == "documents", "no page was read, so none is offered"
+    assert not str(citation["page_or_section"]).startswith("p1")
+    assert citation["quote_or_value"] and "metro-labs" in citation["quote_or_value"]
 
 
 def answer_draft(text="Potassium was 5.4 mmol/L on 2026-08-16.", sid="lab:6001"):

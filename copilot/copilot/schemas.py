@@ -144,6 +144,24 @@ class VitalsRecord(BaseModel):
     temperature: str | None = None
 
 
+class DocumentRef(BaseModel):
+    """A lab report or intake form on file, and what was read out of it (Week 2).
+
+    `reported` carries an intake form's facts, which live in a sidecar rather than in the chart's
+    lists because a form is someone else's account and is not reconciled. The field is named for
+    what it is so that every reader is told again.
+    """
+
+    source_id: str
+    doc_id: int
+    doc_type: Literal["lab_pdf", "intake_form"]
+    name: str
+    date: str | None = None
+    processed: bool = False
+    results: int = 0
+    reported: dict[str, Any] = Field(default_factory=dict)
+
+
 class Chart(BaseModel):
     """One patient's compact, field-limited chart as read by the PHP gateway (REQ-MIN-1)."""
 
@@ -159,6 +177,7 @@ class Chart(BaseModel):
     encounters: list[Encounter] = Field(default_factory=list)
     immunizations: list[Immunization] = Field(default_factory=list)
     vitals: list[VitalsRecord] = Field(default_factory=list)
+    documents: list[DocumentRef] = Field(default_factory=list)
 
     def index(self) -> dict[str, dict[str, Any]]:
         """source_id -> record, for the verifier. Only this patient's records are here."""
@@ -166,7 +185,7 @@ class Chart(BaseModel):
         if self.appointment and self.appointment.source_id:
             out[self.appointment.source_id] = self.appointment.model_dump()
         for group in (self.problems, self.medications, self.allergies, self.labs,
-                      self.encounters, self.immunizations, self.vitals):
+                      self.encounters, self.immunizations, self.vitals, self.documents):
             for record in group:
                 out[record.source_id] = record.model_dump()
         return out

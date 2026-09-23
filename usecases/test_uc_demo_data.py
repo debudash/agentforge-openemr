@@ -9,6 +9,8 @@ Needs OE_DOCTOR_PASS. The flag must be on for this instance (COPILOT_DEMO_TOOLS)
 refuse and these cases skip.
 """
 
+import re
+
 import pytest
 
 import test_uc_copilot as uc
@@ -169,8 +171,14 @@ def test_the_what_changed_citation_opens_a_page_with_the_quote_boxed(doctor, hea
     try:
         documents = [c for c in body.get("citations") or [] if c["source_type"] == "document"]
         assert documents, "the supervisor reported no document citations"
+        # Every document citation identifies itself; the ones that point into a page carry "p<n>"
+        # and must resolve to a box. A document cited as a whole names the chart section instead,
+        # which is honest -- there is no single page such a claim is about.
         for citation in documents:
             assert citation["page_or_section"] and citation["quote_or_value"], citation
+        anchored = [c for c in documents if re.fullmatch(r"p\d+", str(c["page_or_section"]))]
+        assert anchored, f"no document citation pointed into a page: {[c['page_or_section'] for c in documents]}"
+        for citation in anchored:
             page = int(str(citation["page_or_section"]).lstrip("p"))
             rendered = doctor.post(f"{w.API}?action=page&context=patient",
                                    json={"pid": w.IN_PANEL, "doc_id": int(citation["source_id"].split(":")[1]),

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 67,
+  "count": 70,
   "cases": [
     {
       "id": "E01",
@@ -10578,6 +10578,578 @@
             "supervisor",
             "intake_extractor"
           ]
+        ]
+      }
+    },
+    {
+      "id": "S05",
+      "name": "a question with nothing unread goes straight to the retriever",
+      "category": "supervisor",
+      "kind": "supervise",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "documents": [],
+        "brief": [
+          {
+            "tool": "get_labs",
+            "args": {
+              "pid": 101
+            }
+          },
+          {
+            "answer": {
+              "claims": [
+                {
+                  "text": "Potassium was 5.4 mmol/L on 2026-08-16.",
+                  "source_ids": [
+                    "lab:6001"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "vision": [],
+        "persisted": [],
+        "question": "what was the last potassium?"
+      },
+      "expect": {
+        "phase": "done",
+        "answer_state": "complete",
+        "answer_min_claims": 1,
+        "edges_include": [
+          [
+            "supervisor",
+            "evidence_retriever"
+          ],
+          [
+            "evidence_retriever",
+            "supervisor"
+          ],
+          [
+            "supervisor",
+            "clinician"
+          ]
+        ],
+        "edges_exclude": [
+          [
+            "supervisor",
+            "intake_extractor"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "S06",
+      "name": "a question asked while a report is unread reads it first",
+      "category": "supervisor",
+      "kind": "supervise",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "documents": [
+          {
+            "doc_id": 412,
+            "doc_type": "lab_pdf",
+            "name": "metro-labs.pdf",
+            "date": "2026-09-18",
+            "processed": false,
+            "fixture": "metro-labs-jane-doe.pdf"
+          }
+        ],
+        "brief": [
+          {
+            "tool": "get_labs",
+            "args": {
+              "pid": 101
+            }
+          },
+          {
+            "answer": {
+              "claims": [
+                {
+                  "text": "Potassium was 5.4 mmol/L on 2026-08-16.",
+                  "source_ids": [
+                    "lab:6001"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "vision": [
+          {
+            "lab_document": {
+              "doc_type": "lab_pdf",
+              "source_id": "doc:412",
+              "page_count": 2,
+              "patient_ref": {
+                "value": "Jane Doe",
+                "confidence": 0.9,
+                "citation": {
+                  "source_id": "doc:412",
+                  "page": 1,
+                  "field": "patient_ref",
+                  "quote": "Patient: Jane Doe"
+                }
+              },
+              "report_date": {
+                "value": "2026-09-18",
+                "confidence": 0.9,
+                "citation": {
+                  "source_id": "doc:412",
+                  "page": 1,
+                  "field": "report_date",
+                  "quote": "Reported: 2026-09-18 14:22"
+                }
+              },
+              "performing_lab": {
+                "value": "Metro Clinical Labs",
+                "confidence": 0.9,
+                "citation": {
+                  "source_id": "doc:412",
+                  "page": 1,
+                  "field": "performing_lab",
+                  "quote": "METRO CLINICAL LABS"
+                }
+              },
+              "ordering_provider": {
+                "value": "Dana Reyes",
+                "confidence": 0.9,
+                "citation": {
+                  "source_id": "doc:412",
+                  "page": 1,
+                  "field": "ordering_provider",
+                  "quote": "Ordering provider: Dana Reyes"
+                }
+              },
+              "results": [
+                {
+                  "test_name": {
+                    "value": "Potassium",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "test_name",
+                      "quote": "Potassium"
+                    }
+                  },
+                  "value": {
+                    "value": "5.4",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "value",
+                      "quote": "5.4"
+                    }
+                  },
+                  "unit": {
+                    "value": "mmol/L",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "unit",
+                      "quote": "mmol/L"
+                    }
+                  },
+                  "reference_range": {
+                    "value": "3.5-5.0",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "reference_range",
+                      "quote": "3.5-5.0"
+                    }
+                  },
+                  "collection_date": {
+                    "value": "2026-09-17",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "collection_date",
+                      "quote": "Collected: 2026-09-17 08:10"
+                    }
+                  },
+                  "abnormal_flag": {
+                    "value": "H",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "abnormal_flag",
+                      "quote": "H"
+                    }
+                  }
+                },
+                {
+                  "test_name": {
+                    "value": "Sodium",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "test_name",
+                      "quote": "Sodium"
+                    }
+                  },
+                  "value": {
+                    "value": "140",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "value",
+                      "quote": "140"
+                    }
+                  },
+                  "unit": {
+                    "value": "mmol/L",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "unit",
+                      "quote": "mmol/L"
+                    }
+                  },
+                  "reference_range": {
+                    "value": "135-145",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "reference_range",
+                      "quote": "135-145"
+                    }
+                  },
+                  "collection_date": {
+                    "value": "2026-09-17",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "collection_date",
+                      "quote": "Collected: 2026-09-17 08:10"
+                    }
+                  },
+                  "abnormal_flag": {
+                    "value": null,
+                    "confidence": 0.0,
+                    "citation": null
+                  }
+                },
+                {
+                  "test_name": {
+                    "value": "Creatinine",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "test_name",
+                      "quote": "Creatinine"
+                    }
+                  },
+                  "value": {
+                    "value": "1.3",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "value",
+                      "quote": "1.3"
+                    }
+                  },
+                  "unit": {
+                    "value": "mg/dL",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "unit",
+                      "quote": "mg/dL"
+                    }
+                  },
+                  "reference_range": {
+                    "value": "0.6-1.2",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "reference_range",
+                      "quote": "0.6-1.2"
+                    }
+                  },
+                  "collection_date": {
+                    "value": "2026-09-17",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "collection_date",
+                      "quote": "Collected: 2026-09-17 08:10"
+                    }
+                  },
+                  "abnormal_flag": {
+                    "value": "H",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "abnormal_flag",
+                      "quote": "H"
+                    }
+                  }
+                },
+                {
+                  "test_name": {
+                    "value": "Glucose",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "test_name",
+                      "quote": "Glucose"
+                    }
+                  },
+                  "value": {
+                    "value": "112",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "value",
+                      "quote": "112"
+                    }
+                  },
+                  "unit": {
+                    "value": "mg/dL",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "unit",
+                      "quote": "mg/dL"
+                    }
+                  },
+                  "reference_range": {
+                    "value": "70-99",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "reference_range",
+                      "quote": "70-99"
+                    }
+                  },
+                  "collection_date": {
+                    "value": "2026-09-17",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "collection_date",
+                      "quote": "Collected: 2026-09-17 08:10"
+                    }
+                  },
+                  "abnormal_flag": {
+                    "value": "H",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "abnormal_flag",
+                      "quote": "H"
+                    }
+                  }
+                },
+                {
+                  "test_name": {
+                    "value": "Hemoglobin A1c",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "test_name",
+                      "quote": "Hemoglobin A1c"
+                    }
+                  },
+                  "value": {
+                    "value": "7.4",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "value",
+                      "quote": "7.4"
+                    }
+                  },
+                  "unit": {
+                    "value": "%",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "unit",
+                      "quote": "%"
+                    }
+                  },
+                  "reference_range": {
+                    "value": "4.0-5.6",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "reference_range",
+                      "quote": "4.0-5.6"
+                    }
+                  },
+                  "collection_date": {
+                    "value": "2026-09-17",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 1,
+                      "field": "collection_date",
+                      "quote": "Collected: 2026-09-17 08:10"
+                    }
+                  },
+                  "abnormal_flag": {
+                    "value": "H",
+                    "confidence": 0.9,
+                    "citation": {
+                      "source_id": "doc:412",
+                      "page": 2,
+                      "field": "abnormal_flag",
+                      "quote": "H"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "persisted": [
+          {
+            "doc_id": 412,
+            "doc_type": "lab_pdf",
+            "source_ids": [
+              "lab:9001"
+            ],
+            "order_id": 91,
+            "skipped": []
+          }
+        ],
+        "question": "what changed?"
+      },
+      "expect": {
+        "phase": "done",
+        "answer_state": "complete",
+        "answer_min_claims": 1,
+        "edges_include": [
+          [
+            "supervisor",
+            "intake_extractor"
+          ],
+          [
+            "intake_extractor",
+            "supervisor"
+          ],
+          [
+            "supervisor",
+            "module"
+          ],
+          [
+            "module",
+            "supervisor"
+          ],
+          [
+            "supervisor",
+            "evidence_retriever"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "S07",
+      "name": "the supervisor sends an evidence question to the guideline corpus",
+      "category": "supervisor",
+      "kind": "supervise",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "documents": [],
+        "brief": [
+          {
+            "tool": "search_guidelines",
+            "args": {
+              "pid": 101,
+              "query": "hyperkalemia ACE inhibitor"
+            }
+          },
+          {
+            "answer": {
+              "claims": [],
+              "evidence": [
+                {
+                  "text": "ACE inhibitors are named among the medicines that raise potassium.",
+                  "source_ids": [
+                    "guideline:medlineplus-hyperkalemia#causes"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "vision": [],
+        "persisted": [],
+        "question": "what evidence supports the recommendation?"
+      },
+      "expect": {
+        "phase": "done",
+        "answer_tools_include": [
+          "search_guidelines"
+        ],
+        "edges_include": [
+          [
+            "supervisor",
+            "evidence_retriever"
+          ]
+        ],
+        "handoff_reason_any": [
+          "guideline corpus"
         ]
       }
     },
