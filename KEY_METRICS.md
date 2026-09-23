@@ -119,17 +119,27 @@ A note on how failures are counted, because it changes the honesty of every rate
 
 Week 1's five metrics and verdicts above stand as submitted. Week 2 adds document reading, guideline
 evidence and a supervisor graph, and these are the measures that say whether that works. Figures are
-from the local stack on 2026-09-22; where a figure could not be measured, the row says so.
+from the local stack on 2026-09-23, on `google/gemini-2.5-flash-lite`; where a figure could not be
+measured, the row says so. Rows 11 and 12 were gaps until the model switch on 2026-09-23 and are
+now met.
 
 | # | Metric | Target | Measured | Verdict |
 |---|---|---|---|---|
 | 6 | Invented citations caught: an extracted value whose quote is not on its page, not in the document, or from another document is demoted to unsupported, never shown as a fact | 100 % | 9 of 9 gate cases (E02–E05, E15, E17, I02, I03, I06) | **Met** |
-| 7 | Citation resolution: every claim, evidence entry and "what changed" line shown resolves to a record, a document page or a guideline chunk | 100 % | 66 of 66 gate cases, `citation_present` | **Met** |
+| 6b | A document that does not belong is never filed: it names another patient, or nothing could be read from it | 100 % | Refused on both write paths, recorded beside the document, marked NOT FILED on screen; two live cases assert the refusal and that nothing reaches the chart | **Met** |
+| 7 | Citation resolution: every claim, evidence entry and "what changed" line shown resolves to a record, a document page or a guideline chunk | 100 % | 69 of 69 gate cases carrying the rubric, and every one of the five contract fields is populated, not merely present | **Met** |
 | 8 | Retrieval precision at 1 on the three probe questions (high potassium with an ACE inhibitor, hypertension screening, A1C ranges) | 3 of 3 | 3 of 3 offline (BM25 only); 2 of 2 checked in full mode with the cross-encoder | **Met** |
-| 9 | Gate rubric pass rate: schema_valid, citation_present, factually_consistent, safe_refusal, no_phi_in_logs | 100 % each; a drop over 5 points blocks the push | 100 % each; four injected regressions each failed the gate (`test_gate.py`) | **Met** |
-| 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | 10.7 s (nothing unread), 10.0 s (unread report, read rate-limited); two samples | **Met on the samples; no p95 yet** |
-| 11 | Live extraction success | one lab report read end to end on the deployed path | **Not achieved.** Three free vision slugs answered 429 after backoff; the path was verified fail-closed live, and end to end with a scripted model | **Gap** |
-| 12 | Cost per document read | under $0.05 on a paid model | Projected ~$0.03 (`W2_COST_LATENCY.md`); not measured, see 11 | **Projected only** |
+| 9 | Gate rubric pass rate: schema_valid, citation_present, factually_consistent, safe_refusal, no_phi_in_logs | 100 % each; a drop over 5 points blocks the push | 100 % each over **74 cases**; four injected regressions each failed the gate (`test_gate.py`), and each new routing decision is covered by a case that fails when the decision is deleted | **Met** |
+| 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | p50 **4.4 s**, p95 **33.8 s**, p99 47.0 s over 26 runs (`/metrics`, `supervise_ms`). A chart with nothing unread is the p50; the tail is the runs that read two new documents and then regenerate the brief | **Met on p50, missed on p95** |
+| 11 | Live extraction success | one lab report read end to end | **Achieved.** A two-page report read by `google/gemini-2.5-flash-lite`: five results, correct values, correct pages, nothing demoted. Repeated across the walkthrough; roughly one run in five the provider returns nothing and the co-pilot says so | **Met** |
+| 12 | Cost per document read | under $0.05 | **~$0.0009**, from the request shape at gemini-2.5-flash-lite's $0.10/$0.40 per Mtok. Not instrumented per call; checked against the credit-balance delta of a whole 30-check walkthrough, **$0.011** for about 15 model calls including two document reads (`W2_COST_LATENCY.md`) | **Met** |
+
+**The p95 miss, and what it is.** The supervise path is one request that can do three model calls:
+read document one, read document two, then a new brief over the changed chart. When it does all
+three it is over 30 s and the clinician watches a spinner. Nothing in it is wasted work — the fix is
+to return "what changed" as soon as the documents are read and let the brief arrive after, which is
+the first item in [W2_COST_LATENCY.md](W2_COST_LATENCY.md)'s "what would change first". It is
+recorded as missed rather than rescoped.
 
 **Why these.** 6 and 7 are the Week 2 form of Week 1's precision: the point of citing a page and a
 quote is that a program can check it, so the measure is whether the check catches what it should.
@@ -137,8 +147,14 @@ quote is that a program can check it, so the measure is whether the check catche
 be theatre. 9 is the hard gate. 10 is what the clinician feels. 11 and 12 are stated as gaps rather
 than left out, in the same spirit as §5.
 
-**What closes 11 and 12.** One environment variable: `COPILOT_VISION_MODEL` set to a paid slug on
-the allowlist, with `COPILOT_VISION_RATE_LIMIT_RETRIES` left at 1.
+**Models, and why.** Ten candidates were benchmarked through the agent's own code and schemas, then the
+shortlist was put through real follow-ups. `qwen/qwen3.7-flash` passed the synthetic bench and then refused
+"what medications is the patient on" and mangled source ids on the real prompts (2 of 6);
+`google/gemini-2.5-flash-lite` answered 6 of 6 and is the agent and the vision model.
+`anthropic/claude-sonnet-5` is the eval judge -- a different family from the agent, so it is not grading its
+own output, and it runs offline on the golden suite rather than on the request path.
+The free slugs that preceded them are kept on the allowlist and are not used: `nemotron` returned 0 of 3
+(it spends its output budget thinking and never returns the object) and `gemma-4-31b:free` 0 of 3 (rate-limited).
 
 ## 6. Where the data comes from
 
@@ -149,6 +165,9 @@ the allowlist, with `COPILOT_VISION_RATE_LIMIT_RETRIES` left at 1.
 | Brief and answer latency in live use | agent service event log, `brief_generated` and `followup_answered` | `GET /metrics` on the service |
 | Authorization evidence | `copilot/tests/`, `usecases/test_uc_copilot.py` | `pytest`, and the gateway suite against a running stack |
 | Chart read cost | `chart_read_ms` in the module's open response | open the tab as `doctor1` |
+| Week 2 gate, 74 cases, five rubrics | `copilot/evals/stage2/results/` | `cd copilot; python -m evals.stage2.gate` |
+| Week 2 end-to-end behaviour, 30 checks | printed per check, exit 1 on failure | `cd usecases; python journey.py` |
+| Week 2 latency and spend | `/metrics` (`supervise_ms`, `extract_ms`); OpenRouter credit balance | [W2_COST_LATENCY.md](W2_COST_LATENCY.md) |
 | Per-control security evidence | [SECURITY_TESTS.md](SECURITY_TESTS.md) | listed per row |
 
 Every run also uploads to LangSmith under a per-stage, per-suite dataset, so a figure in this document

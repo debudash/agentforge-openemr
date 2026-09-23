@@ -345,7 +345,40 @@ a{color:var(--accent)}
   </div>
 </section>
 
+<section>
+  <div class="callout">
+    <h3>Where the document path plugged in</h3>
+    <p>Week 2 put a second tab inside a patient record and gave it a document to read. Four things about
+      this platform decided how that had to be built, and all four were found by reading the code rather
+      than the docs.</p>
+    <ul class="plain">
+      <li><b>A tab inside a chart is a different event.</b> The top-level tab comes from
+        <span class="mono">MenuEvent</span>; a tab in the patient record comes from
+        <span class="mono">PatientMenuEvent::MENU_UPDATE</span>. Same idea, different listener, and the
+        patient one carries no pid &mdash; the page resolves it from the session.</li>
+      <li><b>The patient menu ignores <span class="mono">target</span>.</b>
+        <span class="mono">displayHorizNavBarMenu()</span> emits each entry&rsquo;s
+        <span class="mono">on_click</span> verbatim and drops everything else, so &ldquo;open in its own
+        tab&rdquo; is not a property you set &mdash; it is
+        <span class="mono">top.navigateTab(url, name)</span> written into the click handler.</li>
+      <li><b>The active patient is not <span class="mono">$_SESSION['pid']</span>.</b> That key reads 0 on
+        a perfectly normal session. <span class="mono">PatientSessionUtil::getPid()</span> is the one that
+        answers, and using the wrong one let a stale browser tab write a document into the chart that was
+        open when it was opened, not the one open now. The fix was a 409 on mismatch, not a better read.</li>
+      <li><b>A lab result is a four-table chain, and there is a service for it.</b> order &rarr; order_code
+        &rarr; report &rarr; result, written through <span class="mono">\Document::createDocument()</span>
+        and the procedure services, which is the same path an in-house result takes. Note
+        <span class="mono">createDocument()</span> takes its data <b>by reference</b>, so passing an
+        expression is a runtime error rather than a type error &mdash; it turned every refusal into a 500
+        until it was found.</li>
+    </ul>
+    <p>The platform-level lesson is the same one as the ACL finding above: the guarantee you assume is
+      there usually is not, and the cheap way to learn that is to read the function, not its name. Neither
+      of these two was in any document; both were one <span class="mono">grep</span> away.</p>
+  </div>
+</section>
+
 <footer>
-  Built from a scan of <span class="mono">openemr-base-clean</span> (commit 7b887fb): <span class="mono">apis/</span>, <span class="mono">src/RestControllers/ApiApplication.php</span>, <span class="mono">interface/globals.php</span>, <span class="mono">src/Services</span>, <span class="mono">src/Core/ModulesApplication.php</span>, <span class="mono">docker/development-easy</span>, and the repo's CLAUDE.md. Revised 2026-09-20 to record where the Clinical Co-Pilot attached.
+  Built from a scan of <span class="mono">openemr-base-clean</span> (commit 7b887fb): <span class="mono">apis/</span>, <span class="mono">src/RestControllers/ApiApplication.php</span>, <span class="mono">interface/globals.php</span>, <span class="mono">src/Services</span>, <span class="mono">src/Core/ModulesApplication.php</span>, <span class="mono">docker/development-easy</span>, and the repo's CLAUDE.md. Revised 2026-09-20 to record where the Clinical Co-Pilot attached, and 2026-09-23 to add the Week&nbsp;2 document path: <span class="mono">PatientMenuEvent</span>, <span class="mono">PatientSessionUtil</span>, <span class="mono">\Document</span> and the procedure chain.
 </footer>
 </div>

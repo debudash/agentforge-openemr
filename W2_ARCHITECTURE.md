@@ -428,16 +428,23 @@ anything; the service runs the full path, and the two models are fetched at imag
 
 ## 9. Vision model
 
-Free OpenRouter vision slug by default; a paid vision model behind `COPILOT_VISION_MODEL`. The
-provider allowlist from Week 1 applies unchanged, so an unapproved vision model fails closed
-before any document leaves the process.
+`google/gemini-2.5-flash-lite` behind `COPILOT_VISION_MODEL`. The provider allowlist from Week 1
+applies unchanged, so an unapproved vision model fails closed before any document leaves the
+process, and a model that does not exist fails the same way with `OpenAIModelNotFoundError` named
+in the reason.
 
-**What the free tier actually does.** OpenRouter rate-limits free models per account, not per
-model. During the stage 3 build three different free vision slugs (Gemma 4 31B, Qwen 3.8 27B,
-Gemma 4 26B) all answered `429` after the agent's three backoffs, so the extraction path was
-verified fail-closed rather than end-to-end live. The model that reads a document is one
-variable, `COPILOT_VISION_MODEL`; the paid slug already on the allowlist is the switch. A model
-that does not exist fails the same way with `OpenAIModelNotFoundError` named in the reason.
+**Why it is not a free slug any more.** OpenRouter rate-limits free models per account, not per
+model. Through stage 7 three free vision slugs (Gemma 4 31B, Qwen 3.8 27B, Gemma 4 26B) all
+answered `429` after backoff, so the extraction path was verified fail-closed but never
+end-to-end live — the open half of metrics 11 and 12. Ten candidates were then benchmarked
+through the agent's own code; the shortlist was put through real follow-ups, where
+`qwen/qwen3.7-flash` refused "what medications is the patient on" and mangled source ids, and
+`gemini-2.5-flash-lite` answered 6 of 6. It now reads documents live, at about $0.0009 each.
+Roughly one read in five the provider returns nothing; that is reported as unread, never guessed.
+
+**The retry budget is 1 on purpose.** Three backoffs are 56 seconds of a clinician waiting for a
+document that is not going to arrive. One retry, then "could not be read", which is a result the
+page can show and the co-pilot can say out loud.
 
 **Document images are more sensitive than structured fields**, and the free slugs may be logged
 provider-side. The default path is therefore demo-data-only, stated in `AUDIT.md`, and the paid
@@ -487,9 +494,12 @@ supervisor handoffs and their reasons, per-step latency, tokens and cost estimat
 including the VLM, retrieval hits with scores, extraction confidence per field, and the eval
 outcome where one applies.
 
-Token and cost accounting was a declared gap in `KEY_METRICS.md` §5. Week 2 closes it, because the
-requirement asks for a cost report and because a VLM per page is the first thing here with a cost
-that varies by input.
+Token and cost accounting was a declared gap in `KEY_METRICS.md` §5, and Week 2 only half closes
+it. What exists is `/metrics` (`supervise_ms`, `extract_ms`, the document and handoff counters)
+and a cost model in `W2_COST_LATENCY.md` computed from the request shape and checked against the
+provider's credit balance — a whole 30-check walkthrough is $0.011. What does not exist is tokens
+per call keyed by correlation id. The provider returns them; the service does not record them, so
+the per-unit figures are computed rather than measured. That is stated as such in both documents.
 
 Logs carry ids and counts, never document text, extracted values or patient identifiers. The
 `no_phi_in_logs` rubric is what keeps that true under change.
@@ -603,9 +613,9 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
 | 6 | **Done.** `guidelines/retrieve.py`, 20-chunk corpus, `search_guidelines` tool, `evidence` section; six retrieval cases in the gate (62) | Guideline evidence cited separately, barred from patient-fact claims (`test_guidelines.py`, G01–G06) |
 | 7 | **Done.** `supervisor.py` (LangGraph, interrupt while the module persists), `/session/{sid}/supervise` and `/resume`, module `supervise` action, patient tab runs it on open | Routing reconstructable from logs (`test_supervisor.py`, `test_uc_supervise.py`); no-documents path degrades to Week 1 |
-| 8 | **Done.** 66 cases across extraction, intake, citation, retrieval, refusal, brief, missing data and the supervisor graph; baseline recorded | All five rubrics at 100 % |
+| 8 | **Done.** 74 cases across extraction, intake, citation, retrieval, refusal, brief, missing data and the supervisor graph, including the routing decisions added later; baseline recorded | All five rubrics at 100 % |
 | 9 | **Done.** `documents/pages.py`, `POST /documents/page`, module `page` action, chip click opens the page with the quote boxed; lab rows read from a document carry `document_id` and `page` | A claim opens its page with the quote highlighted (`test_pages.py`, `test_uc_document_page.py`) |
-| 10 | **Docs done.** README Week 2 section, `KEY_METRICS.md` Week 2 section, `W2_COST_LATENCY.md`, `USER.md` Week 2 use cases, collection requests 11–13. Railway deploy waits on the publish gate | Graders can run the Week 2 flow without guessing; the deployed app is the remaining item |
+| 10 | **Docs done.** README Week 2 section, `KEY_METRICS.md` Week 2 section, `W2_COST_LATENCY.md`, `USER.md` Week 2 use cases, collection requests 11–13, and the three artifacts refreshed. Railway deploy waits on the publish gate; the GitLab CI pipeline is parked, not wired | Graders can run the Week 2 flow without guessing; the deployed app is the remaining item |
 
 Stage 4 is deliberately fourth. The eval gate is the Week 2 hard gate, and building it against a
 working slice means every later stage lands against a gate that already works.

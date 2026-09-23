@@ -1,73 +1,90 @@
 # Week 2 cost and latency
 
 What the Week 2 build cost, what it would cost in production, what it takes in time, and where
-the time goes. Measured figures are from the local stack on 2026-09-22 and say so; projections
-say so too. Week 1's figures and method are in [COST_ANALYSIS.md](COST_ANALYSIS.md).
+the time goes. Measured figures are from the local stack and say so; projections say so too.
+Week 1's figures and method are in [COST_ANALYSIS.md](COST_ANALYSIS.md).
+
+The models changed mid-week. Stages 1 to 7 ran on OpenRouter `:free` slugs at zero cost and
+could not complete a live document read; from stage 8 the agent and the vision model are
+`google/gemini-2.5-flash-lite` and the eval judge is `anthropic/claude-sonnet-5`. Figures below
+are labelled with which of the two they came from.
 
 ## Development spend
 
 | Item | Spend |
 |---|---|
-| Model calls during the build | **$0.** Agent, judge and vision on OpenRouter `:free` slugs; the free tier's per-account quota ran out during stage 3 and stayed out, which is why the live extraction path was verified fail-closed rather than end to end |
+| Free-tier phase, stages 1 to 7 | **$0.** Agent, judge and vision on `:free` slugs; the per-account quota ran out during stage 3, which is why live extraction stayed unproven until the switch |
+| Model bench, ten candidates through the agent's own code | part of the $0.79 below; not billed separately |
+| Paid phase: building, the walkthrough runs, manual testing, one judged gate | **~$0.79** in a day (credit-balance delta, 2026-09-23) |
+| Whole account to date, Week 1 and Week 2 together | **$9.33 of $30** |
 | Retrieval | **$0.** BM25 and two local models (all-MiniLM-L6-v2, ms-marco-MiniLM-L-6-v2), about 90 MB each, downloaded once |
-| Infrastructure | Unchanged from Week 1 (Railway, one agent service); nothing new deployed yet |
+| Infrastructure | Unchanged from Week 1 (Railway, one agent service); Week 2 is not deployed yet |
 
-## Projected production cost, per unit of work
+## What a unit of work costs
 
-Assumptions: a paid vision model at roughly $3 per million input and $15 per million output
-tokens (Sonnet class); a two-page report renders to two images of about 1,500 tokens each plus
-the text layer; a structured extraction answers in about 1,000 tokens.
+`google/gemini-2.5-flash-lite` is $0.10 per million input tokens and $0.40 per million output.
+Per-call token counts are not instrumented, so the rows below are computed from the request
+shape and then checked against a whole walkthrough's credit-balance delta, which is the honest
+bound: **$0.011 for 30 checks and about 15 model calls, two of them document reads.**
 
 | Unit | Model input | Model output | Cost |
 |---|---|---|---|
-| Read one two-page lab report | ~4,500 tokens | ~1,000 tokens | **~$0.03** |
-| Read one one-page intake form | ~2,500 tokens | ~800 tokens | ~$0.02 |
+| Read one two-page lab report | ~4,500 tokens | ~1,000 tokens | **~$0.0009** |
+| Read one one-page intake form | ~2,500 tokens | ~800 tokens | ~$0.0006 |
+| Brief | ~3,000 tokens | ~1,200 tokens | ~$0.0008 |
+| Follow-up question (topic check, one tool round, answer) | ~6,000 tokens | ~1,000 tokens | ~$0.001 |
 | Guideline search | none | none | $0 (local) |
-| Brief after documents | as Week 1 | as Week 1 | as Week 1 (`COST_ANALYSIS.md`) |
 | Click-to-source page | none | none | $0 (rendering only) |
+| Eval gate, 74 cases, judged on `claude-sonnet-5` | — | — | the largest single line item; runs on a push, not on a request |
 
-A hospitalist opening ten charts a day with one new document each is about $0.30 a day in
-extraction on a paid model, and $0 on the free tier. Cohere Rerank, if switched on, adds about
-$0.002 per search. The Week 1 scaling analysis (100 / 1K / 10K / 100K users) still holds; Week
-2 adds a per-document term to it rather than changing its shape.
+A hospitalist opening ten charts a day with one new document each is about **$0.02 a day** in
+extraction, against the $0.30 projected earlier on a Sonnet-class vision model — the model switch
+is a thirtyfold cut, and it is what moved metric 12 in [KEY_METRICS.md](KEY_METRICS.md) from a
+projection to a measurement. The Week 1 scaling analysis (100 / 1K / 10K / 100K users) still holds; Week 2 adds
+a per-document term to it rather than changing its shape.
 
 ## Latency, measured
 
 | Path | Measured | Note |
 |---|---|---|
-| Supervisor, nothing unread, brief cached | **10.7 s** | one live sample; chart read by the module plus one round trip |
-| Supervisor, one unread report, read rate-limited | **10.0 s** | one live sample; one retry then "could not be read", brief still returned |
-| Supervisor, one unread report, read succeeds | not measured live | quota; the scripted path takes ~0.4 s for the extraction pipeline without the model call |
-| Vision extraction, model call | not measured | never completed on the free tier; three retries of backoff are 56 s, which is why the vision retry budget is now 1 |
+| Supervise, all runs | **p50 4.4 s, p95 33.8 s, p99 47.0 s** | `/metrics`, `supervise_ms`, n = 26, mixed free-tier and paid |
+| Supervise, nothing unread | the p50 | chart read by the module plus one round trip; the brief is cached |
+| Supervise, two unread documents, both read | the p95 tail | two vision calls, then the chart is re-read and the brief regenerated |
+| Vision extraction, one two-page report | ~6 s | 12 documents read, 0 failed on the agent side (`supervise_documents_read`) |
+| Whole 30-check walkthrough (`usecases/journey.py`) | **~4 min** | generate, supervise, six follow-ups, refusal cases, purge |
 | Guideline search, first call | 23.2 s | one-time model download; the image now prefetches both models at build |
 | Guideline search, warm | **0.06 s** | BM25 + dense + cross-encoder over 20 chunks |
 | Page render with quote boxes | under 1 s | pypdfium2, no model |
-| Eval gate, 66 cases | ~10 s | no model, no network |
+| Eval gate, 74 cases | ~10 s unjudged | no model, no network; the judged run is bounded by the judge |
 | Week 1 brief and answer | p50 6.1 s, p95 19.8 s | unchanged, from `KEY_METRICS.md` |
 
-Sample sizes are one or two per row. Treat these as the shape of the numbers, not percentiles.
-`/metrics` now records `supervise_ms` and `extract_ms`, so percentiles accumulate in use.
+The supervise row is a real percentile over 26 runs; the rest are one or two samples each, except
+the walkthrough, which has run about a dozen times. **The p95 misses its 30 s target** and is
+recorded as a miss in [KEY_METRICS.md](KEY_METRICS.md) row 10 rather than rescoped: a run that
+reads two documents and then regenerates the brief is three model calls in one request.
 
 ## Where the time goes
 
-1. **The model provider.** A vision read is one structured call over two images; on the free
-   tier it is also the thing most likely to fail. Everything else in a supervise run is under a
-   second. A paid vision model would make the read a few seconds and reliable.
+1. **The model provider.** A vision read is one structured call over the page images and is the
+   slowest step and the one most likely to fail; a failure is reported as unread, never guessed.
+   Everything else in a supervise run is under a second.
 2. **The round trip through the module.** Supervise is: list documents, read their bytes, one
    request to the agent, persist, re-read the chart, a second request. Two of those steps are
-   OpenEMR database work and are cheap; the second agent request regenerates the brief, which is
-   the Week 1 cost.
+   OpenEMR database work and are cheap; the second agent request regenerates the brief.
 3. **The brief itself.** One structured call over a deterministically packed facts sheet, with a
    second only when the first fails validation. A follow-up question costs more than a brief does:
    the topic check, at least one forced tool call, then the answer. The brief cache means a chart
    that did not change costs nothing; a chart that gained a document is a new brief by design, so
-   a supervise run that reads a document pays for two — one before the document, one after the
-   chart is re-read.
+   a supervise run that reads a document pays for two — one before the document, one after.
+4. **A refused document costs nothing after the first time.** A document that names another
+   patient or that nothing could be read from is recorded as refused beside the document, and
+   later opens skip it instead of paying for the read again.
 
 ## What would change first
 
-- Run the vision model on a paid slug for the demo path: it converts "could not be read" into a
-  read, and it is one environment variable.
-- Return from supervise as soon as extraction is done and let the page poll for the brief, so
-  the clinician sees "what changed" before the brief finishes.
-- Keep the gate model-free. Nothing above makes it slower, and that is deliberate.
+- Instrument tokens per call, keyed by correlation id, so the table above becomes measured rather
+  than computed. The provider returns them; the service does not record them yet.
+- Return from supervise as soon as extraction is done and let the page poll for the brief, so the
+  clinician sees "what changed" before the brief finishes.
+- Keep the gate model-free where it can be. The unjudged path costs nothing and runs in ten
+  seconds; only the rubric judging needs a model.

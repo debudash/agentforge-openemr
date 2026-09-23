@@ -227,12 +227,19 @@ is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everythi
 
 **Variables** (agent `.env`, all optional; `copilot/.env.example` lists them):
 
-| Variable | Default | What it does |
+| Variable | This build | What it does |
 |---|---|---|
-| `COPILOT_VISION_MODEL` | the agent model | Reads lab PDFs and intake forms. Must be on `COPILOT_ALLOWED_MODELS`. Free slugs share one per-account quota and answer 429 when it is spent |
+| `COPILOT_MODEL` | `google/gemini-2.5-flash-lite` | The agent. Chosen after ten candidates were benchmarked through the agent's own prompts; it answered 6 of 6 real follow-ups where the runner-up answered 2 |
+| `COPILOT_VISION_MODEL` | `google/gemini-2.5-flash-lite` | Reads lab PDFs and intake forms. Must be on `COPILOT_ALLOWED_MODELS`. About $0.0009 a document |
+| `COPILOT_JUDGE_MODEL` | `anthropic/claude-sonnet-5` | Grades the eval rubrics. A different family from the agent on purpose, and it never runs on a request |
 | `COPILOT_VISION_RATE_LIMIT_RETRIES` | `1` | Retries on a 429 before the document is reported as "could not be read" |
+| `COPILOT_TOPIC_CHECK` | `true` | Decides whether a follow-up is about this patient's record. Off sends every question, including "how is the weather", to the tools |
 | `COPILOT_EMBED_MODEL` | `all-MiniLM-L6-v2` | Dense retrieval over the guideline corpus; `none` keeps BM25 only and downloads nothing |
 | `COPILOT_RERANK` | `local` | `local` cross-encoder, `cohere` (needs `COHERE_API_KEY`), or `none` |
+
+The `:free` slugs Week 1 ran on are still on the allowlist and are no longer used: they could not
+complete a document read, which is what kept metrics 11 and 12 open until the switch. See
+[W2_COST_LATENCY.md](W2_COST_LATENCY.md) for what the change cost and saved.
 
 **The flow**
 
@@ -285,10 +292,11 @@ unless an instance turns it on: `COPILOT_DEMO_TOOLS` in the environment or in
 `sites/<site>/copilot-config.php`. Off means the tab does not render *and* the actions behind it
 refuse, so hiding the tab is never the only control.
 
-**What it does not do is as important as what it does.** It never puts a document into a chart. It
-writes files to `demo/generated/`, exactly as a lab dropping off a report would, and you upload one
-through OpenEMR's own Documents tab. The ingestion flow being demonstrated is therefore the real
-one -- the same path any uploaded document takes -- not a shortcut that exists only for the demo.
+**It takes the real path.** It writes the PDFs to `demo/generated/`, exactly as a lab dropping off a
+report would, and then files them in the open chart through `\Document::createDocument()` -- the same
+call OpenEMR's own Documents tab makes on an upload. Nothing about the ingestion flow being
+demonstrated is a shortcut; the co-pilot cannot tell a generated report from an uploaded one, and
+the patient-name cross-check refuses a misfiled document on this path exactly as on any other.
 
 1. Open a patient, then the **Demo Data** tab. Choose a lab report: abnormal (potassium 5.4, eGFR
    58, A1c 7.4), normal, unreadable (a page with no text), or another patient's. Press
