@@ -1,3 +1,13 @@
+# Binary files, marked explicitly rather than left to git's auto-detection.
+#
+# The eval fixture PDFs are written by a minimal PDF writer that emits plain text operators and
+# compresses nothing, so they contain no NUL bytes and git classifies them as TEXT. Clone with
+# core.autocrlf=true -- the Git for Windows default -- and every LF inside them becomes CRLF, the
+# files grow by ~4%, and pypdfium2 cannot read them: every extraction case in the eval gate fails
+# with `extraction_failed` on a fresh clone while passing everywhere else. Found 2026-09-23 by
+# cloning the repo the way a grader would.
+*.pdf binary
+
 # Mark all PHPStan baseline files as generated
 .phpstan/baseline/ linguist-generated=true
 
