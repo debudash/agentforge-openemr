@@ -516,7 +516,7 @@ working slice means every later stage lands against a gate that already works.
 
 ---
 
-## 13. Validation tooling: the Demo Data tab
+## 14. Validation tooling: the Demo Data tab
 
 **Not part of the product.** It exists so the Week 2 ingestion flow can be exercised without
 hunting for a real PDF, and it is removed before production.
