@@ -73,7 +73,7 @@ eval gate:
   extends: .python
   stage: test
   script:
-    # 66 recorded cases through the real code. No model, no key, no network. A drop of more than
+    # 74 recorded cases through the real code. No model, no key, no network. A drop of more than
     # five points against the committed baseline fails the job, which is what blocks a merge.
     - python -m evals.stage2.gate
   artifacts:

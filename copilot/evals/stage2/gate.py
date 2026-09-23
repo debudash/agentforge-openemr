@@ -1,4 +1,4 @@
-"""The Week 2 eval gate: 50 cases, five boolean rubrics, a committed baseline, a non-zero exit.
+"""The Week 2 eval gate: 74 cases, five boolean rubrics, a committed baseline, a non-zero exit.
 
     python -m evals.stage2.gate                    # run, compare with baseline.json, exit 1 on regression
     python -m evals.stage2.gate --record-baseline  # write baseline.json from this run
