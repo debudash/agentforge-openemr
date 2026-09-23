@@ -359,7 +359,8 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
     terms = _phi_terms(case, run.get("chart"))
     if kind == "extraction" and run.get("outcome") == "extracted":
         terms += [str(f["value"]) for _, f in _walk(run["result"].document.model_dump()) if f["value"] and len(str(f["value"])) > 2]
-    leaked = [t for t in terms if any(t.lower() in line.lower() for line in log_lines)]
+    haystack = [t.lower() for line in log_lines for t in _log_text(line)]
+    leaked = [t for t in terms if any(t.lower() in h for h in haystack)]
     if leaked:
         fail("no_phi_in_logs", f"leaked to the event log: {sorted(set(leaked))[:3]}")
     ok("no_phi_in_logs")
@@ -368,6 +369,40 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
         if r not in applicable:
             verdict[r] = None
     return verdict, why
+
+
+def _log_text(line: str) -> list[str]:
+    """The parts of one event line that could carry content, as text.
+
+    An event is JSON: string fields carry content, numeric fields carry timings, counts and ids.
+    Matching a PHI term against the whole line conflates the two -- an extracted value of 112
+    matches `"duration_ms": 112`, so the rubric passes or fails on how long the run took. Scanning
+    only the string values keeps the check on content and makes it deterministic. A line that is
+    not JSON is scanned whole, because nothing is known about its shape.
+    """
+    brace = line.find("{")
+    if brace == -1:
+        return [line]
+    try:
+        payload = json.loads(line[brace:])
+    except ValueError:
+        return [line]
+
+    out = [line[:brace]]
+
+    def walk(node: Any) -> None:
+        if isinstance(node, str):
+            out.append(node)
+        elif isinstance(node, dict):
+            for key, value in node.items():
+                out.append(key)
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(payload)
+    return out
 
 
 def _walk(doc: dict[str, Any]):

@@ -151,6 +151,12 @@ it passes on current code, then removes four different guards one at a time — 
 citation demotion, the treatment-boundary regex, PHI redaction in logs — and asserts the gate
 catches each. A gate nobody has watched fail is a guess.
 
+A sixth test asserts the gate reads a **non-empty** event log. That one exists because
+`no_phi_in_logs` was, until 2026-09-23, passing 74/74 against an empty log everywhere except under
+pytest: telemetry configured its logger's level only when that logger had no handlers, and the
+gate attaches its capture handler first, so every event was dropped before it was written. A
+rubric that cannot fail is worse than no rubric, and nothing else in the suite could see it.
+
 ## 4. API keys and environment variables
 
 **None.** The gate needs no key, no network and no running service.

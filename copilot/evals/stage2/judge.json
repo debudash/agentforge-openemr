@@ -14,5 +14,5 @@
   },
   "not_applicable": "A judge call that is rate-limited or fails is recorded as judge n/a and never fails the case.",
   "never_overrides": "A deterministic failure fails the case whatever the judge says.",
-  "note_on_model": "A different family from the agent (google/gemini-2.5-flash-lite) so it is not grading its own output. The free slugs used through stage 7 are retired."
+  "note_on_model": "Chosen as a different family from the agent (google/gemini-2.5-flash-lite) so it is not grading its own output. The free slugs used through stage 7 are retired."
 }

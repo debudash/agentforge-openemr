@@ -1,6 +1,7 @@
 """The gate must pass on this code and fail when a guard is removed. A gate nobody has seen fail is a guess."""
 
 import json
+import logging
 
 import pytest
 
@@ -49,16 +50,50 @@ def test_the_gate_fails_when_the_boundary_regex_is_weakened(monkeypatch, baselin
     assert failures and any(f.startswith("safe_refusal") for f in failures)
 
 
-def test_the_gate_fails_when_the_event_log_starts_carrying_values(monkeypatch, baseline):
-    import copilot.telemetry as telemetry
+def test_the_gate_reads_a_non_empty_event_log(baseline):
+    """no_phi_in_logs is only worth anything if the log it reads has something in it.
 
-    original = telemetry.emit
+    telemetry configures the copilot.events logger at import time, and used to set its level only
+    when the logger had no handlers. The gate attaches its capture handler before the first case
+    imports telemetry, so the level stayed at WARNING, every emit() was dropped, and the rubric
+    scored 74/74 against an empty log -- in CI and from a fresh clone, though not under pytest,
+    where another module imports telemetry first. A vacuous rubric is worse than no rubric.
+    """
+    logger = logging.getLogger("copilot.events")
+    capture = gate._LogCapture()
+    logger.addHandler(capture)
+    try:
+        gate.run(only={"E12"})
+    finally:
+        logger.removeHandler(capture)
+    assert capture.lines, "the gate captured no events: no_phi_in_logs would pass vacuously"
 
-    def leaky(event, correlation_id=None, **fields):
-        return original(event, correlation_id, leaked="Jane Doe 5.4", **fields)
 
-    monkeypatch.setattr(telemetry, "emit", leaky)
-    monkeypatch.setattr("copilot.documents.extract.emit", leaky)
-    _, summary = gate.run()
+class _LeakIntoTheLog(logging.Filter):
+    """Append a patient name and a value to every event, as a careless field would."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = str(record.getMessage())
+        record.args = ()
+        record.msg = message[:-1] + ', "leaked": "Jane Doe 5.4"}' if message.endswith("}") else message + " Jane Doe 5.4"
+        return True
+
+
+def test_the_gate_fails_when_the_event_log_starts_carrying_values(baseline):
+    """The leak goes into the log, not into telemetry.emit.
+
+    Five modules bind `emit` at import time (`from .telemetry import emit`), so patching the
+    function reaches whichever callers happened to import after the patch. That made this test
+    pass or fail on the order its neighbours ran in -- it passed alone and failed inside its own
+    file. The rubric reads the event log, so the log is where the leak belongs: this holds
+    whatever imported what.
+    """
+    logger = logging.getLogger("copilot.events")
+    leak = _LeakIntoTheLog()
+    logger.addFilter(leak)
+    try:
+        _, summary = gate.run()
+    finally:
+        logger.removeFilter(leak)
     failures = gate.compare(summary, baseline)
     assert failures and any(f.startswith("no_phi_in_logs") for f in failures)
