@@ -198,7 +198,7 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
 
     @tool
     def get_labs(pid: int, test: str = "", since_days: int = 365, limit: int = 30) -> str:
-        """Laboratory results, newest first. Filter by test name or LOINC substring (e.g. 'potassium', '2823-3'). Each result carries the demo reference range check; the record itself has no ranges."""
+        """Laboratory results, newest first. Filter by test name or LOINC substring (e.g. 'potassium', '2823-3'), or narrow to recent results with since_days (use a small window for questions about what is new or what changed). Each result carries the demo reference range check; the record itself has no ranges. A result read from a stored document names that document."""
         denied = ctx.check("get_labs", pid)
         if denied:
             return denied
@@ -214,6 +214,10 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
                 "source_id": lab.source_id, "test": lab.test, "code": lab.code, "value": lab.value, "units": lab.units,
                 "date": lab.date, "recorded_range": lab.range or None, "recorded_abnormal_flag": lab.abnormal or None,
                 "demo_reference": flag.reference, "demo_reference_check": flag.outcome, "direction": flag.direction,
+                # Week 2: a result read from a stored document says so, so an answer about what
+                # changed can tell a machine-read value from one a human entered.
+                "read_from_document": f"doc:{lab.document_id}" if lab.document_id else None,
+                "document_page": lab.page,
             })
         last = normalize.latest_lab_date(ctx.chart)
         note = None

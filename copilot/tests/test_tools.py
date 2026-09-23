@@ -74,3 +74,19 @@ def test_derived_records_carry_source_ids(chart101, today):
     assert {r["source_id"] for r in rules["records"]} >= {"rule:ALLERGY-1", "rule:LAB-1"}
     signals = json.loads(tool(ctx, "get_compliance_signals").invoke({"pid": 101}))
     assert signals["records"][0]["source_id"] == "signal:1" and signals["records"][0]["based_on"]
+
+
+def test_a_lab_read_from_a_document_says_which_document_and_page(chart101, today):
+    """An answer about what changed has to be able to tell a machine-read value from one a human
+    entered, and point at the page it came from."""
+    from copilot.schemas import Lab
+
+    chart = chart101.model_copy(deep=True)
+    chart.labs.append(Lab(source_id="lab:7777", test="Potassium", value="5.4", units="mmol/L",
+                          date=str(today), document_id=412, page=2))
+    ctx = ChartContext(chart, today)
+    rows = json.loads(tool(ctx, "get_labs").invoke({"pid": chart.patient.pid, "test": "potassium"}))["records"]
+
+    read = [r for r in rows if r["source_id"] == "lab:7777"][0]
+    assert read["read_from_document"] == "doc:412" and read["document_page"] == 2
+    assert all(r["read_from_document"] is None for r in rows if r["source_id"] != "lab:7777")

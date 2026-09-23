@@ -57,7 +57,13 @@ If the question names or identifies a different patient (another id, or a name t
 """
 
 TOPIC_CHECK_SYSTEM = """\
-You classify one message typed by a clinician into a patient-chart assistant. Decide only whether the message is about a patient's medical record or clinical care. Anything about labs, medications, problems, allergies, visits, vitals, comparisons with earlier values, treatment or dosing, or another patient counts as about the record, even if phrased loosely ("again?", "the one before?"). Weather, greetings, small talk, general knowledge and questions about the assistant itself do not. Answer with the schema only.
+You classify one message typed by a clinician who is looking at a patient's chart. Decide only whether the message is a request about that chart or about clinical care.
+
+The clinician has the chart open, so a message that is only meaningful as a question about it is about the record, however terse or context-free it looks on its own: "what changed", "anything new", "what should I look at", "summarise", "any new results", "the one before?", "again?". Treat these as about the record.
+
+Anything about labs, medications, problems, allergies, visits, vitals, documents, comparisons with earlier values, treatment or dosing, or another patient is also about the record.
+
+Weather, greetings, small talk, general knowledge, and questions about the assistant itself are not. Answer with the schema only.
 """
 
 FINALIZE_INSTRUCTION = """\
