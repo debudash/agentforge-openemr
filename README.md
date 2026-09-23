@@ -270,9 +270,11 @@ of them drops below its threshold or falls more than 5 points below the committe
 `hooks/install-hooks.ps1` installs the pre-push hook, so a regression blocks the push. That hook
 is what gates the build; `test_gate.py` injects four regressions and each one fails the gate.
 
-**CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) runs the unit tests, the 74-case eval gate, the UI guard
+**CI:** [![pipeline](https://labs.gauntletai.com/debudash/openemragent/badges/week2/pipeline.svg)](https://labs.gauntletai.com/debudash/openemragent/-/pipelines)
+[`.gitlab-ci.yml`](.gitlab-ci.yml) runs the unit tests, the 74-case eval gate, the UI guard
 and a PHP syntax check on every push and every merge request, so a regression fails the pipeline
-before it reaches the demo. Each job's evidence -- per-case verdicts and the rubric summary --
+before it reaches the demo. Measured on the first green run: 56 s, 110 s, 104 s and 61 s, four jobs
+in parallel. Each job's evidence -- per-case verdicts and the rubric summary --
 downloads from the `eval gate` job as an artifact. The pipeline holds no secrets and needs no API
 key: the gate replays recorded cases through the real code, verified green with every model key
 unset. The *deploy* half is **parked** at
