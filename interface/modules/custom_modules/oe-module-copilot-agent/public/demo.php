@@ -118,7 +118,7 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
         <div class="card-body">
             <h5><?php echo xlt("1. Generate"); ?></h5>
             <p class="cpa-meta mb-2">
-                <?php echo xlt("Writes one lab report and one intake form to the folder below. Nothing is added to the chart: that happens when you upload one, which is the flow being tested."); ?>
+                <?php echo xlt("Writes one lab report and one intake form, and files both in the chart unread. The co-pilot reads them on its next run -- immediately if its tab is open."); ?>
             </p>
             <form id="cpa-gen-form" class="form-inline">
                 <label for="cpa-variant" class="mr-2"><?php echo xlt("Lab report"); ?></label>
@@ -137,14 +137,15 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
             <div class="cpa-out mt-2" id="cpa-out" aria-live="polite"></div>
         </div>
         <div class="card-body border-top">
-            <h5><?php echo xlt("2. Upload one through the chart"); ?></h5>
+            <h5><?php echo xlt("2. They are already in the chart, unread"); ?></h5>
             <div class="cpa-step">
-                <?php echo xlt("Patient record"); ?> &rarr; <strong><?php echo xlt("Documents"); ?></strong> &rarr;
-                <?php echo xlt("upload the lab report into category"); ?> <strong><?php echo xlt("Lab Report"); ?></strong>,
-                <?php echo xlt("and the intake form into"); ?> <strong><?php echo xlt("Medical Record"); ?></strong>.
+                <?php echo xlt("Generating also files them in the patient's Documents -- the lab report under"); ?>
+                <strong><?php echo xlt("Lab Report"); ?></strong>, <?php echo xlt("the intake form under"); ?>
+                <strong><?php echo xlt("Medical Record"); ?></strong> &mdash;
+                <?php echo xlt("through the same code an upload goes through. Nothing is read yet."); ?>
             </div>
             <div class="cpa-meta">
-                <?php echo xlt("On this machine the files are already in the folder above, so the file picker can reach them. On a deployment, download them first."); ?>
+                <?php echo xlt("The files stay in the folder above as well, so you can download one and upload it by hand through Documents if you want to show that path (click a category there first, or the uploader does not appear)."); ?>
                 <?php echo xlt("Do not rename them: Purge recognises them by their name."); ?>
             </div>
             <table class="table table-sm mt-2 cpa-files" id="cpa-files">
@@ -189,6 +190,21 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
         out.style.color = bad ? "#b71c1c" : "#1b5e20";
     }
 
+    // If a Co-Pilot tab is already open on this patient, tell it to look again rather than
+    // leaving the clinician to work out that it needs reopening.
+    function nudgeCopilot() {
+        try {
+            var frame = top.document.querySelector("iframe[name='cpapat']");
+            if (frame && frame.contentWindow && typeof frame.contentWindow.cpaRereadDocuments === "function") {
+                frame.contentWindow.cpaRereadDocuments();
+                return true;
+            }
+        } catch (e) {
+            // A co-pilot tab that cannot be reached is not an error here.
+        }
+        return false;
+    }
+
     function renderFiles(files) {
         var body = document.querySelector("#cpa-files tbody");
         body.innerHTML = "";
@@ -223,7 +239,10 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
         api("demo_generate", { pid: PID, variant: document.getElementById("cpa-variant").value })
             .then(function (res) {
                 if (res.http_status !== 200) { say(res.reason || "could not generate", true); return; }
-                say("Wrote " + res.generated.map(function (g) { return g.name; }).join(" and ") + ".");
+                var names = res.generated.map(function (g) { return g.name; }).join(" and ");
+                say("Filed " + names + " in the chart, unread." + (nudgeCopilot()
+                    ? " The Co-Pilot tab is open and is reading them now."
+                    : " Open the Co-Pilot tab and it will read them."));
                 renderFiles(res.files);
             })
             .catch(function () { say("request failed", true); })

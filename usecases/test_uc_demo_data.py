@@ -1,9 +1,9 @@
 """UC-DEMO-DATA: the Demo Data tab (validation tooling, Week 2).
 
-It writes synthetic documents to a folder so the ingestion flow can be exercised without a real
-PDF. It never puts a document into a chart -- that is the upload, which is the flow being
-validated. Purge removes what it generated: the files, the documents uploaded from them, and the
-lab rows those documents produced, so a citation never outlives the page it points at.
+It writes synthetic documents and files them in the chart unread, through the same storeDocument
+an upload goes through, so the co-pilot finds them on its next run. The files stay in the folder
+too, so the by-hand upload path can still be shown. Purge removes all of it: the files, the
+documents, and the lab rows those documents produced, so a citation never outlives its page.
 
 Needs OE_DOCTOR_PASS. The flag must be on for this instance (COPILOT_DEMO_TOOLS), or the actions
 refuse and these cases skip.
@@ -52,6 +52,24 @@ def test_generate_writes_a_lab_report_and_an_intake_form_for_this_patient(doctor
     assert body["directory"].endswith("demo/generated")
 
 
+def test_generated_documents_are_filed_in_the_chart_unread(doctor, headers):
+    """The point of the change: a generated document is in the chart, so the co-pilot finds it on
+    its next run. A file the clinician still has to upload by hand is a step that exists only for
+    the demo."""
+    body = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"}).json()
+    doc_ids = [g["doc_id"] for g in body["generated"]]
+    assert all(isinstance(d, int) and d > 0 for d in doc_ids), body
+
+    listed = call(doctor, headers, "documents", {"pid": w.IN_PANEL}).json()
+    by_id = {d["doc_id"]: d for d in listed["documents"]}
+    for generated in body["generated"]:
+        entry = by_id.get(generated["doc_id"])
+        assert entry is not None, f"{generated['name']} is not in the chart"
+        assert entry["doc_type"] == generated["doc_type"]
+        assert entry["processed"] is False, "a generated document must arrive unread"
+    assert listed["unprocessed"] >= 2
+
+
 def test_the_generated_report_names_the_patient_it_was_generated_for(doctor, headers):
     name = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"}).json()["generated"][0]["name"]
     pdf = doctor.get(f"{w.API}?action=demo_file&context=patient&pid={w.IN_PANEL}&name={name}", timeout=60)
@@ -95,9 +113,11 @@ def test_purge_clears_the_folder_and_leaves_nothing_it_did_not_generate(doctor, 
     before = db_query(f"SELECT COUNT(*) FROM documents WHERE foreign_id = {w.IN_PANEL} AND deleted = 0")[0][0]
     body = call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL}).json()
     assert body["files"] >= 2 and body["files_remaining"] == []
-    # Nothing was in the chart, so nothing in the chart was touched.
+    # Its own documents go; anything else in the chart stays exactly as it was.
     after = db_query(f"SELECT COUNT(*) FROM documents WHERE foreign_id = {w.IN_PANEL} AND deleted = 0")[0][0]
-    assert after == before
+    assert int(after) == int(before) - body["documents"]
+    assert db_query(f"SELECT COUNT(*) FROM documents WHERE foreign_id = {w.IN_PANEL} "
+                    f"AND deleted = 0 AND name LIKE 'copilot-demo-%'") == [["0"]]
 
 
 def test_a_report_naming_another_patient_is_read_but_never_filed(doctor, headers):
@@ -106,14 +126,11 @@ def test_a_report_naming_another_patient_is_read_but_never_filed(doctor, headers
     claim about whose results these are, and a mismatch is refused rather than reconciled."""
     gen = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "wrong_patient"}).json()
     name = gen["generated"][0]["name"]
+    doc_id = gen["generated"][0]["doc_id"]
     pdf = doctor.get(f"{w.API}?action=demo_file&context=patient&pid={w.IN_PANEL}&name={name}", timeout=60).content
     assert b"Marlow Ashcombe" in pdf
 
-    resp = doctor.post(f"{w.API}?action=attach&context=patient",
-                       data={"pid": w.IN_PANEL, "doc_type": "lab_pdf"},
-                       files={"file": (name, pdf, "application/pdf")}, headers=headers, timeout=300)
-    body = resp.json()
-    doc_id = body["doc_id"]
+    body = call(doctor, headers, "extract", {"pid": w.IN_PANEL, "doc_id": doc_id, "doc_type": "lab_pdf"}).json()
     try:
         if body.get("reason", "").startswith("extraction failed"):
             pytest.skip(f"the vision model was unavailable: {body['reason']}")
@@ -123,20 +140,15 @@ def test_a_report_naming_another_patient_is_read_but_never_filed(doctor, headers
         assert db_query(f"SELECT COUNT(*) FROM procedure_result WHERE document_id = {doc_id}") == [["0"]]
         assert db_query(f"SELECT COUNT(*) FROM documents WHERE id = {doc_id} AND deleted = 0") == [["1"]]
     finally:
-        db_query(f"DELETE FROM categories_to_documents WHERE document_id = {doc_id}")
-        db_query(f"DELETE FROM documents WHERE id = {doc_id}")
+        call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})
 
 
 def test_a_report_naming_this_patient_is_filed(doctor, headers):
     """The same path with the matching name, so the refusal above is the cross-check working and
     not merely extraction failing."""
     gen = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"}).json()
-    name = gen["generated"][0]["name"]
-    pdf = doctor.get(f"{w.API}?action=demo_file&context=patient&pid={w.IN_PANEL}&name={name}", timeout=60).content
-
-    body = doctor.post(f"{w.API}?action=attach&context=patient",
-                       data={"pid": w.IN_PANEL, "doc_type": "lab_pdf"},
-                       files={"file": (name, pdf, "application/pdf")}, headers=headers, timeout=300).json()
+    doc_id = gen["generated"][0]["doc_id"]
+    body = call(doctor, headers, "extract", {"pid": w.IN_PANEL, "doc_id": doc_id, "doc_type": "lab_pdf"}).json()
     try:
         if body.get("reason", "").startswith("extraction failed"):
             pytest.skip(f"the vision model was unavailable: {body['reason']}")

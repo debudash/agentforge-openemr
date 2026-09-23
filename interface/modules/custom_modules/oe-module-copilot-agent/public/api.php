@@ -432,10 +432,29 @@ try {
             }
             if ($action === 'demo_generate') {
                 $written = $demo->generate($pid, (string) ($input['variant'] ?? 'abnormal'), $scope->displayName());
+                // Generating a document a clinician then has to upload by hand is a step that
+                // exists only for the demo. The file is written either way -- it is what a lab
+                // would have sent, and it stays downloadable -- but it is also filed in the chart
+                // here, unread, through the same storeDocument an upload goes through. The
+                // co-pilot then finds it the way it finds any other document: on its next run.
+                $writer = new DocumentWriter($scope);
+                $eid = $sessionPid === $pid ? $sessionEncounter : 0;
+                foreach ($written as $index => $file) {
+                    $path = $demo->directory() . '/' . $file['name'];
+                    $written[$index]['doc_id'] = $writer->storeDocument(
+                        $pid,
+                        $path,
+                        $file['name'],
+                        (string) mime_content_type($path),
+                        $file['doc_type'] === 'lab_pdf' ? DocumentWriter::CATEGORY_LAB : DocumentWriter::CATEGORY_RECORD,
+                        $eid
+                    );
+                }
                 audit('copilot-demo-generated', $username, $authGroup, true,
                     'cid=' . $correlationId . ' variant=' . (string) ($input['variant'] ?? 'abnormal')
-                    . ' files=' . count($written), $pid);
-                respond(200, ['generated' => $written, 'files' => $demo->files(), 'directory' => $demo->directory()], $correlationId);
+                    . ' files=' . count($written) . ' docs=' . implode(',', array_column($written, 'doc_id')), $pid);
+                respond(200, ['generated' => $written, 'files' => $demo->files(), 'directory' => $demo->directory(),
+                              'unread' => count($written)], $correlationId);
             }
             $purged = $demo->purge($pid);
             audit('copilot-demo-purged', $username, $authGroup, true,

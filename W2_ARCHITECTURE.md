@@ -482,13 +482,17 @@ reset first, which is what a real chart does anyway.
 
 | Decision | Choice | Why |
 |---|---|---|
-| Where documents are generated | Files in `demo/generated/`, never into a chart | Keeps the graded ingestion path the real one; no database writes on the way in |
+| Where documents are generated | A file in `demo/generated/`, **and** filed in the chart unread through the same `storeDocument` an upload uses | Generating a file the clinician then has to upload by hand is a step that exists only for the demo, and it was the part that felt wrong in use. The file is still written, still downloadable, and the by-hand upload still works -- but the default path is the one a clinician would actually experience: the document is simply there, and the co-pilot reads it on its next run |
 | Who writes the PDF | The module, in PHP, with a deliberately primitive writer | mPDF and dompdf are both available, but they embed subset fonts whose text layer extracts unreliably. Click-to-source depends on that text layer, so the generator uses the same Courier-and-text-operators shape the eval fixtures use, which is known to extract cleanly |
 | Patient identity on the document | Read from the chart being viewed | The document's own patient reference then agrees with the chart it is filed in. `patient_ref` is extracted for a cross-check that is **not yet enforced**; matching names keeps the demo honest rather than hiding that |
 | Values | Fixed per variant, only identifiers and dates vary | A randomised potassium would some runs fail to reach the rule engine, and a demo that behaves differently each time teaches nothing |
 | Gate | `COPILOT_DEMO_TOOLS`, default false in code | A deployment that sets nothing never exposes it. The tab is not registered *and* the actions refuse, so a stale browser tab cannot reach a live endpoint |
 | Purge | Files, the documents uploaded from them, and the lab rows those produced | Deleting only the document would leave results whose citations open a page that no longer exists -- worse than deleting nothing. Scoped to its own `copilot-demo-` filenames |
 | Removal | One file, one registration block, one action block | `src/DemoDocuments.php`, the block in `Bootstrap::addPatientTab`, the `demo_*` case in `api.php`, `public/demo.php` |
+
+A co-pilot tab already open would otherwise sit on a chart that has since gained a document, so
+`patient.php` exposes `window.cpaRereadDocuments()` and the Demo Data tab calls it when one is
+open. That is the whole of the coupling between the two, and it goes when the demo tooling goes.
 
 **As built.** `DemoDocuments::generate()` writes a two-page lab report and a one-page intake form
 named `copilot-demo-<kind>-<timestamp>.pdf`. The lab report has three results on page 1 and two on

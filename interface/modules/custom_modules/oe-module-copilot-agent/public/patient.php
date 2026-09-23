@@ -519,6 +519,14 @@ if ($gate === 'ok') {
     document.getElementById("cpa-stale-reload").addEventListener("click", function () { window.location.reload(); });
     setInterval(checkPatientStillInView, 2000);
 
+    // The Demo Data tab calls this after filing a document, so a co-pilot already open picks it
+    // up without the clinician having to reopen the tab. Nothing else uses it, and it goes when
+    // the demo tooling goes.
+    window.cpaRereadDocuments = function () {
+        setState("Checking for new documents…", "");
+        supervise();
+    };
+
     window.addEventListener("beforeunload", function () { navigator.sendBeacon && api("close", {}); });
     open();
     checkPatientStillInView();

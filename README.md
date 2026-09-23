@@ -274,14 +274,16 @@ through OpenEMR's own Documents tab. The ingestion flow being demonstrated is th
 one -- the same path any uploaded document takes -- not a shortcut that exists only for the demo.
 
 1. Open a patient, then the **Demo Data** tab. Choose a lab report: abnormal (potassium 5.4, eGFR
-   58, A1c 7.4), normal, or unreadable (a page with no text). Press **Generate New Docs**.
-   It writes one lab report and one intake form, naming the patient whose chart you have open, so
-   the name on the document agrees with the chart it will be filed in.
-2. Upload the lab report through **Documents** into category *Lab Report* (the intake form into
-   *Medical Record*). On the dev stack the files are already on your disk at `demo/generated/`;
-   on a deployment, use the Download button first.
-3. Open the **Co-Pilot** tab. It finds the unread document, reads it, has the results filed, and
-   shows what changed with a citation into the page it read.
+   58, A1c 7.4), normal, unreadable (a page with no text), or another patient's. Press
+   **Generate New Docs**. It writes one lab report and one intake form naming the patient whose
+   chart you have open, and files both in that chart **unread**, through the same code an upload
+   goes through.
+2. Open the **Co-Pilot** tab. It finds the unread documents, reads them, has the results filed,
+   and shows what changed with a citation into the page it read. If the tab is already open when
+   you generate, it re-reads there and then rather than waiting to be reopened.
+3. The files also stay in `demo/generated/`, downloadable from the tab, so the by-hand path can
+   still be shown: **Documents**, click a category (the uploader only appears once a category is
+   selected), then upload. Both routes end in the same ingestion flow.
 The lab-report choice includes **another patient's report**, which generates a document naming
 someone else. Upload it and the co-pilot reads it, refuses to file it, and says why: the name on a
 document is checked against the chart before any of it becomes chart data, and a mismatch is
