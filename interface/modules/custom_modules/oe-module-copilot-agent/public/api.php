@@ -27,6 +27,7 @@ while (!is_file($openemrRoot . "/interface/globals.php") && dirname($openemrRoot
 require_once $openemrRoot . "/interface/globals.php";
 
 use OpenEMR\Common\Logging\EventAuditLogger;
+use OpenEMR\Common\Session\PatientSessionUtil;
 use OpenEMR\Modules\CopilotAgent\AgentClient;
 use OpenEMR\Modules\CopilotAgent\AgentUnavailableException;
 use OpenEMR\Modules\CopilotAgent\ChartReader;
@@ -70,7 +71,11 @@ if ($method === 'POST') {
 }
 // The encounter in the session belongs to the session's patient; it is only attached to a write
 // for that same patient, never to a request that names a different pid.
-$sessionPid = (int) ($_SESSION['pid'] ?? 0);
+//
+// Read through PatientSessionUtil, as patient.php does. The raw superglobal was empty here --
+// OpenEMR keeps the active patient behind the session wrapper -- so this read as 0 on every
+// request, which quietly meant no write ever had an encounter attached.
+$sessionPid = PatientSessionUtil::getPid();
 $sessionEncounter = (int) ($_SESSION['encounter'] ?? 0);
 
 /**
@@ -445,6 +450,20 @@ try {
             }
             $demo = new DemoDocuments($scope, $openemrRoot);
             $pid = (int) ($input['pid'] ?? $_GET['pid'] ?? 0);
+
+            // The tab renders with the open chart's patient baked in, and nothing tells it when the
+            // clinician opens another one. Generating then writes documents into a chart nobody is
+            // looking at, and purging deletes from one -- both demonstrated before this check
+            // existed. Panel scope does not catch it: the stale patient is usually in the panel
+            // too. So these two actions require the patient still to be the one in view, and the
+            // page carries a banner saying so; the refusal is the part that cannot be missed.
+            if (in_array($action, ['demo_generate', 'demo_purge'], true) && $pid !== $sessionPid) {
+                audit('copilot-demo-stale', $username, $authGroup, false,
+                    'cid=' . $correlationId . ' action=' . $action . ' requested=' . $pid . ' open=' . $sessionPid, $pid);
+                respond(409, ['state' => 'unable_to_answer', 'stale_patient' => true,
+                              'open_pid' => $sessionPid,
+                              'reason' => 'the chart in view has changed; reopen Demo Data for the patient you have open'], $correlationId);
+            }
 
             if ($action === 'demo_files') {
                 respond(200, ['files' => $demo->files(), 'directory' => $demo->directory()], $correlationId);

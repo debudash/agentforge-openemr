@@ -189,3 +189,30 @@ def test_the_what_changed_citation_opens_a_page_with_the_quote_boxed(doctor, hea
             assert 0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1
     finally:
         call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})
+
+
+def test_a_stale_tab_cannot_write_into_the_chart_that_is_no_longer_open(doctor, headers):
+    """The tab renders with the open chart's patient baked in, and nothing tells it when the
+    clinician opens another one. Before this check, Generate wrote two documents into a chart
+    nobody was looking at -- panel scope does not catch it, because the stale patient is in the
+    panel too."""
+    other = 3 if w.IN_PANEL != 3 else 1
+    doctor.get(f"{w.DEMOGRAPHICS}?set_pid={other}", timeout=120)     # the clinician moves on
+    try:
+        for action in ("demo_generate", "demo_purge"):
+            resp = call(doctor, headers, action, {"pid": w.IN_PANEL, "variant": "abnormal"})
+            assert resp.status_code == 409, f"{action}: {resp.status_code}"
+            body = resp.json()
+            assert body["stale_patient"] is True and body["open_pid"] == other
+        assert db_query(f"SELECT COUNT(*) FROM documents WHERE foreign_id = {w.IN_PANEL} "
+                        f"AND deleted = 0 AND name LIKE 'copilot-demo-%'") == [["0"]]
+    finally:
+        doctor.get(f"{w.DEMOGRAPHICS}?set_pid={w.IN_PANEL}", timeout=120)
+
+
+def test_the_patient_in_view_is_still_served(doctor, headers):
+    """The check must refuse a stale tab without refusing the ordinary case."""
+    doctor.get(f"{w.DEMOGRAPHICS}?set_pid={w.IN_PANEL}", timeout=120)
+    body = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"}).json()
+    assert len(body["generated"]) == 2
+    call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})

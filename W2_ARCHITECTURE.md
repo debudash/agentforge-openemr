@@ -615,6 +615,21 @@ every run and passing anyway. They now build a report naming the patient they fi
 (`usecases/labpdf.py`), which also means the extraction case genuinely exercises the persist path
 instead of skipping.
 
+**When the clinician opens another chart.** Both tabs render with the open patient baked in and
+nothing tells them when that changes. The Co-Pilot tab is a reader, so it says plainly that what
+is shown belongs to a patient no longer in view. The Demo Data tab **writes** -- generating files
+documents into a chart, purging deletes from one -- so a banner is not enough: `demo_generate` and
+`demo_purge` refuse outright unless the patient is still the one in view, and the buttons disable
+themselves. Demonstrated before the check existed: a stale tab wrote two documents into a chart
+nobody was looking at. Panel scope does not catch this, because the stale patient is in the panel
+too.
+
+Finding that required reading the active patient the way OpenEMR actually stores it. `api.php` was
+reading the raw `$_SESSION['pid']` superglobal, which is empty -- the active patient lives behind
+the session wrapper -- so it had been 0 on every request, and the encounter-attachment check
+beside it (`$sessionPid === $pid`) had quietly never matched. It now reads through
+`PatientSessionUtil::getPid()`, as `patient.php` always did.
+
 **What it does not prove.** Generated documents have a clean text layer, so click-to-source always
 resolves. A real scan would not, and there is no OCR. The unreadable variant exists so that path is
 shown rather than implied away.

@@ -87,6 +87,10 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
         .cpa-step { margin-bottom: .35rem; }
         .cpa-files td { font-size: .85rem; vertical-align: middle; }
         .cpa-out { white-space: pre-wrap; font-family: monospace; font-size: .78rem; }
+        /* Laid out here rather than with Bootstrap's d-flex, whose display is !important and would
+           outrank the hidden attribute. */
+        .cpa-stale { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+        .cpa-stale[hidden] { display: none; }
     </style>
 </head>
 <body class="body_top container-fluid">
@@ -102,6 +106,10 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
 <?php elseif ($gate === 'scope') : ?>
     <div class="alert alert-danger mt-3" role="alert"><?php echo xlt("This patient is not in your panel."); ?></div>
 <?php else : ?>
+    <div class="alert alert-danger py-2 cpa-stale" id="cpa-stale" role="alert" hidden>
+        <span id="cpa-stale-text"></span>
+        <button type="button" class="btn btn-sm btn-danger" id="cpa-stale-reload"><?php echo xlt("Reload for the patient in view"); ?></button>
+    </div>
     <div class="d-flex flex-wrap align-items-center justify-content-between mt-2">
         <h2 class="mb-0"><?php echo xlt("Demo Data"); ?></h2>
         <div class="cpa-warn">
@@ -175,6 +183,7 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
     var API = "api.php";
     var PID = <?php echo (int) $pid; ?>;
     var CSRF = <?php echo json_encode($csrf); ?>;
+    var PATIENT_NAME = <?php echo json_encode($patientName); ?>;
     var out = document.getElementById("cpa-out");
 
     function api(action, body) {
@@ -238,7 +247,7 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
         button.disabled = true; say("Generating…");
         api("demo_generate", { pid: PID, variant: document.getElementById("cpa-variant").value })
             .then(function (res) {
-                if (res.http_status !== 200) { say(res.reason || "could not generate", true); return; }
+                if (res.http_status !== 200) { say(res.reason || "could not generate", true); checkPatientStillInView(); return; }
                 var names = res.generated.map(function (g) { return g.name; }).join(" and ");
                 say("Filed " + names + " in the chart, unread." + (nudgeCopilot()
                     ? " The Co-Pilot tab is open and is reading them now."
@@ -264,6 +273,34 @@ $folder = $config->demoTools ? (new DemoDocuments($scope, $openemrRoot))->direct
             .catch(function () { say("request failed", true); })
             .then(function () { button.disabled = false; });
     });
+
+    // This tab writes: generating files documents into a chart, purging deletes from one. The pid
+    // was fixed when the page rendered, so if the clinician opens another chart the buttons would
+    // act on a patient nobody is looking at. The server refuses that outright; this is so it is
+    // obvious before the click rather than after it.
+    function chartPid() {
+        try {
+            return Number(top.app_view_model.application_data.patient().pid());
+        } catch (e) {
+            return null;
+        }
+    }
+    function checkPatientStillInView() {
+        var current = chartPid();
+        var stale = current !== null && current !== PID;
+        var banner = document.getElementById("cpa-stale");
+        banner.hidden = !stale;
+        document.getElementById("cpa-gen").disabled = stale;
+        document.getElementById("cpa-purge").disabled = stale;
+        if (stale) {
+            document.getElementById("cpa-stale-text").textContent =
+                "The chart in view has moved to another patient (pid " + current + "). These buttons act on "
+                + PATIENT_NAME + " (pid " + PID + "), so they are disabled.";
+        }
+    }
+    document.getElementById("cpa-stale-reload").addEventListener("click", function () { window.location.reload(); });
+    setInterval(checkPatientStillInView, 2000);
+    checkPatientStillInView();
 
     api("demo_files", { pid: PID }).then(function (res) { renderFiles(res.files); });
 })();
