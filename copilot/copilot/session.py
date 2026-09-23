@@ -205,6 +205,35 @@ class SessionStore:
             emit("patient_selected", correlation_id, session=sid[:8], pid=pid)
         return state.status, state.brief, state.error
 
+    async def ask_supervised(self, sid: str, pid: int, question: str, documents: list[dict[str, Any]],
+                             vision_factory: Callable[[], Any], correlation_id: str) -> dict[str, Any] | None:
+        """A follow-up through the graph: the supervisor decides whether the question needs a
+        document read first, then hands it to the retriever.
+
+        This is what makes the supervisor's three decisions true of every interaction rather than
+        only of the first. It also means a question asked while a document is still unread is
+        answered from the chart that document produced, instead of from the chart as it was before
+        anyone uploaded anything.
+        """
+        session = self.get(sid)
+        if session is None or pid not in session.patients:
+            return None
+        self.select(sid, pid, correlation_id)
+        state = session.patients[pid]
+        summary = await asyncio.to_thread(self.supervisor(vision_factory).start, sid, pid, documents,
+                                          correlation_id, question, list(state.history))
+        self._absorb_answer(sid, pid, summary)
+        return summary
+
+    def _absorb_answer(self, sid: str, pid: int, summary: dict[str, Any]) -> None:
+        """Keep the turn the graph produced, so memory works the same through either path."""
+        turn = summary.get("turn") or []
+        if summary.get("phase") != "done" or not turn:
+            return
+        state = self.sessions[sid].patients[pid]
+        state.history.extend(turn)
+        state.history[:] = state.history[-12:]
+
     async def ask(self, sid: str, pid: int, question: str, correlation_id: str) -> AgentResponse:
         session = self.get(sid)
         if session is None:
@@ -276,6 +305,15 @@ class SessionStore:
         self.select(sid, pid, correlation_id)
         summary = await asyncio.to_thread(self.supervisor(vision_factory).start, sid, pid, documents, correlation_id)
         self._absorb_supervised(sid, pid, summary)
+        return summary
+
+    async def ask_supervised_resume(self, sid: str, pid: int, persisted: list[dict[str, Any]], chart: Chart | None,
+                                    vision_factory: Callable[[], Any], correlation_id: str) -> dict[str, Any] | None:
+        """The module has persisted what the extractor read; the question is answered from the
+        chart as it now stands."""
+        summary = await self.supervise_resume(sid, pid, persisted, chart, vision_factory, correlation_id)
+        if summary is not None:
+            self._absorb_answer(sid, pid, summary)
         return summary
 
     async def supervise_resume(self, sid: str, pid: int, persisted: list[dict[str, Any]], chart: Chart | None,

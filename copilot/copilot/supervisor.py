@@ -3,9 +3,12 @@
     START -> supervisor -> intake_extractor -> supervisor -(interrupt: module persists)-> supervisor
           -> evidence_retriever -> supervisor -> END
 
-The supervisor holds no tools. It decides three things and nothing else: whether unread documents
-need the extractor, when control must go back to the module so what was read can be persisted,
-and when the final answer can be assembled. Every edge writes one handoff record with its reason,
+Both a chart opening and a follow-up question enter here. The supervisor holds no tools. It decides
+three things and nothing else: whether unread documents need the extractor, when control must go
+back to the module so what was read can be persisted, and when the final answer -- a brief, or an
+answer to a question -- can be assembled. A question asked while a document is still unread is
+therefore answered from the chart that document produced, because the supervisor routes the
+extraction first. Every edge writes one handoff record with its reason,
 so the routing is reconstructible from logs alone.
 
 The agent cannot read OpenEMR documents and must not write to OpenEMR, so the graph pauses after
@@ -25,7 +28,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
-from .agent import generate_brief
+from .agent import answer_followup, generate_brief
 from .config import Settings
 from .documents.extract import ExtractionFailed, extract_document
 from .schemas import AgentResponse, Chart, Claim
@@ -43,12 +46,28 @@ class SupervisorState(TypedDict, total=False):
     extractions: list[dict[str, Any]]    # doc_id, doc_type, ok, result | error
     persisted: list[dict[str, Any]]      # what the module wrote: doc_id, source_ids, order_id | sidecar_doc_id, skipped
     brief: dict[str, Any] | None
+    question: str | None                 # set on a follow-up; the retriever answers instead of briefing
+    history: list[Any]                   # the conversation so far, for a follow-up
+    answer: dict[str, Any] | None
+    turn: list[Any]                      # the two messages to append to memory after an answer
     changes: list[dict[str, Any]]
     citations: list[dict[str, Any]]
     removed: list[dict[str, Any]]
     handoffs: list[dict[str, Any]]
     phase: str                           # detect | extracted | persisted | done
     started: float
+
+
+# Words that make a question one about evidence rather than about this patient's numbers. The
+# supervisor decides retrieval from the question itself, deterministically, because the model
+# asked "what evidence supports this" reached for compliance signals as often as for the corpus.
+_EVIDENCE_WORDS = ("evidence", "guidance", "guideline", "recommend", "recommendation", "uspstf",
+                   "literature", "studies", "supports", "support this", "best practice", "standard of care")
+
+
+def needs_evidence(question: str | None) -> bool:
+    lowered = (question or "").lower()
+    return any(word in lowered for word in _EVIDENCE_WORDS)
 
 
 def _document_anchor(extraction: dict[str, Any]) -> dict[str, Any]:
@@ -144,7 +163,20 @@ class Supervisor:
             emit("supervisor_handoff", cid, pid=state["pid"], to="evidence_retriever", reason=reason)
             return {"handoffs": handoffs, "persisted": [], "phase": "persisted"}
 
-        if state.get("brief") is None:
+        if state.get("question") and state.get("answer") is None:
+            wants_evidence = needs_evidence(state.get("question"))
+            reason = ("documents persisted; answering from the chart they produced" if state.get("persisted")
+                      else "question needs the chart" if not extractions
+                      else "nothing readable; answering from the chart as it is")
+            if wants_evidence:
+                reason += "; and the guideline corpus"
+            handoffs.append(_handoff("supervisor", "evidence_retriever", reason, started, question=True,
+                                     evidence_retrieval=wants_evidence))
+            emit("supervisor_handoff", cid, pid=state["pid"], to="evidence_retriever", reason=reason, kind="answer",
+                 evidence_retrieval=wants_evidence)
+            return {"handoffs": handoffs, "phase": state.get("phase") or "detect"}
+
+        if not state.get("question") and state.get("brief") is None:
             reason = "documents persisted" if state.get("persisted") else ("nothing readable; brief from the chart as it is"
                                                                             if extractions else "no unread documents")
             handoffs.append(_handoff("supervisor", "evidence_retriever", reason, started))
@@ -163,6 +195,10 @@ class Supervisor:
             return "end"
         if _unread(state) and not state.get("extractions"):
             return "intake_extractor"
+        # A question is answered by the retriever exactly as a brief is generated by it; which one
+        # is wanted is the only difference, and the supervisor is what decides.
+        if state.get("question"):
+            return "evidence_retriever" if state.get("answer") is None else "end"
         if state.get("brief") is None:
             return "evidence_retriever"
         return "end"
@@ -193,10 +229,24 @@ class Supervisor:
         return {"extractions": extractions, "phase": "extracted", "handoffs": [*state.get("handoffs", []), handoff]}
 
     def evidence_retriever(self, state: SupervisorState) -> dict[str, Any]:
-        """The Week 1 agent: the brief from the chart as the module has just read it."""
+        """The Week 1 agent. A brief from the chart the module has just read, or an answer to a
+        question against that same chart -- including anything a document added moments ago."""
         started = time.perf_counter()
         cid = state["correlation_id"]
         chart = self.chart_provider(state["sid"], state["pid"])
+
+        question = state.get("question")
+        if question:
+            response, turn = answer_followup(chart, question, list(state.get("history") or []),
+                                             self.llm_factory(), self.settings, cid,
+                                             require_evidence=needs_evidence(question))
+            handoff = _handoff("evidence_retriever", "supervisor",
+                               f"answered: {response.state.value}, {len(response.claims)} claim(s), "
+                               f"{len(response.evidence)} evidence entr(ies)", started,
+                               tools=response.tool_calls, chart_generated_at=chart.generated_at)
+            return {"answer": response.model_dump(mode="json"), "turn": turn,
+                    "handoffs": [*state.get("handoffs", []), handoff]}
+
         brief = self.brief_provider(state["sid"], state["pid"], chart)
         reused = brief is not None
         if brief is None:
@@ -254,10 +304,12 @@ class Supervisor:
     def _config(sid: str, pid: int) -> dict[str, Any]:
         return {"configurable": {"thread_id": f"{sid}:{pid}"}}
 
-    def start(self, sid: str, pid: int, documents: list[dict[str, Any]], correlation_id: str) -> dict[str, Any]:
+    def start(self, sid: str, pid: int, documents: list[dict[str, Any]], correlation_id: str,
+              question: str | None = None, history: list[Any] | None = None) -> dict[str, Any]:
         state: SupervisorState = {"sid": sid, "pid": pid, "correlation_id": correlation_id, "documents": documents,
                                   "extractions": [], "persisted": [], "brief": None, "changes": [], "citations": [],
-                                  "removed": [], "handoffs": [], "phase": "detect", "started": time.perf_counter()}
+                                  "removed": [], "handoffs": [], "phase": "detect", "started": time.perf_counter(),
+                                  "question": question, "history": list(history or []), "answer": None, "turn": []}
         result = self.graph.invoke(state, self._config(sid, pid))
         return self._summary(sid, pid, result)
 
@@ -272,7 +324,8 @@ class Supervisor:
             handoffs = [*values.get("handoffs", []), *([pending["handoff"]] if isinstance(pending, dict) and pending.get("handoff") else [])]
             return {"phase": "extracted", "extractions": [e for e in values.get("extractions", []) if e.get("ok")],
                     "failed": [e for e in values.get("extractions", []) if not e.get("ok")], "handoffs": handoffs}
-        return {"phase": result.get("phase", "done"), "brief": result.get("brief"), "changes": result.get("changes", []),
+        return {"phase": result.get("phase", "done"), "brief": result.get("brief"),
+                "answer": result.get("answer"), "turn": result.get("turn", []), "changes": result.get("changes", []),
                 "citations": result.get("citations", []), "removed": result.get("removed", []),
                 "extractions": [e for e in result.get("extractions", []) if e.get("ok")],
                 "failed": [e for e in result.get("extractions", []) if not e.get("ok")], "handoffs": result.get("handoffs", [])}

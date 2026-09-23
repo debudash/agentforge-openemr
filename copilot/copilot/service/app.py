@@ -305,6 +305,9 @@ class DocumentRef(BaseModel):
 class SuperviseRequest(BaseModel):
     pid: int
     documents: list[DocumentRef] = Field(default_factory=list)
+    # Week 2: a follow-up runs the same graph. With a question the retriever answers it instead of
+    # briefing, and the supervisor still decides whether a document has to be read first.
+    question: str | None = Field(default=None, max_length=2000)
 
 
 class PersistedRef(BaseModel):
@@ -341,7 +344,11 @@ async def session_supervise(sid: str, request: Request, body: bytes = Depends(si
         if doc.content_base64 and len(doc.content_base64) * 3 // 4 > settings.max_document_bytes:
             raise HTTPException(status_code=413, detail=f"document {doc.doc_id} too large")
     started = time.perf_counter()
-    summary = await store.supervise(sid, payload.pid, [d.model_dump() for d in payload.documents], vision_llm, cid)
+    documents = [d.model_dump() for d in payload.documents]
+    if payload.question:
+        summary = await store.ask_supervised(sid, payload.pid, payload.question, documents, vision_llm, cid)
+    else:
+        summary = await store.supervise(sid, payload.pid, documents, vision_llm, cid)
     if summary is None:
         raise HTTPException(status_code=404, detail="no such session or patient")
     record_latency("supervise_ms", int((time.perf_counter() - started) * 1000))
@@ -355,7 +362,8 @@ async def session_supervise_resume(sid: str, request: Request, body: bytes = Dep
     cid = correlation(request)
     payload = ResumeRequest.model_validate_json(body)
     started = time.perf_counter()
-    summary = await store.supervise_resume(sid, payload.pid, [p.model_dump() for p in payload.persisted], payload.chart, vision_llm, cid)
+    summary = await store.ask_supervised_resume(sid, payload.pid, [p.model_dump() for p in payload.persisted],
+                                                payload.chart, vision_llm, cid)
     if summary is None:
         raise HTTPException(status_code=404, detail="no such session or patient")
     if summary.get("phase") == "denied":

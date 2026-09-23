@@ -163,3 +163,51 @@ def test_a_document_that_could_not_be_read_offers_no_page_to_open(chart101, sett
     out = supervisor(chart101, settings, vision_responses=[]).start("sid-11", 101, manifest(), "cid-s11")
     citation = [c for c in out["citations"] if c["source_id"] == f"doc:{DOC}"][0]
     assert citation["page_or_section"] is None and citation["quote_or_value"] is None
+
+
+def answer_draft(text="Potassium was 5.4 mmol/L on 2026-08-16.", sid="lab:6001"):
+    from copilot.schemas import AnswerDraft
+    return AnswerDraft(claims=[Claim(text=text, source_ids=[sid])])
+
+
+def question_supervisor(chart, settings, answers, vision_responses=None):
+    # The suite runs with the topic pre-check off (conftest), so the script is just the tool round
+    # and the answer -- the same shape the other follow-up tests use.
+    from langchain_core.messages import AIMessage
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_labs", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
+    scripted = [lookup, *answers]
+    return Supervisor(settings, lambda: ScriptedLLM(scripted),
+                      lambda: ScriptedLLM(vision_responses if vision_responses is not None else [proposal()]),
+                      lambda sid, pid: chart)
+
+
+def test_a_question_with_nothing_unread_goes_straight_to_the_retriever(chart101, settings):
+    """Stage 3: the supervisor decides for a question exactly as it does for a brief."""
+    out = question_supervisor(chart101, settings, [answer_draft()]).start(
+        "sid-q1", 101, [], "cid-q1", question="what was the last potassium?")
+    assert out["phase"] == "done" and out["brief"] is None
+    assert out["answer"]["kind"] == "answer" and out["answer"]["claims"]
+    assert edges(out) == [("supervisor", "evidence_retriever"), ("evidence_retriever", "supervisor"), ("supervisor", "clinician")]
+    reasons = [h["reason"] for h in out["handoffs"]]
+    assert any("question" in r for r in reasons), reasons
+
+
+def test_a_question_asked_while_a_document_is_unread_reads_it_first(chart101, settings):
+    """The reason a question belongs in the graph at all: asked a moment after an upload, it is
+    answered from the chart that document produced, not from the chart as it was before."""
+    sup = question_supervisor(chart101, settings, [answer_draft()])
+    out = sup.start("sid-q2", 101, manifest(), "cid-q2", question="what changed?")
+    assert out["phase"] == "extracted", "the supervisor routed to extraction before answering"
+    assert edges(out) == [("supervisor", "intake_extractor"), ("intake_extractor", "supervisor"), ("supervisor", "module")]
+
+    final = sup.resume("sid-q2", 101, [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": ["lab:6001"],
+                                        "order_id": 90, "skipped": []}], "cid-q2")
+    assert final["phase"] == "done" and final["answer"]["claims"]
+    assert ("supervisor", "evidence_retriever") in edges(final)
+    assert all(h["reason"] for h in final["handoffs"]), "every handoff names its reason"
+
+
+def test_a_question_turn_is_returned_for_memory(chart101, settings):
+    out = question_supervisor(chart101, settings, [answer_draft()]).start(
+        "sid-q3", 101, [], "cid-q3", question="what was the last potassium?")
+    assert len(out["turn"]) == 2, "the question and the answer go back into conversation memory"

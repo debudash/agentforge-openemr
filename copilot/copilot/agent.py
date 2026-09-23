@@ -31,6 +31,9 @@ from .verify import citations_for, verify_brief, verify_claims
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+# One round may ask for several tools at once, but not for the whole toolbox repeatedly.
+_MAX_TOOLS_PER_ROUND = 12
+
 SCOPE_STATEMENT = ("This co-pilot only answers questions about the selected patient's chart. "
                    "Ask about a specific part of it, for example labs, medications, problems or allergies.")
 
@@ -217,8 +220,16 @@ def question_is_about_the_record(question: str, llm, correlation_id: str) -> boo
 
 
 def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm, settings: Settings,
-                    correlation_id: str, today: date | None = None) -> tuple[AgentResponse, list[BaseMessage]]:
-    """Answer one question. Returns the response and the two messages to append to memory."""
+                    correlation_id: str, today: date | None = None,
+                    require_evidence: bool = False) -> tuple[AgentResponse, list[BaseMessage]]:
+    """Answer one question. Returns the response and the two messages to append to memory.
+
+    `require_evidence` is the supervisor's decision that this question needs the guideline corpus
+    (stage 3: the supervisor decides when evidence retrieval is needed). Left to itself the model
+    chooses tools by feel, and asked "what evidence supports this" it reached for compliance
+    signals about half the time and never opened the corpus. The decision belongs to the router,
+    not to the model's mood, so it arrives here as an instruction rather than a hope.
+    """
     today = today or date.today()
     started = time.perf_counter()
 
@@ -251,6 +262,11 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
         system = FOLLOWUP_SYSTEM.format(max_iterations=settings.max_iterations, pid=chart.patient.pid,
                                         name=normalize.display_name(chart.patient.name), today=today.isoformat())
         messages: list[BaseMessage] = [SystemMessage(content=system), *history, HumanMessage(content=question)]
+        if require_evidence:
+            messages.append(HumanMessage(content=(
+                "This question asks what the evidence or guidance says. Call search_guidelines before answering, "
+                "and put what it returns in 'evidence', each entry citing the guideline: ids it came from. "
+                "Statements about this patient still go in 'claims' and still need a chart lookup of their own.")))
 
         def run_rounds(budget: int, force_first: bool = False) -> tuple[int, bool, str | None]:
             """Tool-calling rounds until the model stops calling tools or the budget is spent.
@@ -277,7 +293,17 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
                 messages.append(ai)
                 if not ai.tool_calls:
                     return used, False, None
-                for call in ai.tool_calls:
+                # The round cap bounds how many times the model may think, not how many tools it
+                # may ask for at once. Seen live: one round asking for the same ten tools over and
+                # over, hundreds of calls, an answer of 56 claims nobody would read. A round is
+                # allowed a sensible handful; the rest are dropped and the model is told, so the
+                # next round can ask for what it actually needs.
+                requested = list(ai.tool_calls)
+                if len(requested) > _MAX_TOOLS_PER_ROUND:
+                    emit("tool_calls_truncated", correlation_id, pid=chart.patient.pid, iteration=used,
+                         requested=len(requested), executed=_MAX_TOOLS_PER_ROUND)
+                    requested = requested[:_MAX_TOOLS_PER_ROUND]
+                for call in requested:
                     tool = tool_by_name.get(call["name"])
                     if tool is None:
                         # An invented tool name. Say which tools exist so the next round can recover,
@@ -383,7 +409,14 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
                 draft.missing = SCOPE_STATEMENT
 
         state, reason = decide_state(chart, len(kept), removed, model_failed=failure, loop_exhausted=loop_exhausted)
-        if off_topic and not loop_exhausted and failure is None:
+        if not kept and ctx.evidence_kept and failure is None and not loop_exhausted and not off_topic:
+            # Guidance was found, quoted and verified; only the patient claims were rejected. Asked
+            # "what does guidance say", that is the answer, and reporting it as unable to answer
+            # while showing the evidence underneath says two opposite things at once. Partial, not
+            # complete: the question was answered about the guidance and not about the patient.
+            state, reason = ResponseState.PARTIAL, ("guideline evidence was found and verified; no statement about this "
+                                                    "patient survived verification, so none is shown")
+        elif off_topic and not loop_exhausted and failure is None:
             # Not a question about this patient: nothing was retrieved and nothing failed.
             state, reason = ResponseState.COMPLETE, "not a question about this patient's record"
         elif not kept and removed and not ctx.calls and failure is None:

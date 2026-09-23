@@ -275,3 +275,18 @@ def test_brief_partial_when_a_source_failed(chart303, settings, today):
 def test_brief_unable_when_model_output_invalid_twice(chart101, settings, today):
     response = generate_brief(chart101, ScriptedLLM([]), settings, "cid-8", today)
     assert response.state == ResponseState.UNABLE and response.sections == []
+
+
+def test_a_round_cannot_ask_for_the_whole_toolbox_over_and_over(chart101, settings, today):
+    """The round cap bounds how often the model may think, not how many tools it may ask for at
+    once. Seen live: one round requesting the same ten tools repeatedly, hundreds of calls, and an
+    answer of 56 claims nobody would read."""
+    from langchain_core.messages import AIMessage
+    from copilot.schemas import AnswerDraft, Claim
+
+    greedy = AIMessage(content="", tool_calls=[
+        {"name": "get_labs", "args": {"pid": 101}, "id": f"c{i}", "type": "tool_call"} for i in range(40)])
+    answer = AnswerDraft(claims=[Claim(text="Potassium was 5.4 mmol/L on 2026-08-16.", source_ids=["lab:6001"])])
+    response, _ = answer_followup(chart101, "what changed", [], ScriptedLLM([greedy, answer]), settings, "cid-greedy", today)
+    assert len(response.tool_calls) <= 12, response.tool_calls
+    assert response.claims, "the answer still lands; only the excess calls are dropped"

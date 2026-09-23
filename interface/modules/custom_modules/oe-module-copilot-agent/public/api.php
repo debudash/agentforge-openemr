@@ -150,6 +150,108 @@ function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid
     ];
 }
 
+/**
+ * Week 2: run the supervisor graph for one patient, optionally with a question.
+ *
+ * Both entry points -- opening the co-pilot and asking a follow-up -- go through here, because
+ * the requirement is that the *supervisor* decides when extraction is needed, not the caller. A
+ * question asked while a document is still unread therefore gets that document read first and is
+ * answered from the chart it produced.
+ *
+ * The agent cannot read OpenEMR documents and must not write to OpenEMR, so this side lists the
+ * documents, hands over their bytes, persists what was read, re-reads the chart and resumes. Every
+ * write happens here, under this session, audited.
+ *
+ * @return array{0: array<string, mixed>, 1: list<array<string, mixed>>} the summary and the manifest
+ */
+function runSupervisorGraph(AgentClient $client, DocumentWriter $writer, PanelScope $scope, Config $config,
+                            string $sessionId, int $pid, ?string $question, int $sessionPid, int $sessionEncounter,
+                            string $username, string $authGroup, string $correlationId): array
+{
+    $documents = $writer->documents($pid);
+    foreach ($documents as &$document) {
+        if ($document['processed']) {
+            continue;
+        }
+        $bytes = (new \Document((int) $document['doc_id']))->get_data();
+        if (is_string($bytes) && $bytes !== '') {
+            $document['content_base64'] = base64_encode($bytes);
+        }
+    }
+    unset($document);
+    $eid = $sessionPid === $pid ? $sessionEncounter : 0;
+
+    $payload = ['pid' => $pid, 'documents' => $documents];
+    if ($question !== null) {
+        $payload['question'] = $question;
+    }
+    // Several documents may each wait through a rate-limit retry; give the graph room.
+    $result = $client->post('/session/' . $sessionId . '/supervise', $payload, $correlationId, 300);
+    if ($result['status'] !== 200 || !is_array($result['json'])) {
+        audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' agent status=' . $result['status'], $pid);
+        respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not run the supervisor (status ' . $result['status'] . ')',
+                      'detail' => $result['json']['detail'] ?? null], $correlationId);
+    }
+    $summary = $result['json'];
+
+    if (($summary['phase'] ?? '') === 'extracted') {
+        $persisted = [];
+        foreach ((array) ($summary['extractions'] ?? []) as $extraction) {
+            $docId = (int) ($extraction['doc_id'] ?? 0);
+            $docType = (string) ($extraction['doc_type'] ?? 'lab_pdf');
+            $extracted = is_array($extraction['result'] ?? null) ? $extraction['result'] : [];
+            // The document's own claim about whose results these are, checked before any of it
+            // becomes chart data. A misfiled report is refused: stored for a human, never filed.
+            $read = (array) ($extracted['document'] ?? []);
+            $printedName = $docType === 'intake_form'
+                ? ($read['demographics']['name']['value'] ?? null)
+                : ($read['patient_ref']['value'] ?? null);
+            $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+            if ($mismatch !== null) {
+                $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => [], 'skipped' => [], 'refused' => $mismatch];
+                audit('copilot-document-refused', $username, $authGroup, false,
+                    'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' reason=patient_ref_mismatch', $pid);
+                continue;
+            }
+            if ($docType === 'lab_pdf') {
+                $written = $writer->persistLabDocument($pid, $docId, (array) ($extracted['document'] ?? []), $eid, (string) ($extracted['model'] ?? 'unknown'));
+                $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => $written['source_ids'],
+                                'order_id' => $written['order_id'], 'skipped' => $written['skipped']];
+                $note = 'results=' . count($written['source_ids']) . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'];
+            } else {
+                $sidecar = $writer->persistIntakeSidecar($pid, $docId, $extracted, $eid);
+                $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => ['doc:' . $docId], 'sidecar_doc_id' => $sidecar, 'skipped' => []];
+                $note = 'sidecar=' . $sidecar;
+            }
+            audit('copilot-document-extracted', $username, $authGroup, true,
+                'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=1 ' . $note
+                . ' unsupported=' . count($extracted['unsupported_fields'] ?? []), $pid);
+        }
+        // The chart as it is now, with the new rows, is what the answer or brief comes from.
+        $appointment = null;
+        foreach ($scope->roundingList(date('Y-m-d')) as $booked) {
+            if ($booked['pid'] === $pid) {
+                $appointment = $booked;
+                break;
+            }
+        }
+        $chart = (new ChartReader($scope, $config))->read($pid, $appointment);
+        $result = $client->post('/session/' . $sessionId . '/supervise/resume',
+            ['pid' => $pid, 'persisted' => $persisted, 'chart' => $chart], $correlationId, 300);
+        if ($result['status'] !== 200 || !is_array($result['json'])) {
+            audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' resume agent status=' . $result['status'], $pid);
+            respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not finish after persistence (status ' . $result['status'] . ')',
+                          'detail' => $result['json']['detail'] ?? null, 'persisted' => $persisted], $correlationId);
+        }
+        $summary = $result['json'] + ['persisted' => $persisted];
+    }
+
+    return [$summary, array_map(static function (array $d): array {
+        unset($d['content_base64']);
+        return $d;
+    }, $documents)];
+}
+
 $username = '';
 try {
     $scope = PanelScope::forCurrentUser();
@@ -284,90 +386,17 @@ try {
             respond(200, $written + ['already_persisted' => false], $correlationId);
 
         case 'supervise':
-            // Week 2 stage 7: the supervisor graph for one patient. The agent decides and reads;
-            // this side lists the documents, hands over their bytes, persists what was read, re-reads
-            // the chart and resumes. Every write still happens here, under this session, audited.
+            // Week 2 stage 7: the supervisor graph for one patient, opening the co-pilot.
             $pid = (int) ($input['pid'] ?? 0);
             $writer = new DocumentWriter($scope);
-            $documents = $writer->documents($pid);
-            foreach ($documents as &$document) {
-                if ($document['processed']) {
-                    continue;
-                }
-                $bytes = (new \Document((int) $document['doc_id']))->get_data();
-                if (is_string($bytes) && $bytes !== '') {
-                    $document['content_base64'] = base64_encode($bytes);
-                }
-            }
-            unset($document);
-            $eid = $sessionPid === $pid ? $sessionEncounter : 0;
-            // Several documents may each wait through a rate-limit retry; give the graph room.
-            $result = $client->post('/session/' . $sessionId . '/supervise', ['pid' => $pid, 'documents' => $documents], $correlationId, 300);
-            if ($result['status'] !== 200 || !is_array($result['json'])) {
-                audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' agent status=' . $result['status'], $pid);
-                respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not run the supervisor (status ' . $result['status'] . ')',
-                              'detail' => $result['json']['detail'] ?? null], $correlationId);
-            }
-            $summary = $result['json'];
-            if (($summary['phase'] ?? '') === 'extracted') {
-                $persisted = [];
-                foreach ((array) ($summary['extractions'] ?? []) as $extraction) {
-                    $docId = (int) ($extraction['doc_id'] ?? 0);
-                    $docType = (string) ($extraction['doc_type'] ?? 'lab_pdf');
-                    $extracted = is_array($extraction['result'] ?? null) ? $extraction['result'] : [];
-                    // The document's own claim about whose results these are. A report filed under
-                    // the wrong patient is refused here, before any of it becomes chart data: it
-                    // stays stored for a human, and the brief is told it was not filed.
-                    $read = (array) ($extracted['document'] ?? []);
-                    $printedName = $docType === 'intake_form'
-                        ? ($read['demographics']['name']['value'] ?? null)
-                        : ($read['patient_ref']['value'] ?? null);
-                    $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
-                    if ($mismatch !== null) {
-                        $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => [],
-                                        'skipped' => [], 'refused' => $mismatch];
-                        audit('copilot-document-refused', $username, $authGroup, false,
-                            'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' reason=patient_ref_mismatch', $pid);
-                        continue;
-                    }
-                    if ($docType === 'lab_pdf') {
-                        $written = $writer->persistLabDocument($pid, $docId, (array) ($extracted['document'] ?? []), $eid, (string) ($extracted['model'] ?? 'unknown'));
-                        $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => $written['source_ids'],
-                                        'order_id' => $written['order_id'], 'skipped' => $written['skipped']];
-                        $note = 'results=' . count($written['source_ids']) . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'];
-                    } else {
-                        $sidecar = $writer->persistIntakeSidecar($pid, $docId, $extracted, $eid);
-                        $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => ['doc:' . $docId], 'sidecar_doc_id' => $sidecar, 'skipped' => []];
-                        $note = 'sidecar=' . $sidecar;
-                    }
-                    audit('copilot-document-extracted', $username, $authGroup, true,
-                        'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=1 ' . $note
-                        . ' unsupported=' . count($extracted['unsupported_fields'] ?? []), $pid);
-                }
-                // The chart as it is now, with the new rows, is what the brief is generated from.
-                $appointment = null;
-                foreach ($scope->roundingList(date('Y-m-d')) as $booked) {
-                    if ($booked['pid'] === $pid) {
-                        $appointment = $booked;
-                        break;
-                    }
-                }
-                $chart = (new ChartReader($scope, $config))->read($pid, $appointment);
-                $result = $client->post('/session/' . $sessionId . '/supervise/resume',
-                    ['pid' => $pid, 'persisted' => $persisted, 'chart' => $chart], $correlationId, 300);
-                if ($result['status'] !== 200 || !is_array($result['json'])) {
-                    audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' resume agent status=' . $result['status'], $pid);
-                    respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not finish after persistence (status ' . $result['status'] . ')',
-                                  'detail' => $result['json']['detail'] ?? null, 'persisted' => $persisted], $correlationId);
-                }
-                $summary = $result['json'] + ['persisted' => $persisted];
-            }
+            [$summary, $documents] = runSupervisorGraph($client, $writer, $scope, $config, $sessionId, $pid, null,
+                $sessionPid, $sessionEncounter, $username, $authGroup, $correlationId);
             $brief = $summary['brief'] ?? null;
             audit('copilot-supervise', $username, $authGroup, ($summary['phase'] ?? '') === 'done',
                 'cid=' . $correlationId . ' documents=' . count($documents) . ' unread=' . count(array_filter($documents, static fn(array $d): bool => !$d['processed']))
                 . ' read=' . count($summary['extractions'] ?? []) . ' failed=' . count($summary['failed'] ?? []) . ' changes=' . count($summary['changes'] ?? [])
                 . ' handoffs=' . count($summary['handoffs'] ?? []) . ' state=' . ($brief['state'] ?? '-') . ' brief_ms=' . ($brief['duration_ms'] ?? '-'), $pid);
-            respond(200, ['documents' => array_map(static function (array $d): array { unset($d['content_base64']); return $d; }, $documents)] + $summary, $correlationId);
+            respond(200, ['documents' => $documents] + $summary, $correlationId);
 
         case 'page':
             // Week 2 stage 9: click-to-source. The page a citation points at, as an image, with the
@@ -571,8 +600,21 @@ try {
                 respond(400, ['state' => 'unable_to_answer', 'reason' => 'question must be 1-2000 characters'], $correlationId);
             }
             $scope->assertInScope($pid);
-            $result = $client->post('/session/' . $sessionId . '/ask', ['pid' => $pid, 'question' => $question], $correlationId);
-            $answer = $result['json'] ?? [];
+            // Week 2 stage 3: a follow-up goes through the supervisor graph, not straight to the
+            // retriever. That is what makes the supervisor's decisions true of every interaction,
+            // and it means a question asked while a document is still unread is answered from the
+            // chart that document produced.
+            $writer = new DocumentWriter($scope);
+            [$summary, $documents] = runSupervisorGraph($client, $writer, $scope, $config, $sessionId, $pid, $question,
+                $sessionPid, $sessionEncounter, $username, $authGroup, $correlationId);
+            $answer = is_array($summary['answer'] ?? null) ? $summary['answer'] : [];
+            $answer['handoffs'] = $summary['handoffs'] ?? [];
+            $answer['changes'] = $summary['changes'] ?? [];
+            $answer['documents'] = $documents;
+            foreach (($summary['citations'] ?? []) as $citation) {
+                $answer['citations'][] = $citation;      // what-changed citations for any document read this turn
+            }
+            $result = ['status' => $answer ? 200 : 503, 'json' => $answer];
             // FR14: decision, tool sequence, verification outcome and latency; the question text itself stays out of the log.
             audit('copilot-ask', $username, $authGroup, $result['status'] === 200,
                 'cid=' . $correlationId . ' state=' . ($answer['state'] ?? '-') . ' iterations=' . ($answer['iterations'] ?? '-')
