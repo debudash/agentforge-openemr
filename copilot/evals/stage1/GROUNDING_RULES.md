@@ -99,3 +99,16 @@ Two rules added:
 |---|---|---|
 | 11 | Every extracted fact shown to the clinician carries a document citation with a page, and its extraction confidence is displayed. A field the model could not read is null with confidence 0, never guessed: the schema refuses a value without a citation. | `documents/schemas.py`, verifier, UI |
 | 12 | Guideline evidence sits in its own response section, structurally and visually apart from patient facts. An evidence entry must cite a `guideline:` id (`evidence_without_guideline`); a claim about the patient may not cite a guideline alone (`guideline_only`). | `AnswerDraft.evidence`, verifier, UI, judge |
+
+## How a control is built here
+
+Every rule above has two outcomes, and the second one is the one that goes wrong. When a check
+passes, the value travels on through typed structures validated at each step. When it fails, an
+*absence* travels — and absence is what permissive schema defaults, ambiguous JSON empties and
+tolerant callers quietly turn into "nothing to report".
+
+So a refusal is modelled as explicitly as an acceptance: a declared field with a declared type, a
+terminal state rather than a pending one, and a gate case asserting the refusal **reaches the
+clinician**, not only that the write did not happen. The Week 2 cross-check refused every misfiled
+document correctly and the brief still reported one as read, because the reason was an un-modelled
+key that Pydantic dropped in silence. `W2_ARCHITECTURE.md` §12b has the full account.

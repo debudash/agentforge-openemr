@@ -522,6 +522,66 @@ turns and its verdicts discarded; a gate that can be silenced by a rate limit is
 
 ---
 
+## 12b. Finding: a refusal is a result, and crosses the boundary like one
+
+The most useful bug of Week 2 was not a control that failed. It was a control that worked and
+reported the opposite.
+
+A clinician generated documents on one chart, two of them naming a different patient. The
+cross-check refused every one of those, wrote nothing, and the audit log recorded each refusal.
+The brief then said:
+
+> Lab report 'copilot-demo-lab-...pdf' was read: 0 result(s) added to the chart, pending clinician
+> review.
+
+About a report belonging to someone else. Everything downstream of the refusal was correct;
+everything the clinician could see said otherwise. **A safety control whose outcome is reported
+wrongly is, to the person reading the screen, indistinguishable from one that did not run.** That
+is the finding, and it is worth more than the fix.
+
+### Why it happened: three silent losses at one boundary
+
+The module is PHP and the agent is Python, and information crossed that boundary three times in
+this feature. Each crossing lost something without saying so:
+
+| Crossing | What was lost | Why it was silent |
+|---|---|---|
+| module -> agent, persisted documents | the `refused` reason | Pydantic drops unknown fields by default, so an un-modelled key vanishes without error |
+| module -> agent, chart documents | the shape of an empty map | an empty PHP array encodes as `[]`, not `{}`, so an intake form with nothing readable rejected the whole chart |
+| module -> OpenEMR, refusal note | the write itself | `Document::createDocument()` takes its data **by reference**, so a cast expression is a runtime error, not a type error |
+
+None of the three produced a wrong value. Two produced no value and one produced a 500, and in
+every case the calling code carried on with a plausible-looking result. The happy path was typed,
+schema-validated and covered by cases; the refusal path travelled as an ad-hoc dictionary key.
+
+### What this changes about how the seams are built
+
+1. **A refusal is modelled as explicitly as an acceptance.** `PersistedRef.refused` is a declared
+   field with a declared type. Anything a control decides is part of the contract, not a note
+   attached to it.
+2. **A refusal is a terminal state, not a pending one.** Left as "unprocessed", a refused document
+   was offered back to the extractor on every open: read again, refused again, reported again --
+   six documents on one chart meant six vision calls a visit, for ever. The refusal is now recorded
+   beside the document, where a human can also see it.
+3. **The gate covers what the system declines to do.** It already covered what it does. Cases now
+   assert the refusal reaches the clinician, and a use case asserts a refused document is not read
+   a second time.
+4. **Boundary shapes are asserted, not assumed.** The empty-map case is the kind of thing that only
+   appears when a real document happens to contain nothing readable -- which is precisely the
+   degraded input this system exists to handle honestly.
+
+### The general rule this leaves behind
+
+Every control in this design has two outcomes, and only one of them was ever really built. When a
+check passes, the value flows on through typed structures that are validated at each step. When it
+fails, the *absence* flows on -- and absence is exactly what a schema with permissive defaults, a
+JSON encoder with ambiguous empties, and a caller that tolerates missing keys will quietly convert
+into "nothing to report". **Build the refusal path with the same rigour as the acceptance path, or
+the system will be safe and look unsafe -- or worse, be safe and look fine while saying nothing at
+all.**
+
+---
+
 ## 13. Implementation sequence
 
 Thin vertical slice first, gate early, breadth last. Each stage ends green.
