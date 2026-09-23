@@ -189,7 +189,7 @@ OpenRouter is OpenAI-compatible; the gateway uses `ChatOpenAI` against it. Any m
 - `COPILOT_JUDGE_MODEL` lets the evals grade with a different allowlisted model than the agent uses; the judge schema tolerates the spelling variants of yes/no/na that smaller models produce.
 - Free routes may log prompts on the provider side. Acceptable for synthetic data only; it is recorded as an accepted finding in `SECURITY_TESTS.md`.
 
-Current configuration: agent `nvidia/nemotron-3-super-120b-a12b:free`, judge `google/gemma-4-31b-it:free`, with `anthropic/claude-sonnet-5` kept on the allowlist so switching back is a one-line change.
+Current configuration (from 2026-09-23): agent and vision `google/gemini-2.5-flash-lite`, judge `anthropic/claude-sonnet-5`. The `:free` slugs above are still on the allowlist and are no longer used — they could not complete a document read. The notes about the free tier still apply if you switch back to one; on the paid slugs `COPILOT_PREFETCH_CONCURRENCY` can go back to the code default. See `../W2_COST_LATENCY.md` for what a call costs.
 
 ## Deploying on Railway
 

@@ -415,7 +415,7 @@ Carried over from [AUDIT.md](../../AUDIT.md):
 >    have not, because they need the token.
 >
 > **The eval-gate requirement does not depend on any of this.** It is met by the pre-push hook
-> (`copilot/hooks/pre-push`), which blocks a push on the same 66 cases, the same five rubric
+> (`copilot/hooks/pre-push`), which blocks a push on the same 74 cases, the same five rubric
 > categories and the same 5-point regression rule. CI would be a second place to run it, not
 > the thing that satisfies it.
 
