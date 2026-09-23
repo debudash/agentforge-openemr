@@ -20,6 +20,7 @@ claims and everything else cite persisted rows, never the model's extraction out
 from __future__ import annotations
 
 import base64
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, TypedDict
@@ -69,13 +70,14 @@ _EVIDENCE_WORDS = ("evidence", "guidance", "guideline", "recommend", "recommenda
 # prescription carries a recent-looking list date, so a model asked "what changed" sweeps the
 # whole chart and reports hypertension from 2018 as news. What actually changed is what arrived:
 # the documents read this run and the rows they produced.
-_CHANGE_WORDS = ("what changed", "whats changed", "what's changed", "changed", "anything new",
-                 "what is new", "what's new", "whats new", "new results", "since last", "latest results",
-                 "any updates", "what has changed")
+# Matched on stems rather than whole phrases: a clinician asks this a dozen ways -- "what changed",
+# "whats new", "tell me the changes", "any updates", "anything since last time" -- and a list of
+# exact phrases is a list of the ones somebody happened to think of.
+_CHANGE_PATTERN = re.compile(r"\b(chang\w*|new|newest|updat\w*|latest|recent\w*|differ\w*|since)\b")
 
 
 def asks_what_changed(question: str | None) -> bool:
-    return any(word in (question or "").lower() for word in _CHANGE_WORDS)
+    return bool(_CHANGE_PATTERN.search((question or "").lower()))
 
 
 def needs_evidence(question: str | None) -> bool:
@@ -167,9 +169,19 @@ class Supervisor:
                 handoffs.append(_handoff("module", "supervisor", "persisted; chart re-read", time.perf_counter(),
                                          documents=[p.get("doc_id") for p in persisted]))
                 # The route out of this visit is the retriever; log that edge here, since the node
-                # will not be visited again before it.
-                handoffs.append(_handoff("supervisor", "evidence_retriever", "documents persisted", time.perf_counter()))
-                emit("supervisor_handoff", cid, pid=state["pid"], to="evidence_retriever", reason="documents persisted")
+                # will not be visited again before it. A question's decisions belong in this
+                # reason too -- it is the handoff that actually happened, and recording them only
+                # on the path without an interrupt would make the log depend on whether a document
+                # happened to need reading.
+                question = state.get("question")
+                reason = "documents persisted"
+                if question:
+                    if needs_evidence(question):
+                        reason += "; and the guideline corpus"
+                    if asks_what_changed(question):
+                        reason += "; scoped to what is new"
+                handoffs.append(_handoff("supervisor", "evidence_retriever", reason, time.perf_counter()))
+                emit("supervisor_handoff", cid, pid=state["pid"], to="evidence_retriever", reason=reason)
                 return {"handoffs": handoffs, "persisted": list(persisted), "phase": "persisted"}
             reason = "nothing readable; brief from the chart as it is"
             handoffs.append(_handoff("supervisor", "evidence_retriever", reason, started))
@@ -179,13 +191,17 @@ class Supervisor:
         if state.get("question") and state.get("answer") is None:
             wants_evidence = needs_evidence(state.get("question"))
             wants_changes = asks_what_changed(state.get("question"))
+            # Whether there is anything new to report: a document read this run, or one still
+            # waiting to be read. Without this the retriever answers "what changed" on a quiet
+            # chart by listing whatever it can find, which reads as news and is not.
+            arrived = bool([e for e in extractions if e.get("ok")]) or bool(_unread(state))
             reason = ("documents persisted; answering from the chart they produced" if state.get("persisted")
                       else "question needs the chart" if not extractions
                       else "nothing readable; answering from the chart as it is")
             if wants_evidence:
                 reason += "; and the guideline corpus"
             if wants_changes:
-                reason += "; scoped to what is new"
+                reason += "; scoped to what is new" if arrived else "; nothing new since the brief"
             handoffs.append(_handoff("supervisor", "evidence_retriever", reason, started, question=True,
                                      evidence_retrieval=wants_evidence, change_scoped=wants_changes))
             emit("supervisor_handoff", cid, pid=state["pid"], to="evidence_retriever", reason=reason, kind="answer",
@@ -256,7 +272,8 @@ class Supervisor:
             response, turn = answer_followup(chart, question, list(state.get("history") or []),
                                              self.llm_factory(), self.settings, cid,
                                              require_evidence=needs_evidence(question),
-                                             change_focused=asks_what_changed(question))
+                                             change_focused=asks_what_changed(question),
+                                             changes_arrived=bool([e for e in state.get("extractions", []) if e.get("ok")]))
             handoff = _handoff("evidence_retriever", "supervisor",
                                f"answered: {response.state.value}, {len(response.claims)} claim(s), "
                                f"{len(response.evidence)} evidence entr(ies)", started,

@@ -283,6 +283,13 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
             for claim in answer.claims:
                 if not claim.source_ids:
                     fail("citation_present", "an answer claim cites nothing")
+            if expect.get("max_claims") is not None and len(answer.claims) > expect["max_claims"]:
+                fail("factually_consistent", f"{len(answer.claims)} claim(s) > {expect['max_claims']}")
+            if expect.get("answer_text_any"):
+                haystack = " ".join([answer.missing or "", *(c.text for c in answer.claims)]).lower()
+                if not any(needle.lower() in haystack for needle in expect["answer_text_any"]):
+                    fail("factually_consistent",
+                         f"the answer says none of {expect['answer_text_any']} (said {answer.missing!r})")
             if expect.get("answer_tools_include"):
                 missing = [t for t in expect["answer_tools_include"] if t not in answer.tool_calls]
                 if missing:

@@ -1,6 +1,6 @@
 # Stage 2 evals: the Week 2 gate
 
-71 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
+72 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
 
 ```
 python -m evals.stage2.gate                    # run against baseline.json; exit 1 on regression

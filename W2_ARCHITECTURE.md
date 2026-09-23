@@ -136,6 +136,19 @@ records "scoped to what is new" in the handoff, and tells the retriever to answe
 `get_documents` and recent `get_labs` -- what actually arrived. The follow-up prompt separately
 says that a round may call several tools at once, which is what the budget assumed all along.
 
+A clinician asks this a dozen ways, so the match is on stems -- *chang\*, new, updat\*, latest,
+recent\*, differ\*, since* -- rather than a list of the phrasings somebody happened to think of.
+"What changed", "whats new", "tell me the changes" and "any updates" all route the same way;
+"what medications is she on" does not.
+
+**And when nothing has arrived, it says so.** The supervisor knows whether a document was read
+this run or is still waiting, and records "nothing new since the brief" in the handoff when
+neither is true. The retriever is then told to confirm with `get_documents` and answer in one
+sentence. The failure this avoids is the obvious one: asked what changed on a quiet chart, a model
+fills the silence with whatever the chart can offer, and it reads as news. Live, all three
+phrasings return no claims and one sentence; after a document arrives, the same questions return
+the rows it produced.
+
 **Handoff record.** Every edge writes one entry: `from`, `to`, `reason`, `correlation_id`,
 `duration_ms`, and the decision inputs (document count, doc types). The supervisor's routing is
 therefore replayable from logs alone, which is the requirement's actual test — a supervisor that

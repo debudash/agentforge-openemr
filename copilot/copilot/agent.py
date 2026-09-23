@@ -221,7 +221,8 @@ def question_is_about_the_record(question: str, llm, correlation_id: str) -> boo
 
 def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm, settings: Settings,
                     correlation_id: str, today: date | None = None,
-                    require_evidence: bool = False, change_focused: bool = False) -> tuple[AgentResponse, list[BaseMessage]]:
+                    require_evidence: bool = False, change_focused: bool = False,
+                    changes_arrived: bool = True) -> tuple[AgentResponse, list[BaseMessage]]:
     """Answer one question. Returns the response and the two messages to append to memory.
 
     `require_evidence` is the supervisor's decision that this question needs the guideline corpus
@@ -229,6 +230,10 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
     chooses tools by feel, and asked "what evidence supports this" it reached for compliance
     signals about half the time and never opened the corpus. The decision belongs to the router,
     not to the model's mood, so it arrives here as an instruction rather than a hope.
+
+    `changes_arrived` says whether anything actually did. Asked what changed on a quiet chart, a
+    model will fill the silence with whatever it can find; the answer then reads as news and is
+    not. When nothing arrived the instruction is to say so in one sentence.
 
     `change_focused` is the same decision for "what changed". A chart cannot answer it on its own:
     every problem and prescription carries a recent-looking list date, so the model sweeps
@@ -268,13 +273,22 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
         system = FOLLOWUP_SYSTEM.format(max_iterations=settings.max_iterations, pid=chart.patient.pid,
                                         name=normalize.display_name(chart.patient.name), today=today.isoformat())
         messages: list[BaseMessage] = [SystemMessage(content=system), *history, HumanMessage(content=question)]
-        if change_focused:
+        if change_focused and changes_arrived:
             messages.append(HumanMessage(content=(
                 "This question asks what is new. Call get_documents and get_labs together in one round, "
                 f"with since_days={settings.comparison_hours // 24 + 7} on get_labs, and answer from what they return: "
                 "the documents on file, whether each has been read, and the results that came from them. "
                 "Do not list long-standing problems or medications unless the question asked about them; "
                 "a problem recorded years ago is not something that changed.")))
+        elif change_focused:
+            # Nothing arrived. The honest answer is one sentence, and the brief above it already
+            # says what the chart holds -- so the failure to avoid is filling the silence with
+            # whatever the chart can offer, which reads as news and is not.
+            messages.append(HumanMessage(content=(
+                "Nothing new has arrived for this patient since the brief: no document has been read this turn "
+                "and none is waiting. Call get_documents to confirm, then give no claims and reply in one "
+                "sentence in 'missing' that there is nothing new since the brief. Do not list existing "
+                "problems, medications or older results: none of them changed.")))
         if require_evidence:
             messages.append(HumanMessage(content=(
                 "This question asks what the evidence or guidance says. Call search_guidelines before answering, "

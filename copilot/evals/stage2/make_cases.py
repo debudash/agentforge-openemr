@@ -400,16 +400,26 @@ cases += [
                       {"answer": {"claims": [], "evidence": [
                           {"text": "ACE inhibitors are named among the medicines that raise potassium.",
                            "source_ids": ["guideline:medlineplus-hyperkalemia#causes"]}]}}]),
-    supervise("S08", "a what-changed question is scoped to what arrived", [], [], [],
+    supervise("S08", "a what-changed question is scoped to what arrived", [LAB_DOC], [{"lab_document": proposal()}],
+              [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": ["lab:9001"], "order_id": 92, "skipped": []}],
               # Live, this answered with hypertension diagnosed in 2018 and four long-expired
               # prescriptions, then hit the tool-call limit half way. A chart cannot answer "what
               # changed" on its own: every problem carries a recent-looking list date.
               {"phase": "done", "answer_tools_include": ["get_documents"],
                "handoff_reason_any": ["scoped to what is new"],
-               "edges_include": [["supervisor", "evidence_retriever"]]},
+               "edges_include": [["supervisor", "intake_extractor"], ["supervisor", "evidence_retriever"]]},
               question="what changed?",
               script=[{"tool": "get_documents", "args": {"pid": 101}},
                       {"answer": {"claims": [{"text": "A lab report was recorded on 2026-09-18.", "source_ids": ["doc:412"]}]}}]),
+    supervise("S09", "a what-changed question on a quiet chart says so instead of filling the silence", [], [], [],
+              # Asked what changed when nothing arrived, a model will answer with whatever the
+              # chart can offer, and it reads as news. One sentence is the honest answer.
+              {"phase": "done", "answer_state": "complete", "max_claims": 0,
+               "handoff_reason_any": ["nothing new since the brief"],
+               "answer_text_any": ["nothing new", "no new"]},
+              question="whats new?",
+              script=[{"tool": "get_documents", "args": {"pid": 101}},
+                      {"answer": {"claims": [], "missing": "There is nothing new since the brief."}}])
 ]
 
 # --- missing data ---------------------------------------------------------------------------
