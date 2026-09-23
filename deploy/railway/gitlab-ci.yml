@@ -1,109 +1,26 @@
-# PARKED -- NOT ACTIVE. Deliberately not at the repository root.
+# PARKED -- NOT ACTIVE. The *deploy* half of the pipeline, deliberately not at the repository root.
 #
-# GitLab only reads `.gitlab-ci.yml` at the root, so while this file lives here nothing runs,
-# nothing queues, and no merge request is gated on a pipeline. That is the point: it was parked
-# during the Week 2 submission so a stuck or red pipeline could not block the merge request.
+# The test half is live: `.gitlab-ci.yml` at the root runs the unit tests, the 74-case eval gate,
+# the UI guard and a PHP syntax check on every push and merge request. It holds no secrets and
+# cannot deploy anything. That is what satisfies the eval-gate requirement.
 #
-# To switch it on later:  git mv deploy/railway/gitlab-ci.yml .gitlab-ci.yml
-# Then follow "CI/CD (GitLab)" in the README beside this file -- a runner and a masked,
-# protected RAILWAY_TOKEN are both still needed, and the two deploy jobs have never been run.
+# What is parked here is only the Railway deploy, and it stays parked on purpose: this repository
+# has never published without a person approving that specific change, and a pipeline that could
+# deploy would quietly remove that. The two jobs below have never been executed.
 #
-# The eval gate requirement does NOT depend on any of this: it is met by the pre-push hook in
-# copilot/hooks/pre-push, which blocks a push on the same 66 cases.
-
-# CI for the Clinical Co-Pilot.
-#
-# Two stages, and the split between them is deliberate.
-#
-# `test` runs on every push and merge request. It needs no API key, no network and no model: the
-# eval gate replays recorded cases through the real code, so the same 66 cases that block a local
-# push block a merge here. That is the whole point of a deterministic gate -- it costs ten seconds
-# and cannot flake on a provider outage.
-#
-# `deploy` is **manual on purpose**. This repository has never published to Railway without a
-# person approving that specific change, and a pipeline that deployed on merge would quietly
-# remove that. The jobs below are the same two steps the local scripts run, with the typed
-# confirmation replaced by a human pressing play on a protected branch. If you ever want deploy on
-# merge instead, change `when: manual` to `when: on_success` -- and know that you are trading the
-# gate away, not just changing a setting.
-#
-# Required CI/CD variable (Settings -> CI/CD -> Variables), masked and protected:
-#   RAILWAY_TOKEN   a Railway project token for the openemr-agent project
+# To switch the deploy half on later:
+#   1. Add RAILWAY_TOKEN as a masked, protected CI/CD variable (Settings -> CI/CD -> Variables).
+#   2. Append `deploy` to `stages:` in the root .gitlab-ci.yml.
+#   3. Paste the jobs below into it, or move this file to the root in place of that one.
+#   4. Run them once by hand and watch what they do.
+# Keep `when: manual`. Changing it to `on_success` trades the approval gate away; that is a
+# decision, not a setting.
 #
 # The agent's own secrets (OPENROUTER_API_KEY, COPILOT_SHARED_SECRET, ...) are Railway service
-# variables and are never needed here: CI builds and ships the image, it does not run the service.
+# variables and are never needed here: this would build and ship the image, not run the service.
 
 stages:
-  - test
   - deploy
-
-default:
-  interruptible: true
-
-variables:
-  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
-  GIT_DEPTH: "50"
-
-# --------------------------------------------------------------------------------------------
-# test
-# --------------------------------------------------------------------------------------------
-
-.python:
-  image: python:3.13-slim
-  cache:
-    key:
-      files:
-        - copilot/requirements-ci.txt
-    paths:
-      - .cache/pip
-  before_script:
-    - cd copilot
-    - pip install --quiet --root-user-action=ignore -r requirements-ci.txt
-
-unit tests:
-  extends: .python
-  stage: test
-  script:
-    - python -m pytest -q
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH
-
-eval gate:
-  extends: .python
-  stage: test
-  script:
-    # 74 recorded cases through the real code. No model, no key, no network. A drop of more than
-    # five points against the committed baseline fails the job, which is what blocks a merge.
-    - python -m evals.stage2.gate
-  artifacts:
-    when: always
-    expire_in: 30 days
-    paths:
-      - copilot/evals/stage2/baseline.json
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH
-
-ui guard:
-  extends: .python
-  stage: test
-  script:
-    # One class of UI bug nothing else can see: an element hidden while a Bootstrap display
-    # utility keeps it on screen. Static, no browser.
-    - python -m evals.ui_guard
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH
-
-php syntax:
-  stage: test
-  image: php:8.2-cli-alpine
-  script:
-    - find interface/modules/custom_modules/oe-module-copilot-agent -name '*.php' -print0 | xargs -0 -n1 php -l
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH
 
 # --------------------------------------------------------------------------------------------
 # deploy -- manual, protected branches only

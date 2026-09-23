@@ -398,31 +398,37 @@ Carried over from [AUDIT.md](../../AUDIT.md):
 - The publish gate is unchanged: `copilot/check_local.ps1` (which now runs the Week 2 eval gate)
   then `deploy_agent.ps1`.
 
-## CI/CD (GitLab) -- PARKED, to be finished later
+## CI/CD (GitLab) -- tests live, deploy parked
 
-> **Status: not active, and deliberately so.** The pipeline lives at
-> `deploy/railway/gitlab-ci.yml`, not at the repository root, and GitLab only reads
-> `.gitlab-ci.yml` at the root. So no pipeline runs, nothing queues, and no merge request is
-> gated on one. It was parked during the Week 2 submission so that a stuck or failing pipeline
-> could not block the merge.
+> **The test half runs.** `.gitlab-ci.yml` at the repository root runs the unit tests, the
+> 74-case eval gate, the UI guard and a PHP syntax check on every push and every merge request.
+> It holds no secrets, needs no API key and cannot reach Railway. A regression fails the
+> pipeline, which is what stops it reaching the demo.
 >
-> **Outstanding before it can be switched on:**
-> 1. `git mv deploy/railway/gitlab-ci.yml .gitlab-ci.yml`
-> 2. Register a runner, or confirm an instance runner exists (step 1 below).
-> 3. Add `RAILWAY_TOKEN` as a masked, protected CI/CD variable (step 2 below).
-> 4. Run the two deploy jobs once and fix what the first real run shows -- **they have never
->    been executed**. The test jobs have been verified in clean containers; the deploy jobs
->    have not, because they need the token.
+> **The deploy half is parked**, at `deploy/railway/gitlab-ci.yml`, out of the root where GitLab
+> never reads it. Publishing stays a deliberate, human-approved act; a pipeline that could deploy
+> would quietly remove that.
 >
-> **The eval-gate requirement does not depend on any of this.** It is met by the pre-push hook
-> (`copilot/hooks/pre-push`), which blocks a push on the same 74 cases, the same five rubric
-> categories and the same 5-point regression rule. CI would be a second place to run it, not
-> the thing that satisfies it.
+> **Outstanding before the deploy half can be switched on:**
+> 1. Add `RAILWAY_TOKEN` as a masked, protected CI/CD variable (step 2 below).
+> 2. Append `deploy` to `stages:` in the root file and paste in the two jobs.
+> 3. Run them once by hand and fix what the first real run shows -- **they have never been
+>    executed**. The test jobs run clean; the deploy jobs have not, because they need the token.
+> 4. Keep `when: manual`.
+>
+> **A note on the runner**, because it cost a day. This GitLab has one shared instance runner,
+> but *instance runners are off per project by default*. With the toggle off, every job fails in
+> 00:00:00 -- created, never picked up, no log worth reading. If a pipeline here ever fails
+> instantly across all jobs at once, check **Settings -> CI/CD -> Runners -> Instance** before
+> reading anything else.
+>
+> The pre-push hook (`copilot/hooks/pre-push`) still runs the same three checks locally, so a
+> regression is caught before it is pushed as well as after.
 
-When switched on, the pipeline runs the checks on every push and merge request, and puts
-deployment behind a button rather than behind a merge.
+The pipeline runs the checks on every push and merge request, and would put deployment behind a
+button rather than behind a merge.
 
-**Tests** need no key, no network and no model: unit tests, the 66-case eval gate, the UI guard
+**Tests** need no key, no network and no model: unit tests, the 74-case eval gate, the UI guard
 and `php -l` over the module. They run in `python:3.13-slim` against `copilot/requirements-ci.txt`,
 which is `requirements.txt` without torch and sentence-transformers -- the gate forces
 `embed_model=none`, and those imports are lazy, so CI installs neither. Verified in a clean

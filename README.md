@@ -270,12 +270,14 @@ of them drops below its threshold or falls more than 5 points below the committe
 `hooks/install-hooks.ps1` installs the pre-push hook, so a regression blocks the push. That hook
 is what gates the build; `test_gate.py` injects four regressions and each one fails the gate.
 
-**Not done yet:** a GitLab CI pipeline that would run the same gate on every merge request and
-put the Railway deploy behind a button. It is written but **parked** at
-[deploy/railway/gitlab-ci.yml](deploy/railway/gitlab-ci.yml) rather than at the repository root,
-so nothing runs and no merge request is gated on it. Finishing it needs a runner, a masked
-`RAILWAY_TOKEN`, and one real run of the two deploy jobs, which have never been executed. See
-[deploy/railway/README.md](deploy/railway/README.md#cicd-gitlab----parked-to-be-finished-later).
+**CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) runs the unit tests, the 74-case eval gate, the UI guard
+and a PHP syntax check on every push and every merge request, so a regression fails the pipeline
+before it reaches the demo. Each job's evidence -- per-case verdicts and the rubric summary --
+downloads from the `eval gate` job as an artifact. The pipeline holds no secrets and needs no API
+key: the gate replays recorded cases through the real code, verified green with every model key
+unset. The *deploy* half is **parked** at
+[deploy/railway/gitlab-ci.yml](deploy/railway/gitlab-ci.yml), out of the root where GitLab never
+reads it, because nothing here publishes without a person approving that specific change.
 
 **Documents:** [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
 [W2_COST_LATENCY.md](W2_COST_LATENCY.md), [KEY_METRICS.md](KEY_METRICS.md) (Week 2 section),
