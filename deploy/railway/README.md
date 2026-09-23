@@ -398,6 +398,46 @@ Carried over from [AUDIT.md](../../AUDIT.md):
 - The publish gate is unchanged: `copilot/check_local.ps1` (which now runs the Week 2 eval gate)
   then `deploy_agent.ps1`.
 
+### Week 2 was published on 2026-09-23, from `week2` at `c62aced`
+
+Local checks first: 185 unit tests, the 74-case gate, the UI guard, and the live golden suite 9/9.
+
+Agent variables set before the deploy, because the code alone would have failed closed -- the
+allowlist is a real control and `gemini` was not on it:
+
+| Variable | Set to |
+|---|---|
+| `COPILOT_MODEL` | `google/gemini-2.5-flash-lite` |
+| `COPILOT_VISION_MODEL` | `google/gemini-2.5-flash-lite` |
+| `COPILOT_ALLOWED_MODELS` | gemini and sonnet added, the two `:free` slugs kept |
+| `COPILOT_VISION_RATE_LIMIT_RETRIES` | `1` |
+| `COPILOT_TOPIC_CHECK` | `true` |
+
+Then `railway up --service copilot-agent -c`, then the module to the sites volume, then
+`COPILOT_DEMO_TOOLS` in `sites/default/copilot-config.php` so a grader can generate a document to
+ingest. Order matters: the agent first, because the new module calls `supervise` and the old agent
+has no such endpoint.
+
+**Ship the module with a check before the swap.** The tar goes over `railway ssh` as base64 and is
+unpacked into `copilot-module.new`; only if `openemr.bootstrap.php`, `public/api.php`,
+`public/patient.php`, `public/demo.php` and `src/DocumentWriter.php` are all present does it become
+`copilot-module`. Without that test a truncated transfer replaces the live module with an empty
+directory, and the swap is one `mv` -- there is nothing to notice before the site is broken.
+
+**Do not edit `copilot-config.php` with `sed` through `railway ssh`.** Quoting does not survive the
+shell layers: `'` arrived literally and produced `x27COPILOT_DEMO_TOOLSx27 => '1'`, a bareword
+constant. `php -l` reports **no syntax errors** on that, because an undefined constant is a runtime
+error, not a parse error -- so the usual check passes on a file that throws on include. Pipe the new
+line in on stdin instead, rebuild the file with `head -n -1`, and verify by actually including it:
+
+```sh
+php -r '$c = include "/tmp/cfg.new"; echo implode(",", array_keys($c));'
+```
+
+Verified after the deploy: `/readyz` reports `ready: true` with both models approved by the
+allowlist, the module's four pages return 200, and an unauthenticated `api.php` answers
+"Site ID is missing from session data!" rather than leaking a chart.
+
 ## CI/CD (GitLab) -- tests live, deploy parked
 
 > **The test half runs.** `.gitlab-ci.yml` at the repository root runs the unit tests, the
