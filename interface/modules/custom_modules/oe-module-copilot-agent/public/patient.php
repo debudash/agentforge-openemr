@@ -126,6 +126,18 @@ if ($gate === 'ok') {
         .cpa-rule-flag { color: #8a6d00; font-weight: 600; }
         .cpa-rule-engine_failure, .cpa-rule-unable_to_evaluate { color: #b71c1c; }
         .cpa-disclaimer { font-size: .85rem; }
+        /* A document that was read and not filed is the line a clinician most needs to notice,
+           and it was reading like every other line. Red for a refusal -- the document belongs to
+           someone else, or could not be confirmed to belong here -- and amber for one the model
+           could not read, which is a gap rather than a conflict. */
+        .cpa-change { padding: .3rem .5rem; border-left: 4px solid transparent; border-radius: .2rem; margin-bottom: .35rem; }
+        .cpa-change-refused { border-left-color: #b71c1c; background: #fdecea; }
+        .cpa-change-unread { border-left-color: #b26a00; background: #fff8e6; }
+        .cpa-change-tag { display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .04em;
+                          text-transform: uppercase; border-radius: .2rem; padding: .05rem .35rem; margin-right: .4rem;
+                          vertical-align: 1px; }
+        .cpa-change-refused .cpa-change-tag { background: #b71c1c; color: #fff; }
+        .cpa-change-unread .cpa-change-tag { background: #b26a00; color: #fff; }
         /* Laid out here rather than with Bootstrap's d-flex, whose display is !important and would
            outrank the hidden attribute: the banner would then show while the page believed it hidden.
            The attribute selector outranks the plain class, so `hidden` stays the single switch. */
@@ -323,9 +335,13 @@ if ($gate === 'ok') {
             panel.scrollIntoView({ block: "nearest" });
         });
     }
-    function renderClaims(claims, citations, container) {
+    function renderClaims(claims, citations, container, decorate) {
         claims.forEach(function (claim) {
-            var row = el("div", "cpa-claim"); row.appendChild(el("span", "", claim.text)); citeChips(claim.source_ids, citations, row); container.appendChild(row);
+            var row = el("div", "cpa-claim");
+            if (decorate) { decorate(claim, row); }
+            row.appendChild(el("span", "", claim.text));
+            citeChips(claim.source_ids, citations, row);
+            container.appendChild(row);
         });
     }
     function citationMap(list) { var m = {}; (list || []).forEach(function (c) { m[c.source_id] = c; }); return m; }
@@ -379,6 +395,19 @@ if ($gate === 'ok') {
     // Week 2: the supervisor runs on open. It checks for unread documents, reads them, has them
     // persisted, and returns the brief plus what changed. If it cannot run, the Week 1 path
     // (wait for the prefetched brief) still works.
+    // Which documents ended up in the chart and which did not. Taken from what the module and the
+    // graph reported rather than from the wording of the sentence: the text is ours and stable,
+    // but a marker that depends on prose is one rewrite away from silently marking nothing.
+    function outcomeByDocument(res) {
+        var outcome = {};
+        (res.persisted || []).forEach(function (p) {
+            if (p.refused) { outcome["doc:" + p.doc_id] = { css: "cpa-change-refused", tag: "not filed" }; }
+        });
+        (res.failed || []).forEach(function (f) {
+            outcome["doc:" + f.doc_id] = { css: "cpa-change-unread", tag: "not read" };
+        });
+        return outcome;
+    }
     function renderChanges(res) {
         var box = document.getElementById("cpa-changes"); box.innerHTML = ""; box.hidden = true;
         var docs = res.documents || [];
@@ -386,7 +415,13 @@ if ($gate === 'ok') {
         if (res.changes && res.changes.length) {
             box.hidden = false;
             box.appendChild(el("h5", "mt-2", "What changed"));
-            renderClaims(res.changes, citationMap(res.citations), box);
+            var outcome = outcomeByDocument(res);
+            renderClaims(res.changes, citationMap(res.citations), box, function (claim, row) {
+                var marked = null;
+                (claim.source_ids || []).forEach(function (sid) { marked = marked || outcome[sid]; });
+                row.className = "cpa-claim cpa-change" + (marked ? " " + marked.css : "");
+                if (marked) { row.appendChild(el("span", "cpa-change-tag", marked.tag)); }
+            });
             box.appendChild(head);
         } else if (docs.length) {
             box.hidden = false;

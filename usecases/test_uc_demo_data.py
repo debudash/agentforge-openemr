@@ -231,6 +231,12 @@ def test_a_refused_document_is_not_read_again_on_the_next_open(doctor, headers):
         if not refused:
             pytest.skip(f"the vision model did not read the documents: {first.get('failed')}")
         assert all("different patient" in c["text"].lower() for c in refused), refused
+        # The reason has to survive the trip back, not only the sentence built from it: the page
+        # marks a refused line red from this, and an un-modelled field once vanished in silence
+        # and left a refused document described as read.
+        reasons = [p for p in first.get("persisted") or [] if p.get("refused")]
+        assert reasons, first.get("persisted")
+        assert all("different patient" in p["refused"] for p in reasons), reasons
         assert call(doctor, headers, "documents", {"pid": w.IN_PANEL}).json()["unprocessed"] == 0
 
         second = doctor.post(f"{w.API}?action=supervise&context=patient", json={"pid": w.IN_PANEL},

@@ -675,6 +675,13 @@ distinguish Jane from John. The Demo Data tab's `wrong_patient` variant generate
 someone else so the refusal can be demonstrated, and a live case asserts both halves: the
 mismatched report is stored and never filed, the matching one is filed.
 
+On screen, a line for a document that did not reach the chart is coloured rather than left to read
+like every other line: red for a refusal (it belongs to someone else, or could not be confirmed to
+belong here) and amber for one the model could not read, each with a short NOT FILED or NOT READ
+tag. The marking is keyed on what the module and the graph reported -- `persisted[].refused` and
+`failed[]` -- not on the wording of the sentence, which is ours and stable but one rewrite away
+from silently marking nothing.
+
 A refusal is recorded beside the document, as a small JSON note a human can see in the Documents
 tab. Without it a refused document stayed *pending*: the extractor was offered it again on every
 open, the vision model read it again, and it appeared in "what changed" again. Reported from the
