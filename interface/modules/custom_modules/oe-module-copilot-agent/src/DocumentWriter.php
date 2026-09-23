@@ -173,7 +173,65 @@ final class DocumentWriter
     /** Whether a document has been read: a lab report has an order, an intake form has a sidecar. */
     public function isProcessed(int $docId, int $pid, string $docType): bool
     {
+        if ($this->refusalFor($docId, $pid) !== null) {
+            // Refused documents are handled, not pending. Without this a document the co-pilot has
+            // already declined to file is offered back to the extractor on every single open: the
+            // vision model reads it again, it is refused again, and it appears in "what changed"
+            // again. Six documents on a chart meant six model calls per visit, for ever.
+            return true;
+        }
         return $docType === 'lab_pdf' ? $this->orderFor($docId) !== null : $this->sidecarFor($docId, $pid) !== null;
+    }
+
+    private static function refusalName(int $docId): string
+    {
+        return sprintf('copilot-refused-%d.json', $docId);
+    }
+
+    /** The refusal recorded against a document, or null. */
+    public function refusalFor(int $docId, int $pid): ?int
+    {
+        $row = QueryUtils::fetchRecords(
+            'SELECT id FROM documents WHERE foreign_id = ? AND name = ? AND deleted = 0 ORDER BY id DESC LIMIT 1',
+            [$pid, self::refusalName($docId)]
+        );
+        return empty($row) ? null : (int) $row[0]['id'];
+    }
+
+    /**
+     * Record that a document was read and would not be filed, beside the document itself.
+     *
+     * Kept as a document rather than a flag so the reason travels with the chart and a human can
+     * see it in the Documents tab: the co-pilot looked at this, and here is why it refused. It
+     * carries no clinical content -- the point is that none of it was accepted.
+     */
+    public function recordRefusal(int $pid, int $docId, string $reason, int $eid): int
+    {
+        $this->scope->assertInScope($pid);
+        if (!$this->documentBelongsTo($docId, $pid)) {
+            throw new ScopeDeniedException($pid);
+        }
+        $existing = $this->refusalFor($docId, $pid);
+        if ($existing !== null) {
+            return $existing;
+        }
+        $payload = ['source_document_id' => $docId, 'refused_at' => gmdate('c'), 'reason' => $reason,
+                    'filed' => false, 'note' => 'read by the co-pilot and not filed; nothing from it reached the chart'];
+        $bytes = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        if (!is_string($bytes)) {
+            throw new \RuntimeException('refusal could not be encoded');
+        }
+        $service = new DocumentService();
+        $categoryId = (int) $service->getLastIdOfPath(self::CATEGORY_RECORD);
+        $document = new \Document();
+        // $data is taken by reference, so it has to be a variable: a cast expression here fails at
+        // runtime with "could not be passed by reference", which is how the first version of this
+        // silently turned every refusal into a 500.
+        $error = $document->createDocument($pid, $categoryId, self::refusalName($docId), 'application/json', $bytes, eid: $eid);
+        if (!empty($error)) {
+            throw new \RuntimeException('refusal could not be recorded');
+        }
+        return (int) $document->get_id();
     }
 
     /**
@@ -220,8 +278,9 @@ final class DocumentWriter
         $rows = QueryUtils::fetchRecords(
             'SELECT d.id, d.name, d.date, d.docdate, c.name AS category FROM documents d '
             . 'JOIN categories_to_documents cd ON cd.document_id = d.id JOIN categories c ON c.id = cd.category_id '
-            . 'WHERE d.foreign_id = ? AND d.deleted = 0 AND c.name IN (?, ?) AND d.name NOT LIKE ? ORDER BY d.id',
-            [$pid, 'Lab Report', 'Medical Record', 'copilot-extraction-%']
+            . 'WHERE d.foreign_id = ? AND d.deleted = 0 AND c.name IN (?, ?) '
+            . 'AND d.name NOT LIKE ? AND d.name NOT LIKE ? ORDER BY d.id',
+            [$pid, 'Lab Report', 'Medical Record', 'copilot-extraction-%', 'copilot-refused-%']
         );
         $out = [];
         foreach ($rows as $row) {

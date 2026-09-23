@@ -216,3 +216,26 @@ def test_the_patient_in_view_is_still_served(doctor, headers):
     body = call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"}).json()
     assert len(body["generated"]) == 2
     call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})
+
+
+def test_a_refused_document_is_not_read_again_on_the_next_open(doctor, headers):
+    """A refusal is an outcome, not a pending state. Reported live: six documents on a chart, three
+    of them refused, re-read by the vision model on every single open and listed again in what
+    changed each time."""
+    call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "wrong_patient"})
+    doctor.post(f"{w.API}?action=open_patient&context=patient", json={"pid": w.IN_PANEL}, headers=headers, timeout=300)
+    try:
+        first = doctor.post(f"{w.API}?action=supervise&context=patient", json={"pid": w.IN_PANEL},
+                            headers=headers, timeout=600).json()
+        refused = [c for c in first.get("changes") or [] if "not filed" in c["text"].lower()]
+        if not refused:
+            pytest.skip(f"the vision model did not read the documents: {first.get('failed')}")
+        assert all("different patient" in c["text"].lower() for c in refused), refused
+        assert call(doctor, headers, "documents", {"pid": w.IN_PANEL}).json()["unprocessed"] == 0
+
+        second = doctor.post(f"{w.API}?action=supervise&context=patient", json={"pid": w.IN_PANEL},
+                             headers=headers, timeout=600).json()
+        assert not (second.get("extractions") or []), "a refused document was read again"
+        assert not (second.get("changes") or []), second.get("changes")
+    finally:
+        call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})

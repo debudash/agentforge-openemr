@@ -317,6 +317,11 @@ class PersistedRef(BaseModel):
     order_id: int | None = None
     sidecar_doc_id: int | None = None
     skipped: list[dict[str, Any]] = Field(default_factory=list)
+    # Why the module would not file it, when it would not. Pydantic drops unknown fields in
+    # silence, so leaving this out meant a refused document arrived here looking like an ordinary
+    # one that happened to produce no rows -- and the brief then said it "was read: 0 result(s)
+    # added to the chart, pending clinician review" about a report belonging to someone else.
+    refused: str | None = None
 
 
 class ResumeRequest(BaseModel):

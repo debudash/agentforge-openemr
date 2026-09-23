@@ -615,6 +615,17 @@ distinguish Jane from John. The Demo Data tab's `wrong_patient` variant generate
 someone else so the refusal can be demonstrated, and a live case asserts both halves: the
 mismatched report is stored and never filed, the matching one is filed.
 
+A refusal is recorded beside the document, as a small JSON note a human can see in the Documents
+tab. Without it a refused document stayed *pending*: the extractor was offered it again on every
+open, the vision model read it again, and it appeared in "what changed" again. Reported from the
+local install as six documents on one chart, three refused, all six re-read every visit.
+
+Two bugs were in the way of that working, both worth naming. `PersistedRef` had no `refused`
+field, and Pydantic drops unknown fields in silence -- so the refusal never reached the graph and
+the brief described a report belonging to someone else as "was read: 0 result(s) added to the
+chart, pending clinician review". And `Document::createDocument()` takes its data **by reference**,
+so passing a cast expression failed at runtime and turned every refusal into a 500.
+
 One consequence worth recording: this broke two live tests that had been uploading the committed
 eval fixture, which names a fictional patient, to a real chart. They were misfiling a document on
 every run and passing anyway. They now build a report naming the patient they file it under

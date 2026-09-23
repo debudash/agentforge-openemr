@@ -126,6 +126,7 @@ function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid
         : ($document['patient_ref']['value'] ?? null);
     $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
     if ($mismatch !== null) {
+        $writer->recordRefusal($pid, $docId, $mismatch, $eid);
         return ['processed' => false, 'reason' => $mismatch, 'patient_ref_mismatch' => true,
                 'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
                 'extraction_ms' => $extraction['duration_ms'] ?? null,
@@ -213,6 +214,10 @@ function runSupervisorGraph(AgentClient $client, DocumentWriter $writer, PanelSc
                 : ($read['patient_ref']['value'] ?? null);
             $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
             if ($mismatch !== null) {
+                // Recorded beside the document, so it is not offered back to the extractor on every
+                // open: refused is handled, not pending. Six documents on a chart otherwise meant
+                // six vision calls per visit, and six lines in "what changed", for ever.
+                $writer->recordRefusal($pid, $docId, $mismatch, $eid);
                 $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => [], 'skipped' => [], 'refused' => $mismatch];
                 audit('copilot-document-refused', $username, $authGroup, false,
                     'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' reason=patient_ref_mismatch', $pid);

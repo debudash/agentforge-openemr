@@ -133,7 +133,13 @@ final class ChartReader
                 'results' => count($writer->sourceIdsFor($docId)),
             ];
             if ($document['doc_type'] === 'intake_form' && $document['processed']) {
-                $entry['reported'] = $this->intakeFacts($writer, $docId, $pid);
+                // Only when there is something: an empty PHP array encodes as [] rather than {},
+                // and the chart schema expects an object, so an intake form with nothing readable
+                // in it rejected the whole chart on the way back.
+                $facts = $this->intakeFacts($writer, $docId, $pid);
+                if ($facts !== []) {
+                    $entry['reported'] = $facts;
+                }
             }
             $out[] = $entry;
         }
