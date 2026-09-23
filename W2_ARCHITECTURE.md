@@ -136,8 +136,15 @@ records "scoped to what is new" in the handoff, and tells the retriever to answe
 `get_documents` and recent `get_labs` -- what actually arrived. The follow-up prompt separately
 says that a round may call several tools at once, which is what the budget assumed all along.
 
-A clinician asks this a dozen ways, so the match is on stems -- *chang\*, new, updat\*, latest,
-recent\*, differ\*, since* -- rather than a list of the phrasings somebody happened to think of.
+The pre-check remains the gate. It was briefly made advisory, on the theory that it was refusing
+terse clinical questions; the logs said otherwise, showing it answering *true* on every refused
+"what changed" while the refusal came from the no-lookup rule. Making its verdict non-binding
+bought nothing and cost this: asked "how is the weather" with earlier answers in context, the model
+looked up the chart, set no off-topic flag of its own, and the turn returned the patient's
+medications and labs. Reading the question alone is exactly what makes the check hard to talk
+round, which is the reason it reads the question alone. R14 covers it.
+
+A clinician asks this a dozen ways, so the match is on stems -- *chang\*, new, updat\*, differ\** -- rather than a list of the phrasings somebody happened to think of.
 "What changed", "whats new", "tell me the changes" and "any updates" all route the same way;
 "what medications is she on" does not.
 

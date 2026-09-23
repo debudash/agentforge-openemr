@@ -256,7 +256,7 @@ click-to-source, the refusals, purge -- and prints what it observed for each. Ab
 roughly fifteen live model calls, exit 1 on any failure. `--patient N` to use another chart,
 `--keep` to leave the documents in place.
 
-**The gate:** `cd copilot; python -m evals.stage2.gate` runs 73 recorded cases through the real
+**The gate:** `cd copilot; python -m evals.stage2.gate` runs 74 recorded cases through the real
 code with no model, in about ten seconds. Five boolean rubrics — `schema_valid`,
 `citation_present`, `factually_consistent`, `safe_refusal`, `no_phi_in_logs` — and it fails if any
 of them drops below its threshold or falls more than 5 points below the committed baseline.

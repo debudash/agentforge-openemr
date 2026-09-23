@@ -73,7 +73,12 @@ _EVIDENCE_WORDS = ("evidence", "guidance", "guideline", "recommend", "recommenda
 # Matched on stems rather than whole phrases: a clinician asks this a dozen ways -- "what changed",
 # "whats new", "tell me the changes", "any updates", "anything since last time" -- and a list of
 # exact phrases is a list of the ones somebody happened to think of.
-_CHANGE_PATTERN = re.compile(r"\b(chang\w*|new|newest|updat\w*|latest|recent\w*|differ\w*|since)\b")
+#
+# "recent", "latest" and "since" were in this list and had to come out: they attach just as
+# naturally to an ordinary chart question ("when was the most recent visit", "what was the latest
+# potassium"), which then got answered from get_documents instead of the encounters it asked for.
+# A word earns its place here only if it is hard to use about a single record.
+_CHANGE_PATTERN = re.compile(r"\b(chang\w*|new|newest|updat\w*|differ\w*)\b")
 
 
 def asks_what_changed(question: str | None) -> bool:

@@ -92,21 +92,43 @@ def test_an_off_topic_question_is_refused_when_the_turn_also_finds_nothing(chart
     assert response.missing == SCOPE_STATEMENT
 
 
-def test_a_terse_chart_question_the_pre_check_gets_wrong_is_still_answered(chart101, today):
-    """The bug this inverts: "what changed" was refused eight times in nine because a small model
-    was asked to classify two words. Finding a record overrides the opinion."""
+def test_a_terse_question_the_model_answers_without_looking_is_made_to_look(chart101, today):
+    """The real shape of the "what changed" bug. The pre-check said the question *was* about the
+    chart -- it is accurate, and the logs proved it -- and the model then produced a first round
+    with no tool call at all, which the no-lookup rule turned into a refusal. Being told to look
+    is what rescues it, and the pre-check is left to do the job it is good at."""
     from dataclasses import replace
     from langchain_core.messages import AIMessage
-    from copilot.agent import SCOPE_STATEMENT
     from copilot.schemas import AnswerDraft, Claim, TopicCheck
     settings = replace(Settings(), topic_check=True)
     lookup = AIMessage(content="", tool_calls=[{"name": "get_labs", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
     answer = AnswerDraft(claims=[Claim(text="Potassium was 5.4 mmol/L on 2026-08-16.", source_ids=["lab:6001"])])
-    llm = ScriptedLLM([TopicCheck(about_patient_record=False), lookup, answer])
+    # On-topic, then a round that looks nothing up, then the forced round that does.
+    llm = ScriptedLLM([TopicCheck(about_patient_record=True), AnswerDraft(claims=[]), lookup, answer])
     response, turn = answer_followup(chart101, "what changed", [], llm, settings, "cid-terse", today)
-    assert not response.off_topic, "a question that found a record cannot be off-topic"
+    assert not response.off_topic, "a question the pre-check called on-topic is not refused for being terse"
     assert response.claims and response.tool_calls == ["get_labs"]
-    assert response.missing != SCOPE_STATEMENT if response.missing else True
+
+
+def test_an_off_topic_question_is_refused_even_with_the_chart_in_the_conversation(chart101, today):
+    """Reported live: "how is the weather", asked after questions about the chart, came back with
+    the patient's medications and labs. The pre-check had said off-topic and been overruled by a
+    model that had the earlier answers in front of it. Reading the question alone is precisely
+    what makes the check hard to talk round, so its verdict ends the turn."""
+    from dataclasses import replace
+    from langchain_core.messages import AIMessage, HumanMessage
+    from copilot.agent import SCOPE_STATEMENT
+    from copilot.schemas import AnswerDraft, Claim, TopicCheck
+    settings = replace(Settings(), topic_check=True)
+    history = [HumanMessage(content="what changed"),
+               AIMessage(content="Potassium was 5.4 mmol/L on 2026-08-16.")]
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_labs", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
+    eager = AnswerDraft(claims=[Claim(text="Potassium was 5.4 mmol/L on 2026-08-16.", source_ids=["lab:6001"])])
+    llm = ScriptedLLM([TopicCheck(about_patient_record=False), lookup, eager])
+    response, turn = answer_followup(chart101, "how is the weather", history, llm, settings, "cid-weather", today)
+    assert response.off_topic and response.claims == [] and response.tool_calls == []
+    assert response.missing == SCOPE_STATEMENT
+    assert llm.responses, "the turn ended before the tools or the model were consulted"
 
 
 def test_topic_check_yes_proceeds_normally(chart101, today):
