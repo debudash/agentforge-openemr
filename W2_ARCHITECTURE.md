@@ -293,6 +293,42 @@ the presentation half.
 
 ---
 
+### The citation contract, and what a click does with it
+
+Every claim that survives verification carries `{source_type, source_id, page_or_section,
+field_or_chunk_id, quote_or_value}`. The shape is enforced by the type — `source_type` is
+validated against the prefix of `source_id`, so a citation cannot claim to be a document while
+naming a record.
+
+The three provenance fields answer the same three questions whatever the source is: **where** the
+fact came from, **which field** carried it, and **what that field said**.
+
+| Source | page_or_section | field_or_chunk_id | quote_or_value |
+|---|---|---|---|
+| Chart record | the chart section (`problems`, `labs`, `medications`) | the field (`title`, `value`, `drug`) | the value as recorded |
+| Lab row read from a document | the page (`p1`) | the document (`doc:412`) | the value as read |
+| Document (a "was read" claim) | the page of the patient line | the field that named the patient | the patient as printed on it |
+| Guideline chunk | the section heading | the chunk id | the quoted guidance |
+
+They were null for chart records and for document claims until late: the schema was satisfied
+while three fifths of most citations said nothing, and a click on the most prominent claim on the
+screen — *"Lab report X was read"* — opened page 1 with nothing highlighted. The overlay was
+working; it had been given nothing to point at.
+
+**The overlay.** Clicking a citation that names a stored document posts the page and the quote to
+the module, which checks the patient's scope, checks the document belongs to this patient, audits
+the view, and proxies to the agent. `pages.locate()` searches that page's **text layer** with
+pypdfium2 and returns boxes normalised to 0–1, or `found: false`; `pages.render()` returns the page
+as a PNG. The page renders inline with absolutely-positioned boxes sized in percentages, so they
+stay aligned at any width. No model is in this path: a box is where the text is, or the page says
+it is not there, and a quote on another page says so rather than guessing.
+
+`DocumentCitation.bbox` exists and is deliberately never populated. Boxes are computed at view
+time from the document's own text layer rather than stored, so a re-rendered page cannot drift out
+of alignment with a coordinate recorded earlier.
+
+---
+
 ## 7a. Scope: what is deliberately not built
 
 The Week 2 requirements list five items under Core Deliverables that the body text calls extension

@@ -118,7 +118,8 @@ def test_a_number_read_from_a_document_must_match_the_persisted_record(chart101,
 def test_citations_for_documents_and_guidelines_carry_v2_fields(chart101, today):
     idx = index_with_documents(chart101, today)
     cites = {c.source_id: c for c in citations_for(["lab:6001", "doc:412", "guideline:uspstf-htn-2021"], idx)}
-    assert cites["lab:6001"].source_type == "record" and cites["lab:6001"].page_or_section is None
+    # A chart lab cites the chart's own section and field; a document citation cites a page.
+    assert cites["lab:6001"].source_type == "record" and cites["lab:6001"].page_or_section == "labs"
     doc = cites["doc:412"]
     assert doc.source_type == "document" and doc.page_or_section == "p2" and doc.quote_or_value == "Potassium 5.4 mmol/L"
     assert doc.label == "lab_pdf metro-labs.pdf"
@@ -160,4 +161,32 @@ def test_a_lab_row_read_from_a_document_cites_its_page(chart101, today):
     from_doc, from_chart = cite[0], cite[1]
     assert from_doc.source_type == "record" and from_doc.page_or_section == "p1" and from_doc.field_or_chunk_id == "doc:412"
     assert from_doc.quote_or_value == "Potassium 5.4 mmol/L"
-    assert from_chart.page_or_section is None and from_chart.field_or_chunk_id is None
+    # The same test read from the chart rather than a document points at the chart, not a page:
+    # provenance from a document outranks the section, which is what gives the chip a page to open.
+    assert from_chart.page_or_section == "labs" and from_chart.field_or_chunk_id == "value"
+
+
+def test_a_chart_record_citation_answers_all_five_questions(chart101):
+    """The contract asks where a fact came from, which field carried it, and what that field said.
+    Leaving three of the five null satisfied the schema while telling a reader nothing, and most
+    of a brief's citations are ordinary records."""
+    index = chart101.index()
+    cites = {c.source_id: c for c in citations_for(list(index), index)}
+
+    for sid, citation in cites.items():
+        assert citation.source_type and citation.source_id
+        assert citation.page_or_section, f"{sid} has no section"
+        assert citation.field_or_chunk_id, f"{sid} has no field"
+        assert citation.quote_or_value, f"{sid} has no value"
+
+    problem = next(c for s, c in cites.items() if s.startswith("problem:"))
+    assert problem.page_or_section == "problems" and problem.field_or_chunk_id == "title"
+    assert problem.quote_or_value == index[problem.source_id]["title"]
+
+
+def test_a_lab_read_from_a_document_still_cites_the_page_not_the_chart_section():
+    """Document provenance outranks the chart section: this citation has a page to open."""
+    index = {"lab:7001": {"test": "Potassium", "value": "5.4", "units": "mmol/L", "document_id": 412, "page": 2}}
+    citation = citations_for(["lab:7001"], index)[0]
+    assert citation.page_or_section == "p2" and citation.field_or_chunk_id == "doc:412"
+    assert citation.quote_or_value == "Potassium 5.4 mmol/L"

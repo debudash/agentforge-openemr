@@ -212,6 +212,49 @@ def _label(kind: str, record: dict[str, Any]) -> str:
             return kind
 
 
+def _provenance(kind: str, record: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
+    """(page_or_section, field_or_chunk_id, quote_or_value) for a chart record.
+
+    The citation contract asks where a fact came from, which field carried it, and what that
+    field actually said. For a document that is a page, a field name and a quote. A chart record
+    has the same three, and leaving them null made most of a brief's citations three-fifths empty
+    while still satisfying the schema: the section of the chart the record sits in, the field the
+    claim rests on, and the value as recorded.
+    """
+    def value(*keys: str) -> str:
+        parts = [str(record.get(k) or "").strip() for k in keys]
+        return " ".join(p for p in parts if p).strip()
+
+    match kind:
+        case "problem":
+            return "problems", "title", value("title")
+        case "prescription" | "medication":
+            return "medications", "drug", value("drug", "dosage", "unit", "interval")
+        case "allergy":
+            return "allergies", "title", value("title", "reaction")
+        case "lab":
+            return "labs", "value", value("test", "value", "units")
+        case "encounter":
+            return "encounters", "reason", value("category", "reason")
+        case "immunization":
+            return "immunizations", "name", value("name", "cvx")
+        case "vitals":
+            return "vitals", "vitals", value("bps", "bpd", "pulse", "weight")
+        case "patient":
+            return "demographics", "name", value("name", "dob")
+        case "appointment":
+            return "appointments", "title", value("date", "time", "title")
+        case "rule":
+            return "rules", str(record.get("rule_id") or "rule"), value("summary")
+        case "signal":
+            return "signals", "text", value("text")
+        case "empty":
+            # An absence is citable, and what it says is that nothing came back.
+            return str(record.get("source") or "chart"), "count", "no records returned"
+        case _:
+            return None, None, None
+
+
 def citations_for(source_ids: list[str], index: dict[str, dict[str, Any]]) -> list[Citation]:
     out: list[Citation] = []
     for sid in dict.fromkeys(source_ids):
@@ -220,9 +263,13 @@ def citations_for(source_ids: list[str], index: dict[str, dict[str, Any]]) -> li
             continue
         kind = sid.split(":", 1)[0]
         date_value = record.get("date") or record.get("begdate") or record.get("date_added") or record.get("dob")
+        # A record that carries its own provenance (a guideline chunk, a document) keeps it;
+        # anything else gets the chart's own answer to the same three questions.
         page_or_section = record.get("page_or_section")
         field_or_chunk_id = record.get("field_or_chunk_id")
         quote_or_value = record.get("quote_or_value")
+        if page_or_section is None and field_or_chunk_id is None and quote_or_value is None:
+            page_or_section, field_or_chunk_id, quote_or_value = _provenance(kind, record)
         if record.get("document_id") and record.get("page"):
             # A chart row read from a document: the citation opens the page it was read from.
             page_or_section = f"p{record['page']}"

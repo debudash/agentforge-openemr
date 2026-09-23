@@ -156,3 +156,28 @@ def test_a_report_naming_this_patient_is_filed(doctor, headers):
         assert len(body["source_ids"]) >= 3
     finally:
         call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})
+
+
+def test_the_what_changed_citation_opens_a_page_with_the_quote_boxed(doctor, headers):
+    """The requirement's end state: a clinical claim carries citation metadata a program can act
+    on, and acting on it draws a box on the page. This is the claim a clinician clicks first, and
+    it used to open page 1 with nothing highlighted because the citation carried no quote."""
+    call(doctor, headers, "demo_generate", {"pid": w.IN_PANEL, "variant": "abnormal"})
+    doctor.post(f"{w.API}?action=open_patient&context=patient", json={"pid": w.IN_PANEL}, headers=headers, timeout=300)
+    body = doctor.post(f"{w.API}?action=supervise&context=patient", json={"pid": w.IN_PANEL},
+                       headers=headers, timeout=600).json()
+    try:
+        documents = [c for c in body.get("citations") or [] if c["source_type"] == "document"]
+        assert documents, "the supervisor reported no document citations"
+        for citation in documents:
+            assert citation["page_or_section"] and citation["quote_or_value"], citation
+            page = int(str(citation["page_or_section"]).lstrip("p"))
+            rendered = doctor.post(f"{w.API}?action=page&context=patient",
+                                   json={"pid": w.IN_PANEL, "doc_id": int(citation["source_id"].split(":")[1]),
+                                         "page": page, "quotes": [citation["quote_or_value"]]},
+                                   headers=headers, timeout=300).json()
+            assert rendered["boxes"][0]["found"] is True, f"{citation['quote_or_value']!r} not located"
+            x0, y0, x1, y1 = rendered["boxes"][0]["bbox"]
+            assert 0 <= x0 < x1 <= 1 and 0 <= y0 < y1 <= 1
+    finally:
+        call(doctor, headers, "demo_purge", {"pid": w.IN_PANEL})

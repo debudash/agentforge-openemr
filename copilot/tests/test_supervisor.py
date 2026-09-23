@@ -143,3 +143,23 @@ def test_supervising_a_patient_makes_it_the_active_one_so_follow_ups_work(chart1
     assert store.sessions["s" * 32].active_pid == 101
     assert store.sessions["s" * 32].patients[303].history == []      # FR5 still holds
     assert asyncio.run(store.ask("s" * 32, 101, "how many hospitalizations?", "cid-b")).state == ResponseState.COMPLETE
+
+
+def test_a_document_change_citation_opens_the_page_naming_the_patient(chart101, settings):
+    """A "this was read" claim still has to open somewhere. Without a page and a quote the chip
+    opened page 1 with nothing highlighted -- the overlay working, given nothing to point at."""
+    sup = supervisor(chart101, settings)
+    sup.start("sid-10", 101, manifest(), "cid-s10")
+    final = sup.resume("sid-10", 101, [{"doc_id": DOC, "doc_type": "lab_pdf", "source_ids": ["lab:9001"],
+                                        "order_id": 78, "skipped": []}], "cid-s10")
+    citation = [c for c in final["citations"] if c["source_id"] == f"doc:{DOC}"][0]
+    assert citation["source_type"] == "document"
+    assert citation["page_or_section"] == "p1"
+    assert citation["field_or_chunk_id"] == "patient_ref"
+    assert "Jane Doe" in citation["quote_or_value"]
+
+
+def test_a_document_that_could_not_be_read_offers_no_page_to_open(chart101, settings):
+    out = supervisor(chart101, settings, vision_responses=[]).start("sid-11", 101, manifest(), "cid-s11")
+    citation = [c for c in out["citations"] if c["source_id"] == f"doc:{DOC}"][0]
+    assert citation["page_or_section"] is None and citation["quote_or_value"] is None

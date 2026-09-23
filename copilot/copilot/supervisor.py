@@ -51,6 +51,29 @@ class SupervisorState(TypedDict, total=False):
     started: float
 
 
+def _document_anchor(extraction: dict[str, Any]) -> dict[str, Any]:
+    """Where in the document to point a "this was read" citation.
+
+    A claim about a document as a whole still has to open somewhere, and the honest place is the
+    line naming the patient: it is the first thing a clinician checks when a result appears in a
+    chart, and it is on every one of these documents. Without it the citation carried no page and
+    no quote, so clicking it opened page 1 with nothing highlighted -- the overlay working, given
+    nothing to point at. A document that could not be read has no citation to offer and says so
+    by leaving these out.
+    """
+    document = ((extraction.get("result") or {}).get("document") or {})
+    if extraction.get("doc_type") == "intake_form":
+        field = (document.get("demographics") or {}).get("name")
+    else:
+        field = document.get("patient_ref")
+    citation = (field or {}).get("citation") or {}
+    if not citation.get("quote") or not citation.get("page"):
+        return {}
+    return {"page_or_section": f"p{int(citation['page'])}",
+            "field_or_chunk_id": str(citation.get("field") or "patient_ref"),
+            "quote_or_value": str(citation["quote"])}
+
+
 def _handoff(frm: str, to: str, reason: str, started: float, **inputs: Any) -> dict[str, Any]:
     return {"from": frm, "to": to, "reason": reason, "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "duration_ms": int((time.perf_counter() - started) * 1000), "inputs": inputs}
@@ -196,7 +219,8 @@ class Supervisor:
             label = TYPE_LABEL.get(extraction["doc_type"], "Document")
             name, date = str(doc.get("name", f"document {doc_id}")), str(doc.get("date", ""))
             sid = f"doc:{doc_id}"
-            record: dict[str, Any] = {"kind": "document", "doc_type": extraction["doc_type"], "name": name, "date": date}
+            record: dict[str, Any] = {"kind": "document", "doc_type": extraction["doc_type"], "name": name, "date": date,
+                                      **_document_anchor(extraction)}
             if not extraction.get("ok"):
                 record["error"] = extraction.get("error", "")
                 text = f"{label} '{name}' ({date}) could not be read; it remains stored for manual review."
