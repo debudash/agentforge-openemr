@@ -284,7 +284,8 @@ unset. The *deploy* half is **parked** at
 [deploy/railway/gitlab-ci.yml](deploy/railway/gitlab-ci.yml), out of the root where GitLab never
 reads it, because nothing here publishes without a person approving that specific change.
 
-**Documents:** [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
+**Documents:** [EVAL_GATE.md](EVAL_GATE.md) (**where the prompts, schemas and golden set live, how to
+run the gate, and the merge request it blocked**), [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
 [W2_COST_LATENCY.md](W2_COST_LATENCY.md), [KEY_METRICS.md](KEY_METRICS.md) (Week 2 section),
 [copilot/evals/stage2/README.md](copilot/evals/stage2/README.md) (the eval dataset),
 [GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (rules 11 and 12).

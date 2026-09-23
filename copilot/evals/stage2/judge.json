@@ -1,7 +1,7 @@
 {
   "purpose": "Judge configuration for the Week 2 evals. The gate itself uses no judge: all five rubrics are decided by code so a provider outage cannot silence it. The judge is for the optional live suite, grading what deterministic checks cannot see.",
   "model_env": "COPILOT_JUDGE_MODEL",
-  "default_model": "google/gemma-4-31b-it:free",
+  "default_model": "anthropic/claude-sonnet-5",
   "recommended_model": "anthropic/claude-sonnet-5",
   "when": "only on live runs (stage1 --judge); never in the pre-push gate",
   "rubrics": {
@@ -13,5 +13,6 @@
     "useful": "A hospitalist would find this worth the seconds it takes to read. 1-5, reported, not gated."
   },
   "not_applicable": "A judge call that is rate-limited or fails is recorded as judge n/a and never fails the case.",
-  "never_overrides": "A deterministic failure fails the case whatever the judge says."
+  "never_overrides": "A deterministic failure fails the case whatever the judge says.",
+  "note_on_model": "A different family from the agent (google/gemini-2.5-flash-lite) so it is not grading its own output. The free slugs used through stage 7 are retired."
 }
