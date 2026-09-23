@@ -250,7 +250,7 @@ is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everythi
    ACE inhibitor?"): the guideline evidence appears in its own block, cited to the corpus, and is
    never turned into advice for the patient.
 
-**The gate:** `cd copilot; python -m evals.stage2.gate` runs 72 recorded cases through the real
+**The gate:** `cd copilot; python -m evals.stage2.gate` runs 73 recorded cases through the real
 code with no model, in about ten seconds. Five boolean rubrics — `schema_valid`,
 `citation_present`, `factually_consistent`, `safe_refusal`, `no_phi_in_logs` — and it fails if any
 of them drops below its threshold or falls more than 5 points below the committed baseline.

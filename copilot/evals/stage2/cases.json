@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 72,
+  "count": 73,
   "cases": [
     {
       "id": "E01",
@@ -11635,6 +11635,81 @@
         "answer_text_any": [
           "nothing new",
           "no new"
+        ]
+      }
+    },
+    {
+      "id": "S10",
+      "name": "a question after the documents were read is still about them",
+      "category": "supervisor",
+      "kind": "supervise",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "documents": [
+          {
+            "doc_id": 412,
+            "doc_type": "lab_pdf",
+            "name": "metro-labs.pdf",
+            "date": "2026-09-18",
+            "processed": true,
+            "fixture": "metro-labs-jane-doe.pdf"
+          }
+        ],
+        "brief": [
+          {
+            "tool": "get_documents",
+            "args": {
+              "pid": 101
+            }
+          },
+          {
+            "tool": "get_labs",
+            "args": {
+              "pid": 101
+            }
+          },
+          {
+            "answer": {
+              "claims": [
+                {
+                  "text": "Potassium was 5.4 mmol/L on 2026-08-16.",
+                  "source_ids": [
+                    "lab:6001"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "vision": [],
+        "persisted": [],
+        "question": "whats new?"
+      },
+      "expect": {
+        "phase": "done",
+        "answer_state": "complete",
+        "handoff_reason_any": [
+          "scoped to what is new"
+        ],
+        "forbidden_text": [
+          "nothing new",
+          "no new documents"
+        ],
+        "edges_exclude": [
+          [
+            "supervisor",
+            "intake_extractor"
+          ]
         ]
       }
     },

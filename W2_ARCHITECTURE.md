@@ -141,6 +141,12 @@ recent\*, differ\*, since* -- rather than a list of the phrasings somebody happe
 "What changed", "whats new", "tell me the changes" and "any updates" all route the same way;
 "what medications is she on" does not.
 
+"Anything to report" is judged from the chart, not from this invocation. A follow-up is its own
+graph run, so a document read a minute ago during the chart opening leaves no extraction behind in
+the question's run and is no longer unread -- which had the co-pilot answer "nothing new since the
+brief" moments after reading two documents, reported from the local install. A chart holding
+documents has something to report; only a chart holding none is genuinely quiet.
+
 **And when nothing has arrived, it says so.** The supervisor knows whether a document was read
 this run or is still waiting, and records "nothing new since the brief" in the handoff when
 neither is true. The retriever is then told to confirm with `get_documents` and answer in one

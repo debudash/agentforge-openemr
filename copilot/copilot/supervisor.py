@@ -85,6 +85,18 @@ def needs_evidence(question: str | None) -> bool:
     return any(word in lowered for word in _EVIDENCE_WORDS)
 
 
+def anything_to_report(state: SupervisorState) -> bool:
+    """Is there anything for a "what changed" answer to be about?
+
+    A follow-up is its own graph run, so a document read a minute ago during the chart opening
+    leaves no extraction in *this* run's state and is no longer unread -- which had the co-pilot
+    answer "nothing new since the brief" moments after reading two documents. What the clinician
+    means is the chart, not this invocation: a chart holding documents has something to report,
+    and only a chart holding none is genuinely quiet.
+    """
+    return bool(state.get("documents")) or bool([e for e in state.get("extractions", []) if e.get("ok")])
+
+
 def _document_anchor(extraction: dict[str, Any]) -> dict[str, Any]:
     """Where in the document to point a "this was read" citation.
 
@@ -194,7 +206,7 @@ class Supervisor:
             # Whether there is anything new to report: a document read this run, or one still
             # waiting to be read. Without this the retriever answers "what changed" on a quiet
             # chart by listing whatever it can find, which reads as news and is not.
-            arrived = bool([e for e in extractions if e.get("ok")]) or bool(_unread(state))
+            arrived = anything_to_report(state)
             reason = ("documents persisted; answering from the chart they produced" if state.get("persisted")
                       else "question needs the chart" if not extractions
                       else "nothing readable; answering from the chart as it is")
@@ -273,7 +285,7 @@ class Supervisor:
                                              self.llm_factory(), self.settings, cid,
                                              require_evidence=needs_evidence(question),
                                              change_focused=asks_what_changed(question),
-                                             changes_arrived=bool([e for e in state.get("extractions", []) if e.get("ok")]))
+                                             changes_arrived=anything_to_report(state))
             handoff = _handoff("evidence_retriever", "supervisor",
                                f"answered: {response.state.value}, {len(response.claims)} claim(s), "
                                f"{len(response.evidence)} evidence entr(ies)", started,

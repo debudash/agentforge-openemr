@@ -419,7 +419,21 @@ cases += [
                "answer_text_any": ["nothing new", "no new"]},
               question="whats new?",
               script=[{"tool": "get_documents", "args": {"pid": 101}},
-                      {"answer": {"claims": [], "missing": "There is nothing new since the brief."}}])
+                      {"answer": {"claims": [], "missing": "There is nothing new since the brief."}}]),
+    supervise("S10", "a question after the documents were read is still about them", [dict(LAB_DOC, processed=True)], [], [],
+              # Reported live: open the co-pilot, generate documents, let them load, ask "whats
+              # new" -- and get "nothing new since the brief" moments after two were read. A
+              # follow-up is its own graph run, so the extraction that happened in the run before
+              # it leaves nothing behind here and the document is no longer unread. What the
+              # clinician means is the chart, not this invocation.
+              {"phase": "done", "answer_state": "complete", "handoff_reason_any": ["scoped to what is new"],
+               "forbidden_text": ["nothing new", "no new documents"],
+               "edges_exclude": [["supervisor", "intake_extractor"]]},
+              question="whats new?",
+              # Cites a lab rather than the document: the shared stage-1 fixture chart carries no
+              # documents section, and this case is about the decision, not about what it cites.
+              script=[{"tool": "get_documents", "args": {"pid": 101}}, {"tool": "get_labs", "args": {"pid": 101}},
+                      {"answer": {"claims": [{"text": "Potassium was 5.4 mmol/L on 2026-08-16.", "source_ids": ["lab:6001"]}]}}])
 ]
 
 # --- missing data ---------------------------------------------------------------------------
