@@ -87,7 +87,10 @@ final class DemoDocuments
             ['intake', $this->intakePages($patient, $orderingProvider)],
         ] as [$kind, $pages]) {
             $name = self::PREFIX . $kind . '-' . $stamp . '.pdf';
-            $bytes = $variant === 'unreadable' && $kind === 'lab' ? $this->buildPdf([[]]) : $this->buildPdf($pages);
+            // Both documents, not just the lab report. Blanking one of a pair produced a run where
+            // the report could not be read while the form beside it read perfectly, which looks
+            // like a fault rather than the scan-with-no-text case this variant exists to show.
+            $bytes = $variant === 'unreadable' ? $this->buildPdf([[]]) : $this->buildPdf($pages);
             if (file_put_contents($directory . '/' . $name, $bytes) === false) {
                 throw new \RuntimeException('could not write the demo document');
             }

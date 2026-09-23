@@ -128,6 +128,49 @@ final class DocumentWriter
         return null;
     }
 
+    /**
+     * Did the model get anything at all out of this document?
+     *
+     * A blank page -- a scan with no text, which is the ordinary degraded case -- comes back as a
+     * valid extraction in which every field is unsupported. Told only that the patient name could
+     * not be read, a clinician reasonably reads that as a name-matching problem on a real report.
+     * Saying nothing could be read is both truer and less alarming.
+     *
+     * @param array<string, mixed> $document the extracted document
+     */
+    public static function nothingWasRead(string $docType, array $document): bool
+    {
+        $supported = static fn(array $field): bool => isset($field['value']) && $field['value'] !== null && $field['value'] !== '';
+        if ($docType === 'intake_form') {
+            $demographics = (array) ($document['demographics'] ?? []);
+            foreach (['name', 'dob', 'sex'] as $key) {
+                if ($supported((array) ($demographics[$key] ?? []))) {
+                    return false;
+                }
+            }
+            foreach (['form_date', 'chief_concern'] as $key) {
+                if ($supported((array) ($document[$key] ?? []))) {
+                    return false;
+                }
+            }
+            foreach (['current_medications', 'allergies', 'family_history'] as $key) {
+                if (!empty($document[$key])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (!empty($document['results'])) {
+            return false;
+        }
+        foreach (['patient_ref', 'report_date', 'performing_lab', 'ordering_provider'] as $key) {
+            if ($supported((array) ($document[$key] ?? []))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /** @return list<string> */
     private static function nameTokens(string $name): array
     {

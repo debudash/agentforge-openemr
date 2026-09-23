@@ -675,6 +675,14 @@ distinguish Jane from John. The Demo Data tab's `wrong_patient` variant generate
 someone else so the refusal can be demonstrated, and a live case asserts both halves: the
 mismatched report is stored and never filed, the matching one is filed.
 
+A document that yields nothing at all -- a scan with no text, the ordinary degraded case -- is
+told apart from one that names someone else. Both fail closed and neither is filed, but "the
+patient name could not be read" on a wholly blank page reads as a name-matching problem on a real
+report, which is alarming and untrue; it now says nothing could be read. The `unreadable` demo
+variant blanks both documents of a pair for the same reason: blanking only the lab produced a run
+where the report could not be read while the form beside it read perfectly, which looks like a
+fault rather than the case the variant exists to show.
+
 On screen, a line for a document that did not reach the chart is coloured rather than left to read
 like every other line: red for a refusal (it belongs to someone else, or could not be confirmed to
 belong here) and amber for one the model could not read, each with a short NOT FILED or NOT READ

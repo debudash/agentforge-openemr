@@ -125,6 +125,9 @@ function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid
         ? ($document['demographics']['name']['value'] ?? null)
         : ($document['patient_ref']['value'] ?? null);
     $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+    if ($mismatch !== null && DocumentWriter::nothingWasRead($docType, $document)) {
+        $mismatch = 'nothing could be read from this document, so it cannot be confirmed to belong to this chart';
+    }
     if ($mismatch !== null) {
         $writer->recordRefusal($pid, $docId, $mismatch, $eid);
         return ['processed' => false, 'reason' => $mismatch, 'patient_ref_mismatch' => true,
@@ -213,6 +216,9 @@ function runSupervisorGraph(AgentClient $client, DocumentWriter $writer, PanelSc
                 ? ($read['demographics']['name']['value'] ?? null)
                 : ($read['patient_ref']['value'] ?? null);
             $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+            if ($mismatch !== null && DocumentWriter::nothingWasRead($docType, $read)) {
+                $mismatch = 'nothing could be read from this document, so it cannot be confirmed to belong to this chart';
+            }
             if ($mismatch !== null) {
                 // Recorded beside the document, so it is not offered back to the extractor on every
                 // open: refused is handled, not pending. Six documents on a chart otherwise meant
