@@ -39,6 +39,9 @@ final class DemoDocuments
     /** Where generated files land, relative to the OpenEMR root. Host-visible in the dev stack. */
     public const FOLDER = 'demo/generated';
 
+    /** Where they land instead when the web root is read-only, relative to sites/<site>. */
+    public const SITE_FOLDER = 'copilot-demo/generated';
+
     public const VARIANTS = ['abnormal', 'normal', 'unreadable', 'wrong_patient'];
 
     public function __construct(
@@ -47,9 +50,46 @@ final class DemoDocuments
     ) {
     }
 
+    /**
+     * Where generated files land: under the web root when that is writable, otherwise under
+     * sites/<site>.
+     *
+     * The web root is the documented path and is what the dev stack uses, because there it is a
+     * bind mount from the host and a generated PDF can be opened straight out of the repository.
+     * A deployed OpenEMR is not that. The stable image ships its web root read-only, so `mkdir`
+     * fails with "Permission denied" and generation dies -- and even with the permission granted,
+     * files written there sit inside the image and vanish on the next redeploy. sites/<site> is
+     * the persistent volume: writable, and it already holds this module and its config.
+     *
+     * The Demo Data page prints whichever path is in use, so the folder on screen is the real one.
+     */
     public function directory(): string
     {
-        return rtrim($this->openemrRoot, '/\\') . '/' . self::FOLDER;
+        $webRoot = rtrim($this->openemrRoot, '/\\') . '/' . self::FOLDER;
+        if (self::isUsable($webRoot)) {
+            return $webRoot;
+        }
+
+        $siteDir = rtrim((string) ($GLOBALS['OE_SITE_DIR'] ?? ''), '/\\');
+        if ($siteDir !== '' && is_dir($siteDir)) {
+            return $siteDir . '/' . self::SITE_FOLDER;
+        }
+
+        // Nothing better to offer; generate() reports that it cannot create the folder.
+        return $webRoot;
+    }
+
+    /** True when the path exists and is writable, or does not exist but could be created. */
+    private static function isUsable(string $path): bool
+    {
+        if (is_dir($path)) {
+            return is_writable($path);
+        }
+        $parent = dirname($path);
+        while (!is_dir($parent) && dirname($parent) !== $parent) {
+            $parent = dirname($parent);
+        }
+        return is_dir($parent) && is_writable($parent);
     }
 
     /**
