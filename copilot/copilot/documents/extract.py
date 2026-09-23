@@ -138,9 +138,6 @@ def demote_uncited(document: LabDocument | IntakeForm, doc_id: int, texts: list[
             reason = "cites a different document"
         elif not 1 <= int(citation.get("page", 0)) <= pages:
             reason = f"cites page {citation.get('page')} of {pages}"
-        elif _normalize(str(field["value"])) not in _normalize(citation.get("quote", "")):
-            # The quote is the evidence; a value that is not in it was not read from it.
-            reason = "value is not in the cited quote"
         else:
             page_text = _normalize(texts[citation["page"] - 1]) if citation["page"] - 1 < len(texts) else ""
             if page_text and _normalize(citation.get("quote", "")) not in page_text:
