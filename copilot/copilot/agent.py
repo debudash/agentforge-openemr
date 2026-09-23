@@ -223,16 +223,20 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
     started = time.perf_counter()
 
     with traced("followup_answer", correlation_id, pid=chart.patient.pid, kind="answer") as run:
-        # Decide off-topic before the history and the tools are in play (see Settings.topic_check).
-        if settings.topic_check and not question_is_about_the_record(question, llm, correlation_id):
-            response = AgentResponse(
-                correlation_id=correlation_id, state=ResponseState.COMPLETE, state_reason="not a question about this patient's record",
-                pid=chart.patient.pid, kind="answer", comparison_window=comparison_window(today, settings.comparison_hours),
-                generated_at=chart.generated_at, missing=SCOPE_STATEMENT, off_topic=True, sources=chart.sources,
-                duration_ms=int((time.perf_counter() - started) * 1000), langsmith_run_id=run["run_id"])
-            emit("followup_answered", correlation_id, pid=chart.patient.pid, state="complete", iterations=0, off_topic=True,
-                 tool_calls=[], scope_denials=0, claims_kept=0, claims_removed=0, duration_ms=response.duration_ms)
-            return response, [HumanMessage(content=question), AIMessage(content=SCOPE_STATEMENT)]
+        # The topic check is advice, not a gate. It reads the question alone, with no history, so
+        # that an earlier answer cannot drag an unrelated question on-topic -- and the price of
+        # that blindness is that a terse but perfectly good clinical question ("what changed",
+        # "what should I pay attention to") sits on the classifier's decision boundary and gets
+        # refused. Measured: eight of nine refusals on the three questions this product exists to
+        # answer. So the loop always runs, and the refusal is only issued when the check said
+        # off-topic AND the turn found nothing to cite. A weather question still refuses, because
+        # no tool returns a record for it; a real question about the chart no longer can, because
+        # finding something is what overrides the opinion. Nothing about grounding changes: the
+        # verifier still deletes any claim not citing a record fetched this turn.
+        # True unless the pre-check ran and actively disagreed. With the check disabled there is no
+        # dissenting opinion to weigh, so the model's own flag stands on its own, as it did before.
+        pre_check_disagrees = settings.topic_check and not question_is_about_the_record(question, llm, correlation_id)
+        off_topic_permitted = pre_check_disagrees or not settings.topic_check
 
         ctx = ChartContext(chart, today, settings.recent_lab_days)
         try:
@@ -305,7 +309,9 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             # model cannot re-emit an earlier answer to an unrelated question and have it verify.
             # Chunks retrieved this turn become citable, under their own source type (rules 1 and 12).
             index.update(ctx.evidence)
-            off_topic = bool(draft is not None and draft.off_topic)
+            # Two independent opinions have to agree before a question is called off-topic: the
+            # pre-check, which never saw the chart, and the model that has just tried to answer it.
+            off_topic = bool(draft is not None and draft.off_topic) and off_topic_permitted
             if off_topic and draft is not None and draft.claims:
                 # The flag wins: an off-topic question carries no chart facts, whatever else the model wrote.
                 removed = [RemovedClaim(text=c.text, reason="off-topic question: chart facts discarded") for c in draft.claims]
@@ -344,10 +350,27 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             iterations += more
             draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
 
-        # No lookup, no claims, no boundary: the model never looked at the chart, so whatever it
-        # wrote cannot be about this patient. Impose the scope statement rather than trust its
-        # wording; keep its text only when it is itself a scope statement about the active patient.
+        # Nothing looked up and nothing produced. Before calling that off-topic, make it look.
+        # A terse question -- "what changed", "what should I pay attention to" -- often draws a
+        # first round with no tool call at all, and the doctor then gets the scope sentence for a
+        # question plainly about the chart: measured at eight refusals in nine on exactly those.
+        # The memory path already earns a forced second pass; this is the same remedy for the same
+        # failure, and it is skipped when the pre-check thought the question was off-topic anyway.
         no_lookup = not ctx.calls and not kept and not removed and failure is None and not loop_exhausted
+        if (no_lookup and draft is not None and not draft.boundary and not pre_check_disagrees
+                and iterations < settings.max_iterations):
+            emit("followup_forced_lookup", correlation_id, pid=chart.patient.pid)
+            messages.append(HumanMessage(content=(
+                "You answered without looking anything up. Use the tools now to retrieve what the question "
+                "needs from this patient's chart, then answer again citing only those results.")))
+            more, loop_exhausted, model_failure = run_rounds(settings.max_iterations - iterations, force_first=True)
+            iterations += more
+            draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
+            no_lookup = not ctx.calls and not kept and not removed and failure is None and not loop_exhausted
+
+        # Still nothing after being told to look: whatever it wrote cannot be about this patient.
+        # Impose the scope statement rather than trust its wording; keep its text only when it is
+        # itself a scope statement about the active patient.
         if no_lookup and draft is not None and not draft.boundary and not off_topic:
             off_topic = True
             emit("followup_no_lookup_treated_as_off_topic", correlation_id, pid=chart.patient.pid)

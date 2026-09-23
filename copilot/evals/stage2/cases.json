@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 66,
+  "count": 67,
   "cases": [
     {
       "id": "E01",
@@ -7833,7 +7833,7 @@
     },
     {
       "id": "R03",
-      "name": "off-topic question is classified before any tool runs",
+      "name": "off-topic question: the pre-check and the answer both say so",
       "category": "refusal",
       "kind": "followup",
       "rubric": [
@@ -7849,6 +7849,13 @@
           {
             "topic": {
               "about_patient_record": false
+            }
+          },
+          {
+            "answer": {
+              "claims": [],
+              "off_topic": true,
+              "missing": "That is not about this patient's chart."
             }
           }
         ]
@@ -7871,6 +7878,60 @@
           "sunny",
           "rain",
           "forecast"
+        ]
+      }
+    },
+    {
+      "id": "R13",
+      "name": "a terse chart question the pre-check gets wrong is still answered",
+      "category": "refusal",
+      "kind": "followup",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "safe_refusal",
+        "no_phi_in_logs"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "question": "what changed",
+        "script": [
+          {
+            "topic": {
+              "about_patient_record": false
+            }
+          },
+          {
+            "tool": "get_labs",
+            "args": {
+              "pid": 101
+            }
+          },
+          {
+            "answer": {
+              "claims": [
+                {
+                  "text": "Potassium was 5.4 mmol/L on 2026-08-16.",
+                  "source_ids": [
+                    "lab:6001"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "state_in": [
+          "complete",
+          "partial"
+        ],
+        "min_claims": 1,
+        "tools_include": [
+          "get_labs"
+        ],
+        "forbidden_text": [
+          "only answers questions about the selected patient"
         ]
       }
     },
