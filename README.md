@@ -29,6 +29,38 @@ is signed with, so it is kept out of the repository for the same reason the pass
 
 **A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters. As `admin`, **Admin → Users** shows the two provider accounts.
 
+**Trying the co-pilot on the deployment.** Both weeks are live, and they are different surfaces:
+
+| | Where | What it does |
+|---|---|---|
+| **Week 1** | **CopilotAgent** in the top menu | The rounding list: today's patients for the signed-in physician, each with a prefetched brief, plus follow-up questions |
+| **Week 2** | **Co-Pilot** in a patient record's navbar | Reads lab reports and intake forms filed in that chart, shows what changed, and cites each value to the page and quote it came from |
+
+Week 2 needs a chart with a document in it, so **Demo Data** (the tab beside it) writes one:
+
+1. Sign in as **`doctor1`** and open one of their patients — pids 1–25. Week 2 is scoped to the
+   signed-in physician's panel, so `admin` is the wrong account for this.
+2. Open **Demo Data**, leave the selector on *Abnormal (potassium 5.4, eGFR 58, A1c 7.4)*, and press
+   **Generate New Docs**. It writes a lab report and an intake form naming that patient and files
+   both in the chart, unread, through the same code an upload goes through.
+3. Open **Co-Pilot** (it opens in its own tab, titled *Clinical Co-Pilot*). It finds the unread documents, reads them, has the results filed, and
+   shows **What changed** above the brief. Roughly one read in five the provider returns nothing and
+   the co-pilot says the document could not be read rather than guessing.
+4. Click a citation chip on a value that came from the report: the page opens with the quote boxed
+   on it. **Run details** shows which worker the supervisor handed to, and why.
+5. Ask a follow-up — *"what changed?"*, or *"what does guidance say about high potassium with an
+   ACE inhibitor?"*, which answers from the guideline corpus in a separate block and never turns it
+   into advice for the patient.
+
+**Worth doing deliberately:** generate with the selector on **Another patient's report**. It is
+refused, the refusal is recorded beside the document where a human can read it, the tab marks it
+NOT FILED, and nothing from it reaches the chart. The same happens to an unreadable scan. That
+refusal path is the point of the feature, not an edge case — [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md)
+§12b explains why it is built as a result rather than a silent skip.
+
+Demo Data is validation tooling, not a product feature: it is off unless an instance sets
+`COPILOT_DEMO_TOOLS`, and it is on here so the ingestion flow can be exercised without a real PDF.
+
 **The API is open too** (OAuth2 + FHIR R4, US Core 3.1.0):
 
 ```bash
