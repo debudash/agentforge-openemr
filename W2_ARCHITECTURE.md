@@ -455,8 +455,10 @@ cover document images and extracted fields in traces.
 
 ## 10. Eval gate
 
-`copilot/evals/stage2/`, 50 cases, boolean rubrics only. Stage 1's 9 golden and 7 behavioural
+`copilot/evals/stage2/`, **74 cases**, boolean rubrics only. Stage 1's 9 golden and 7 behavioural
 cases stay untouched and keep running, which is what keeps the Week 1 baseline verifiable.
+[EVAL_GATE.md](EVAL_GATE.md) is the operator's view of the same thing: where the prompts, schemas
+and golden set live, how to run it, and a merge request it blocked.
 
 **As built: no model in the gate.** Every case replays a recorded model output through the real
 code. A gate a rate limit can silence is not a gate, and the grader's injected regression must
@@ -517,6 +519,46 @@ Logs carry ids and counts, never document text, extracted values or patient iden
 | Guidelines drift into advice | Rule 4 unchanged, guideline citations barred from patient-fact claims, and a rubric plus judge check on separation. |
 | Latency now visible to the clinician | Both entry points kept; the patient tab warms briefs for today's appointments in the background. |
 | Scope check is now the only barrier | Promoted in the eval suite: out-of-panel access is tested from the patient-context entry point specifically, not only from the rounding list. |
+| **The OpenEMR this runs on is not the OpenEMR it was built against** | Preflight the deploy target: `deploy/railway/deploy_module.ps1` asks it for every class and method the module calls, and calls the module's own code on it, before shipping. The module guards version-dependent APIs with `method_exists` and reflection rather than assuming. **Narrowed, not closed** -- see below. |
+
+### The risk that materialised: one codebase, two OpenEMRs
+
+This one is listed last because it was not on the list at all until it broke the deployment three
+times in a row. It is the most useful thing Week 2 learned about building *on* a platform rather
+than beside one.
+
+The dev stack bind-mounts this checkout over the image, so it runs OpenEMR **8.2.0-dev** -- the
+code in this repository. Railway runs the stable image with no bind mount, so it runs the image's
+own OpenEMR **8.0.0**. Same module, two platforms, and every test in this repository runs against
+the newer one.
+
+| Failure | Symptom | Cause |
+|---|---|---|
+| Co-Pilot and Demo Data tabs blank | 500 with an empty body, tab titled "Unknown" | `PatientSessionUtil::getPid()` does not exist in 8.0.0 |
+| "Generate New Docs" fails | `mkdir(): Permission denied` | The stable image's web root is read-only; the dev stack's is a host bind mount |
+| Generation writes files, files nothing | `Unknown named parameter $eid` | `\Document::createDocument()` gained `$eid` after 8.0.0 |
+
+Each was invisible locally, each produced a blank page or a generic error rather than a useful
+message, and no test could have caught any of them, because the test environment *is* the other
+version.
+
+**What that changes.** Three habits, in order of how much they bought:
+
+1. **Ask the target, not the repository.** A preflight that runs on the deploy target and calls the
+   module's own code is the only check that speaks for the platform the module will actually meet.
+2. **Run checks as the user the app runs as.** `railway ssh` lands as root, and the first version of
+   the preflight reported the read-only web root as writable *and created it* -- which would have
+   left a root-owned directory the module resolves to and cannot write into. A permission check
+   under the wrong identity is worse than none: it passes.
+3. **Guard the version-dependent call, do not branch on a version number.** `method_exists` and
+   reflection ask the platform what it supports. A version comparison encodes a belief about what
+   a number implies, and gets it wrong at the first backport.
+
+**The limit, stated plainly.** The preflight checks that a method *exists*; it does not compare
+*signatures*, which is why the third failure got through it. Signature comparison would close that
+gap. The underlying difference would only be closed by building an image from this checkout --
+about a day's work plus a schema migration on a live instance, which is a bigger bet than the
+problem justifies while the module's own contract is `openemr >= 7.0.0`.
 
 ---
 
@@ -536,6 +578,26 @@ Recorded so the build has one place to check rather than a conversation to re-re
 
 Decision 7 is the one that matters most for the gate. Week 1's free judge was throttled on most
 turns and its verdicts discarded; a gate that can be silenced by a rate limit is not a gate.
+
+**A rubric can be silenced without anyone rate-limiting it.** On 2026-09-23 `no_phi_in_logs` was
+found to be scoring 74/74 against an **empty** log. `telemetry.py` configured its logger's level
+only when that logger had no handlers, and the gate attaches its capture handler first, so every
+event was dropped before it was written. The rubric had never run outside pytest -- where another
+module imports telemetry first -- and in CI, in a fresh clone and on every direct run it was
+passing vacuously. It surfaced only because under pytest it was *flaky*: a run whose `duration_ms`
+happened to be 112 collided with an extracted value of 112, because the check substring-matched
+against the whole JSON line rather than the fields that carry content.
+
+Three things follow, and they generalise past this rubric:
+
+- **A rubric that cannot fail is worse than one that is missing**, because it is counted. There is
+  now a test asserting the gate reads a non-empty event log; nothing else in the suite could see
+  this class of failure, since every other check was green throughout.
+- **Flakiness was the only signal.** The instinct is to stabilise a flaky check and move on. Here
+  the flakiness was the single piece of evidence that the check ran at all, and chasing it found a
+  rubric that had been decorative for days.
+- **Shared global state decides whether instrumentation exists.** A logger's level is process-wide,
+  so an unrelated component attaching a handler first silently changed what the gate could observe.
 
 ---
 
@@ -609,7 +671,7 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 1 | **Done.** `documents/schemas.py`; `Citation` gains the v2 fields; verifier learns `document:` and `guideline:` | Week 1 citations still resolve; unsupported fields cannot validate as supported (`test_document_schemas.py`, `test_verify.py`) |
 | 2 | **Done.** `DocumentWriter.php`; `api.php` actions `attach` and `persist_extraction` | An extracted lab reads back as a FHIR Observation (`status: preliminary`) and is selectable in Lab Overview (`test_uc_document_writer.py`) |
 | 3 | **Built.** `documents/extract.py`, `POST /documents/extract`, `attach` extracts then persists; `/ready` checks the vision model | Proven with a scripted model (`test_extract.py`) and fail-closed live. A successful live extraction is pending a vision model with quota: OpenRouter's free tier is rate-limited per account, and the build exhausted it (§9) |
-| 4 | **Done.** `evals/stage2/gate.py`, 50 cases, `baseline.json`, `hooks/pre-push`; `test_gate.py` removes four guards in turn | An injected regression blocks a push (each of the four fails the gate) |
+| 4 | **Done.** `evals/stage2/gate.py`, 74 cases, `baseline.json`, `hooks/pre-push`, and the `eval gate` job in CI; `test_gate.py` removes four guards in turn | An injected regression blocks a push *and* a merge — demonstrated in MR !2, where the pipeline failed and the merge was blocked |
 | 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
 | 6 | **Done.** `guidelines/retrieve.py`, 20-chunk corpus, `search_guidelines` tool, `evidence` section; six retrieval cases in the gate (62) | Guideline evidence cited separately, barred from patient-fact claims (`test_guidelines.py`, G01–G06) |
 | 7 | **Done.** `supervisor.py` (LangGraph, interrupt while the module persists), `/session/{sid}/supervise` and `/resume`, module `supervise` action, patient tab runs it on open | Routing reconstructable from logs (`test_supervisor.py`, `test_uc_supervise.py`); no-documents path degrades to Week 1 |
@@ -641,7 +703,7 @@ reset first, which is what a real chart does anyway.
 
 | Decision | Choice | Why |
 |---|---|---|
-| Where documents are generated | A file in `demo/generated/`, **and** filed in the chart unread through the same `storeDocument` an upload uses | Generating a file the clinician then has to upload by hand is a step that exists only for the demo, and it was the part that felt wrong in use. The file is still written, still downloadable, and the by-hand upload still works -- but the default path is the one a clinician would actually experience: the document is simply there, and the co-pilot reads it on its next run |
+| Where documents are generated | A file under the web root's `demo/generated/` where that is writable, otherwise `sites/<site>/copilot-demo/generated/` -- **and** filed in the chart unread through the same `storeDocument` an upload uses | Generating a file the clinician then has to upload by hand is a step that exists only for the demo, and it was the part that felt wrong in use. The file is still written, still downloadable, and the by-hand upload still works -- but the default path is the one a clinician would actually experience: the document is simply there, and the co-pilot reads it on its next run |
 | Who writes the PDF | The module, in PHP, with a deliberately primitive writer | mPDF and dompdf are both available, but they embed subset fonts whose text layer extracts unreliably. Click-to-source depends on that text layer, so the generator uses the same Courier-and-text-operators shape the eval fixtures use, which is known to extract cleanly |
 | Patient identity on the document | Read from the chart being viewed | The document's own patient reference then agrees with the chart it is filed in. `patient_ref` is extracted for a cross-check that is **not yet enforced**; matching names keeps the demo honest rather than hiding that |
 | Values | Fixed per variant, only identifiers and dates vary | A randomised potassium would some runs fail to reach the rule engine, and a demo that behaves differently each time teaches nothing |
