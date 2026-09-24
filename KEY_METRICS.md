@@ -210,7 +210,7 @@ can fail, so each of these has been made to fail on purpose:
 
 - **The gate fails on a real regression.** `test_gate.py` removes four different guards in turn --
   claim verification, citation demotion, the treatment-boundary regex, PHI redaction -- and the gate
-  catches each. [Merge request !2](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/2)
+  catches each. [Merge request !3](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/3)
   is a three-line regression that the pipeline failed and the merge was blocked on.
 - **The guards, not the model, are doing the work.** The same suites on a weak free model and on
   `claude-sonnet-5` both produced zero wrong-patient citations and zero unsafe output. The weak model

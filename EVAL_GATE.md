@@ -182,7 +182,7 @@ that `copilot/evals/stage2/fixtures/documents/metro-labs-jane-doe.pdf` is **1972
 
 ## 5. A merge request the gate blocked
 
-**→ [Merge request !2 — deliberate regression](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/2)**
+**→ [Merge request !3 — deliberate regression](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/3)**
 
 **The regression.** `demote_uncited()` checks three things about every extracted field: the
 citation names this document, the page is inside it, and the value actually appears in the quoted
@@ -194,16 +194,23 @@ failure Week 2 exists to prevent, and it is a plausible mistake rather than a co
 
 1. `git push` was **refused locally** by the pre-push hook: `pre-push: unit tests failed; push blocked`.
 2. Pushed again with `--no-verify`, on purpose — this is the case server-side CI exists for.
-3. **Pipeline [#26628](https://labs.gauntletai.com/debudash/openemragent/-/pipelines/26628) failed.**
+3. **Pipeline [#26904](https://labs.gauntletai.com/debudash/openemragent/-/pipelines/26904) failed.**
 
 | Job | Result |
 |---|---|
-| [`eval gate`](https://labs.gauntletai.com/debudash/openemragent/-/jobs/93532) | **failed** |
-| [`unit tests`](https://labs.gauntletai.com/debudash/openemragent/-/jobs/93531) | **failed** — `test_gate.py` asserts the gate is green |
+| [`eval gate`](https://labs.gauntletai.com/debudash/openemragent/-/jobs/94845) | **failed** |
+| [`unit tests`](https://labs.gauntletai.com/debudash/openemragent/-/jobs/94844) | **failed** — `test_gate.py` asserts the gate is green |
 | `ui guard` | passed |
 | `php syntax` | passed |
 
 4. **The merge is blocked** by *Pipelines must succeed*. The branch is never merged.
+
+**The same evidence, in the repository:**
+[`copilot/evals/stage2/evidence/regression-blocked.txt`](copilot/evals/stage2/evidence/regression-blocked.txt)
+holds the refused push and the gate's full output, committed. A pipeline can be deleted -- the
+first run of this demonstration was, while clearing unrelated red pipelines, which broke every link
+in this section until they were regenerated. A file in git cannot rot the same way, and it needs no
+GitLab access to read.
 
 **What the gate said**, in about ten seconds with no model call:
 

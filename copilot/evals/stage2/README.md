@@ -88,7 +88,7 @@ push and every merge request, with *Pipelines must succeed* enabled so a red gat
 The hook catches a regression before it is pushed; CI catches it regardless of whose machine it came
 from. Neither spends model quota: this gate calls no model at all.
 
-[Merge request !2](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/2) is a
+[Merge request !3](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/3) is a
 deliberate three-line regression pushed past the hook with `--no-verify`. The pipeline failed and
 the merge was blocked.
 
