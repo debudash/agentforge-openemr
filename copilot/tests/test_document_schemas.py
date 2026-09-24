@@ -60,6 +60,31 @@ def test_document_citation_rejects_incomplete_evidence(kwargs):
         DocumentCitation(**kwargs)
 
 
+# --- the bounding box the page overlay draws from ----------------------------------
+
+def test_a_citation_carries_a_four_corner_bbox():
+    """bbox is what the click-to-source overlay boxes the quote with.
+
+    It is derived from the PDF text layer after extraction, not asked of the model, and stays
+    optional because a scanned page has no text layer to derive it from -- there the citation
+    still names a page, and the overlay falls back to highlighting the page.
+    """
+    boxed = DocumentCitation(source_id="doc:412", page=2, field="value",
+                             quote="Potassium 5.4 mmol/L", bbox=(0.1, 0.2, 0.5, 0.24))
+    assert boxed.bbox == (0.1, 0.2, 0.5, 0.24)
+    assert DocumentCitation(source_id="doc:412", page=2, field="value", quote="x").bbox is None
+
+
+@pytest.mark.parametrize("bbox", [
+    (0.1, 0.2, 0.5),                    # three corners is not a box
+    (0.1, 0.2, 0.5, 0.24, 0.9),         # five is not either
+    ("left", 0.2, 0.5, 0.24),           # a coordinate that is not a number
+])
+def test_a_malformed_bbox_cannot_validate(bbox):
+    with pytest.raises(ValidationError):
+        DocumentCitation(source_id="doc:412", page=2, field="value", quote="x", bbox=bbox)
+
+
 # --- whole documents ---------------------------------------------------------------
 
 def lab_document(abnormal=None):
@@ -103,6 +128,39 @@ def test_intake_form_lists_unsupported_list_items():
         family_history=[supported("father: hypertension", field="family_history", page=1)],
     )
     assert form.unsupported() == ["demographics.dob", "current_medications[1]"]
+
+
+@pytest.mark.parametrize("bad", [
+    {"source_id": "lab:412"},       # a lab result id, not a document
+    {"source_id": "doc:"},          # no number
+    {"source_id": "412"},           # no prefix
+    {"page_count": 0},              # a document has at least one page
+])
+def test_a_lab_document_rejects_an_identity_it_cannot_honour(bad):
+    """The document's own source_id is what every citation inside it has to match.
+
+    The schema checks the shape; `demote_uncited()` checks that each citation actually names
+    *this* document, which is the rule that catches a value carrying another report's id.
+    """
+    fields = {"source_id": "doc:412", "page_count": 2,
+              "patient_ref": supported("Jane Doe", field="patient", page=1),
+              "report_date": supported("2026-09-18", field="report_date", page=1),
+              "performing_lab": supported("Metro Clinical Labs", field="performing_lab", page=1),
+              "ordering_provider": ExtractedField.absent(), "results": []}
+    with pytest.raises(ValidationError):
+        LabDocument(**{**fields, **bad})
+
+
+@pytest.mark.parametrize("bad", [{"source_id": "doc:"}, {"page_count": 0}])
+def test_an_intake_form_rejects_an_identity_it_cannot_honour(bad):
+    fields = {"source_id": "doc:413", "page_count": 1,
+              "form_date": supported("2026-09-16", field="form_date", page=1),
+              "demographics": Demographics(name=supported("Jane Doe", field="name", page=1),
+                                           dob=ExtractedField.absent(),
+                                           sex=supported("F", field="sex", page=1)),
+              "chief_concern": supported("headaches", field="chief_concern", page=1)}
+    with pytest.raises(ValidationError):
+        IntakeForm(**{**fields, **bad})
 
 
 def test_extraction_result_discriminates_on_doc_type():
