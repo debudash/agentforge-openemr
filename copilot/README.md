@@ -171,6 +171,9 @@ Set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` to trace every brief, follo
 
 ## Configuration reference
 
+> The complete list -- every variable both processes read, with its default read out of the code --
+> is in [../ENVIRONMENT.md](../ENVIRONMENT.md). What follows is the agent's own view of it.
+
 See `.env.example`. The allowlist (`COPILOT_ALLOWED_PROVIDERS/MODELS/ENDPOINTS`) is the PRD PHI1 control: any other configuration fails `readyz` and every session open.
 
 Two providers are supported and selected with `COPILOT_PROVIDER`:

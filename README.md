@@ -97,6 +97,26 @@ Don't rely on `/meta/health/readyz`. It reports `setup_required` even on a worki
 
 Machine-specific settings go in `docker/development-easy/docker-compose.override.yml`. Git ignores it, and Compose merges it in automatically. Here it sets `XDEBUG_PROFILER_ON: 0`, which turns off the profiler that otherwise writes a file on every request.
 
+### 5. Start the agent service
+
+OpenEMR is now running but the co-pilot is not: it is a separate Python service the module calls.
+Full steps, including pointing the module at it and booking a rounding list, are in
+[copilot/README.md](copilot/README.md#running-locally). The short version:
+
+```powershell
+cd D:\Dev\OpenEMRAgent\copilot
+py -3.13 -m venv .venv; .venv\Scripts\python -m pip install -r requirements.txt
+copy .env.example .env      # then fill in the provider key and the shared secret
+.venv\Scripts\python -m uvicorn copilot.service.app:app --host 127.0.0.1 --port 8600 --env-file .env
+```
+
+Then create `sites/default/copilot-config.php` with `COPILOT_AGENT_URL` and the *same*
+`COPILOT_SHARED_SECRET`, and copy it into the container -- the dev stack keeps `sites/` in a named
+volume, not a bind mount. Both files are gitignored.
+
+**Every variable, what it does and its default, is in [ENVIRONMENT.md](ENVIRONMENT.md).**
+Nothing needs to be set to run the eval gate; it takes no key and no network.
+
 ## Daily use
 
 | Task | Command (from `docker/development-easy`) |
@@ -285,7 +305,8 @@ unset. The *deploy* half is **parked** at
 reads it, because nothing here publishes without a person approving that specific change.
 
 **Documents:** [EVAL_GATE.md](EVAL_GATE.md) (**where the prompts, schemas and golden set live, how to
-run the gate, and the merge request it blocked**), [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
+run the gate, and the merge request it blocked**), [ENVIRONMENT.md](ENVIRONMENT.md) (every environment
+variable, both processes, with defaults), [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
 [W2_COST_LATENCY.md](W2_COST_LATENCY.md), [KEY_METRICS.md](KEY_METRICS.md) (Week 2 section),
 [copilot/evals/stage2/README.md](copilot/evals/stage2/README.md) (the eval dataset),
 [GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (rules 11 and 12).
