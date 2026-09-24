@@ -4,6 +4,10 @@ What we measure, why those measures and not others, what the runs actually produ
 
 **Status:** measured 2026-09-16 on the local stack. Two of the five primary metrics have no data yet and are declared as gaps rather than estimated. Every figure below is traceable to a results file under `copilot/evals/stage1/results/`, a service event log, or a named test.
 
+**The direct answer to "do these numbers show it works" is in
+[§6 Does the evidence show the product works?](#6-does-the-evidence-show-the-product-works)**, after the
+Week 2 scorecard.
+
 Companion documents: [requirements/AgentForge_Clinical_Copilot_PRD.pdf](requirements/AgentForge_Clinical_Copilot_PRD.pdf) (where the targets come from), [USER.md](USER.md) (the workflow being measured), [SECURITY_TESTS.md](SECURITY_TESTS.md) (per-control evidence), [ALERTS.md](ALERTS.md) (the thresholds these baselines set, and the on-call response), [copilot/evals/stage1/GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (what counts as grounded).
 
 ---
@@ -144,8 +148,31 @@ recorded as missed rather than rescoped.
 **Why these.** 6 and 7 are the Week 2 form of Week 1's precision: the point of citing a page and a
 quote is that a program can check it, so the measure is whether the check catches what it should.
 8 is the smallest honest retrieval measure for a 20-chunk corpus; a recall figure on 20 chunks would
-be theatre. 9 is the hard gate. 10 is what the clinician feels. 11 and 12 are stated as gaps rather
-than left out, in the same spirit as §5.
+be theatre. 9 is the hard gate. 10 is what the clinician feels. 11 and 12 were open gaps for most of
+Week 2 and closed when the models changed; they are kept on the scorecard because a metric that is
+removed once it passes cannot catch a regression.
+
+**What Week 2's numbers prove, and what they do not.**
+
+They prove the citation contract is *machine-checkable rather than decorative*. 6 and 7 are not
+"did the model include a citation" -- they are "does the citation resolve, does the quote appear on
+the page it names, and is the value actually in that quote". Nine cases exist precisely to fail
+that check, and the demotion fires on all nine. A claim that cannot be traced to a page and a quote
+does not reach the clinician, whatever the model wrote.
+
+They prove a document that does not belong is refused rather than filed (6b), which is the failure
+this feature could cause that nothing else in the system would catch. On the deployed instance a
+wrong-patient report is refused with the reason recorded beside the document, and nothing from it
+reaches the chart.
+
+They do not prove extraction is accurate across real-world documents. Metric 11 is one report read
+correctly, repeated; the fixtures are synthetic and clean, and roughly one read in five the provider
+returns nothing. That last figure is the useful one for a deployment: the failure mode is *no
+answer*, not a wrong one, which is the behaviour the design is arranged around.
+
+Metric 10 is missed and recorded as missed. A chart with nothing new answers in 4.4 s; a chart with
+two new documents is three model calls in one request and lands past 30 s. That is a real cost to
+the clinician and it has a known fix that was not built.
 
 **Models, and why.** Ten candidates were benchmarked through the agent's own code and schemas, then the
 shortlist was put through real follow-ups. `qwen/qwen3.7-flash` passed the synthetic bench and then refused
@@ -156,7 +183,51 @@ own output, and it runs offline on the golden suite rather than on the request p
 The free slugs that preceded them are kept on the allowlist and are not used: `nemotron` returned 0 of 3
 (it spends its output budget thinking and never returns the object) and `gemma-4-31b:free` 0 of 3 (rate-limited).
 
-## 6. Where the data comes from
+## 6. Does the evidence show the product works?
+
+The short answer: **it proves the safety case and the mechanism; it does not prove the time saving.**
+That split is deliberate, and it is worth stating rather than blurring.
+
+| What the product claims | What the evidence says | Verdict |
+|---|---|---|
+| It will not state something untrue about a patient | Supported-claim precision 1.00; every unsupported claim deleted before display; 9 of 9 invented-citation cases demoted; 74 of 74 gate cases across five rubrics | **Supported** |
+| It will not show the wrong patient's data | Zero wrong-patient citations and zero unauthorized disclosures across golden, behavioural, unit and live gateway tests; four independent enforcement layers; a misfiled document refused on the write path | **Supported** |
+| It says when it does not know | Zero incorrect completeness; an unreadable document reported unread rather than guessed; a refused document marked NOT FILED on screen | **Supported** |
+| It is fast enough to use in a round | p50 4.4 s, but p95 33.8 s against a 30 s target | **Partly** |
+| It saves the clinician time | No baseline exists. Nobody has performed the scripted task | **Unproven** |
+
+**Why that ordering is the right one.** The unproven row is the product's reason to exist, which
+looks like the wrong thing to have left unmeasured. It is the right thing, because the two
+categories fail differently. A co-pilot that saves ten minutes and misstates a potassium once a
+month is not a slower product -- it is a harmful one, and no amount of time saved compensates. The
+safety properties had to be established first and enforced in code, so that a measurement of time
+saved would be measuring something worth deploying. What is missing is one afternoon with a
+clinician: five scripted patients, timed with and without. That is a scheduling problem, not an
+engineering one.
+
+**Why these numbers are evidence rather than decoration.** A metric only tells you something if it
+can fail, so each of these has been made to fail on purpose:
+
+- **The gate fails on a real regression.** `test_gate.py` removes four different guards in turn --
+  claim verification, citation demotion, the treatment-boundary regex, PHI redaction -- and the gate
+  catches each. [Merge request !2](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/2)
+  is a three-line regression that the pipeline failed and the merge was blocked on.
+- **The guards, not the model, are doing the work.** The same suites on a weak free model and on
+  `claude-sonnet-5` both produced zero wrong-patient citations and zero unsafe output. The weak model
+  invented tool names, corrupted arguments and fabricated citation ids -- and every time the answer
+  degraded to a smaller honest one rather than a wrong one.
+- **A metric that could not fail was found and fixed.** `no_phi_in_logs` was scoring 74/74 against an
+  *empty* log for days, passing vacuously everywhere except under pytest. It was caught, the cause
+  removed, and a test added that asserts the gate reads a non-empty log. A scorecard is only as
+  honest as its willingness to find that in itself.
+
+**What would change the verdict.** One hospitalist, five scripted patients, timed both ways closes
+metric 1. Returning "what changed" before the brief closes metric 10. Neither is blocked on anything
+except time, and both are named in [W2_COST_LATENCY.md](W2_COST_LATENCY.md).
+
+---
+
+## 7. Where the data comes from
 
 | Measure | Source | How to reproduce |
 |---|---|---|
