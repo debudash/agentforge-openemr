@@ -51,10 +51,10 @@ regression each time.
 |---|---|---|
 | E01–E18 | extraction | A recorded `LabDocument` proposal against the two-page fixture PDF: faithful, invented value, wrong page, another document, honest nulls, schema violations, a scan with no text layer |
 | C01–C10 | citation | Claims through the verifier with document and guideline entries in the index |
-| R01–R12 | refusal | Follow-up questions with a scripted model: other patient, advice, off-topic, injection in a record, loop exhausted, restated without a lookup |
+| R01–R14 | refusal | Follow-up questions with a scripted model: other patient, advice, off-topic, injection in a record, loop exhausted, restated without a lookup, a terse question made to look things up, and an off-topic question refused even with the chart in the conversation |
 | I01–I06 | extraction | Intake-form proposals against the one-page intake fixture, including the injected instruction line |
 | G01–G06 | retrieval | `search_guidelines` against the real corpus (BM25 only), model scripted: evidence kept apart, guideline ids barred from patient claims, numbers checked against the chunk, guidance never a recommendation, empty search left empty |
-| S01–S04 | supervisor | The graph with scripted models: nothing unread, read-persist-report, unreadable report said plainly, already-read not read again; handoffs checked edge by edge |
+| S01–S10 | supervisor | The graph with scripted models. S01–S04 on opening a chart: nothing unread, read-persist-report, unreadable report said plainly, already-read not read again. S05–S10 on routing a follow-up: straight to the retriever when nothing is unread, read first when something is, evidence questions to the guideline corpus, "what changed" scoped to what arrived, a quiet chart saying so instead of filling the silence, and a question after the documents were read still being about them. Handoffs checked edge by edge |
 | B01–B05 | brief | Rounding briefs from scripted drafts, including a failed source |
 | M01–M05 | missing_data | All-null extraction, empty reads cited as absences, a timed-out source named |
 
@@ -63,9 +63,16 @@ Fixtures: `fixtures/documents/metro-labs-jane-doe.pdf` (generated, text layer, t
 
 ## Judge
 
-`judge.json`. The gate uses none. The judge grades the optional live suite on what code cannot
-decide (faithful wording, evidence separation), never overrides a deterministic failure, and a
-throttled judge is recorded as n/a.
+[`judge.json`](judge.json). **The gate uses none** -- all five of its rubrics are decided in code, so
+a rate limit cannot silence it.
+
+The judge exists for the optional live suite (`evals.run_evals --stage stage1 --judge`), where it
+grades the six things code cannot decide: `faithful`, `boundary`, `constraint_fidelity`,
+`injection_resisted`, `evidence_separated` (all yes/no/n.a.) and `useful` (1-5, reported, never
+gated). Model comes from `COPILOT_JUDGE_MODEL`, currently `anthropic/claude-sonnet-5` -- deliberately
+a different family from the agent, so it is not grading its own output. A judge call that is
+rate-limited or fails is recorded as n/a and never fails a case, and a deterministic failure fails
+the case whatever the judge says.
 
 ## The hook
 
@@ -74,13 +81,38 @@ cd copilot; .\hooks\install-hooks.ps1
 ```
 
 Copies `hooks/pre-push` into `.git/hooks`. Every push then runs the unit tests and this gate.
-It is a client-side hook: `git push --no-verify` bypasses it, and nothing blocks a merge
-server-side. That was the trade chosen over GitLab CI, to keep model quota off every push and
-to keep the check runnable by a grader with no runner.
+
+It is a client-side hook, so `git push --no-verify` bypasses it -- which is why the same gate also
+runs server-side as the `eval gate` job in [`.gitlab-ci.yml`](../../../.gitlab-ci.yml), on every
+push and every merge request, with *Pipelines must succeed* enabled so a red gate blocks the merge.
+The hook catches a regression before it is pushed; CI catches it regardless of whose machine it came
+from. Neither spends model quota: this gate calls no model at all.
+
+[Merge request !2](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/2) is a
+deliberate three-line regression pushed past the hook with `--no-verify`. The pipeline failed and
+the merge was blocked.
 
 ## Results
 
-`results/<timestamp>-gate.json`, gitignored: per-case verdicts and reasons.
+**[`last-run.json`](last-run.json)** is a committed run: every case's verdict per rubric, so the
+dataset ships with its results rather than only the means to produce them. Recorded 2026-09-23.
+
+| Rubric | Passed | Rate |
+|---|---|---|
+| `schema_valid` | 74 / 74 | 100 % |
+| `citation_present` | 69 / 69 | 100 % |
+| `factually_consistent` | 61 / 61 | 100 % |
+| `safe_refusal` | 10 / 10 | 100 % |
+| `no_phi_in_logs` | 74 / 74 | 100 % |
+
+**74 of 74 cases passed, no failures.** The denominators differ because a rubric that
+does not apply to a case is scored `None` and excluded from its own denominator -- `safe_refusal`
+applies to the refusal cases, not to an extraction. A case that cannot be graded is never counted
+as a pass.
+
+Every run also writes `results/<timestamp>-gate.json` with the reasons attached; those are
+gitignored because they accumulate on every push. The CI job publishes the same directory as a
+downloadable artifact, so a specific pipeline's evidence is retrievable without re-running it.
 
 ## The UI guard
 
