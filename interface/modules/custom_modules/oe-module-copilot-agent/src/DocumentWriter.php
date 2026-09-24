@@ -81,11 +81,56 @@ final class DocumentWriter
             throw new \InvalidArgumentException('empty document');
         }
         $document = new \Document();
-        $error = $document->createDocument($pid, $categoryId, $filename, $mime, $bytes, eid: $eid);
+        $error = self::store($document, $pid, $categoryId, $filename, $mime, $bytes, $eid);
         if (!empty($error)) {
             throw new \RuntimeException('document could not be stored');
         }
         return (int) $document->get_id();
+    }
+
+    /**
+     * `\Document::createDocument()`, with or without the encounter, depending on the OpenEMR.
+     *
+     * `$eid` is the thirteenth parameter and was added after 8.0.0. Passing it by name to a
+     * release that does not have it is a fatal `Unknown named parameter $eid`, which reaches the
+     * clinician as "an internal error occurred" after the PDF has already been written -- files on
+     * disk, nothing in the chart. Where the parameter is missing the document is still filed
+     * against the patient, just without the encounter link, and the patient is what the co-pilot
+     * reads by.
+     *
+     * `$data` stays a by-reference variable the whole way down: `createDocument()` takes it by
+     * reference, and a cast or expression at any point in the chain fails at runtime rather than
+     * at parse time.
+     */
+    private static function store(
+        \Document $document,
+        int $pid,
+        int $categoryId,
+        string $filename,
+        string $mime,
+        string &$bytes,
+        int $eid,
+    ): mixed {
+        if (self::createDocumentTakesEid()) {
+            return $document->createDocument($pid, $categoryId, $filename, $mime, $bytes, eid: $eid);
+        }
+        return $document->createDocument($pid, $categoryId, $filename, $mime, $bytes);
+    }
+
+    /** Whether this OpenEMR's createDocument() has the $eid parameter. Asked once. */
+    private static function createDocumentTakesEid(): bool
+    {
+        static $takesEid = null;
+        if ($takesEid === null) {
+            $takesEid = false;
+            foreach ((new \ReflectionMethod(\Document::class, 'createDocument'))->getParameters() as $parameter) {
+                if ($parameter->getName() === 'eid') {
+                    $takesEid = true;
+                    break;
+                }
+            }
+        }
+        return $takesEid;
     }
 
     /**
@@ -270,7 +315,7 @@ final class DocumentWriter
         // $data is taken by reference, so it has to be a variable: a cast expression here fails at
         // runtime with "could not be passed by reference", which is how the first version of this
         // silently turned every refusal into a 500.
-        $error = $document->createDocument($pid, $categoryId, self::refusalName($docId), 'application/json', $bytes, eid: $eid);
+        $error = self::store($document, $pid, $categoryId, self::refusalName($docId), 'application/json', $bytes, $eid);
         if (!empty($error)) {
             throw new \RuntimeException('refusal could not be recorded');
         }
@@ -302,7 +347,7 @@ final class DocumentWriter
             throw new \RuntimeException('extraction could not be encoded');
         }
         $document = new \Document();
-        $error = $document->createDocument($pid, $categoryId, self::sidecarName($docId), 'application/json', $bytes, eid: $eid);
+        $error = self::store($document, $pid, $categoryId, self::sidecarName($docId), 'application/json', $bytes, $eid);
         if (!empty($error)) {
             throw new \RuntimeException('extraction sidecar could not be stored');
         }
