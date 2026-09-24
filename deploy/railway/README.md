@@ -471,6 +471,54 @@ Both cost an hour and neither produces an obvious error:
   same way, silently. Write the script to a file (LF, no BOM) and redirect it with
   `cmd /c "railway ssh ... sh < file"`.
 
+## Where the pipeline runs
+
+**A project runner, in Docker, on the maintainer's machine.** Not a shared runner, and not a cloud
+one.
+
+This GitLab has a shared instance runner and it could not be used: instance runners are off per
+project, and the toggle would not stay on. With it off, every job failed in **00:00:00** -- created,
+picked up by nobody, and no log to read, which is the least informative failure GitLab produces. The
+fix was to stop depending on someone else's runner.
+
+```powershell
+docker run -d --name gitlab-runner --restart always `
+  -v gitlab-runner-config:/etc/gitlab-runner `
+  -v /var/run/docker.sock:/var/run/docker.sock `
+  gitlab/gitlab-runner:latest
+
+docker exec gitlab-runner gitlab-runner register --non-interactive `
+  --url https://labs.gauntletai.com --token <glrt-... from Settings -> CI/CD -> Runners> `
+  --executor docker --docker-image alpine:latest
+```
+
+Two settings that are easy to get wrong:
+
+- **Tick "Run untagged jobs"** when creating the runner in the UI. The jobs in `.gitlab-ci.yml`
+  carry no tags, and a runner that only accepts tagged ones leaves them stuck exactly as the
+  instance runner did.
+- **Raise concurrency.** The default is one job at a time, so the four jobs queue single-file.
+  `concurrent = 4` and `request_concurrency = 4` in `/etc/gitlab-runner/config.toml` run them
+  together: about two minutes wall-clock instead of six. Restart the container after editing --
+  and not while a job is running, which kills it mid-flight.
+
+**What this means in practice.** `--restart always` brings the runner back with Docker Desktop, so
+there is nothing to start by hand. But **pipelines only run while that machine is up**. A push made
+while it is off creates a pipeline that sits pending until it returns.
+
+**Nothing about reviewing this repository depends on that.** The eval gate needs no runner, no API
+key and no network:
+
+```
+cd copilot && python -m evals.stage2.gate
+```
+
+CI is a second place the same gate runs, and the place a *merge* is blocked -- not the only place it
+can be checked. Moving the runner somewhere always-on is the fix if that ever matters; it is a
+different host for the same two commands.
+
+---
+
 ## CI/CD (GitLab) -- tests live, deploy parked
 
 > **The test half runs.** `.gitlab-ci.yml` at the repository root runs the unit tests, the
@@ -516,8 +564,9 @@ decision, not a setting.
 
 ### Setting it up
 
-1. **A runner.** Check *Settings -> CI/CD -> Runners* for an instance runner first. If there is
-   none, register one with a Docker executor (any machine that can reach the GitLab host):
+1. **A runner.** Already done for the test jobs -- see
+   [Where the pipeline runs](#where-the-pipeline-runs) below. The deploy jobs would use the same
+   one. To register another, with a Docker executor on any machine that can reach the GitLab host:
 
    ```bash
    docker run -d --name gitlab-runner --restart always      -v /srv/gitlab-runner/config:/etc/gitlab-runner      -v /var/run/docker.sock:/var/run/docker.sock      gitlab/gitlab-runner:latest

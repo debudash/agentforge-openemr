@@ -9,9 +9,17 @@
 # here. Verified: the gate is green with OPENROUTER_API_KEY, ANTHROPIC_API_KEY and LANGSMITH_API_KEY
 # all unset. A deterministic gate cannot flake on a provider outage, which is the whole point.
 #
-# Runner: the shared instance runner. If a job ever sits stuck, that runner has been switched off
-# for this project (Settings -> CI/CD -> Runners -> Instance) or it only accepts tagged jobs, in
-# which case add the tag it wants to `default:` below.
+# Runner: a PROJECT runner -- a `gitlab-runner` container on the maintainer's machine, Docker
+# executor, untagged jobs enabled. This GitLab does have a shared instance runner, but instance
+# runners are off per project and the toggle would not stick, so every job failed in 00:00:00:
+# created, picked up by nobody, no log worth reading. Running our own removed that dependency.
+#
+# The consequence, stated because it is easy to miss: pipelines only run while that machine and
+# Docker Desktop are up. Nothing about grading this repository depends on one -- the gate needs no
+# runner, no key and no network, and `cd copilot && python -m evals.stage2.gate` is the whole of it.
+# Setup and rationale: deploy/railway/README.md, "Where the pipeline runs".
+#
+# If a job ever sits stuck, the runner is offline or wants a tag; add it to `default:` below.
 
 workflow:
   rules:

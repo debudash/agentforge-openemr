@@ -85,6 +85,15 @@ artifact, so the per-case verdicts can be downloaded from the job without re-run
 (`only_allow_merge_if_pipeline_succeeds: true`), so a failed gate blocks the merge button.
 Section 5 is a merge request where exactly that happened.
 
+**Where the pipeline runs:** on a **project runner in Docker on the maintainer's machine**, because
+this GitLab's shared instance runner is off per project and the toggle would not stay on. So
+pipelines run while that machine is up, and a push made while it is off leaves a pipeline pending
+until it returns. Setup and reasoning: `deploy/railway/README.md`, "Where the pipeline runs".
+
+None of that is in the way of checking this work. **The gate needs no runner, no key and no
+network** -- the fresh-clone commands above are the whole of it, and they are the same 74 cases CI
+runs. CI is where a *merge* is blocked, not the only place the gate can be observed.
+
 ### Local pre-push hook — needs one install command
 
 Hooks do not come down with a clone. Install once per clone:
