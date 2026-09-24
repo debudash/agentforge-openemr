@@ -44,8 +44,8 @@ Week 2 needs a chart with a document in it, so **Demo Data** (the tab beside it)
    **Generate New Docs**. It writes a lab report and an intake form naming that patient and files
    both in the chart, unread, through the same code an upload goes through.
 3. Open **Co-Pilot** (it opens in its own tab, titled *Clinical Co-Pilot*). It finds the unread documents, reads them, has the results filed, and
-   shows **What changed** above the brief. Roughly one read in five the provider returns nothing and
-   the co-pilot says the document could not be read rather than guessing.
+   shows **What changed** above the brief. Occasionally the provider returns nothing -- 2 of 38 reads
+   measured -- and the co-pilot says the document could not be read rather than guessing.
 4. Click a citation chip on a value that came from the report: the page opens with the quote boxed
    on it. **Run details** shows which worker the supervisor handed to, and why.
 5. Ask a follow-up — *"what changed?"*, or *"what does guidance say about high potassium with an

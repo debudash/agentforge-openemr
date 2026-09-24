@@ -440,7 +440,7 @@ end-to-end live — the open half of metrics 11 and 12. Ten candidates were then
 through the agent's own code; the shortlist was put through real follow-ups, where
 `qwen/qwen3.7-flash` refused "what medications is the patient on" and mangled source ids, and
 `gemini-2.5-flash-lite` answered 6 of 6. It now reads documents live, at about $0.0009 each.
-Roughly one read in five the provider returns nothing; that is reported as unread, never guessed.
+Measured over 38 reads, 2 returned nothing; that is reported as unread, never guessed.
 
 **The retry budget is 1 on purpose.** Three backoffs are 56 seconds of a clinician waiting for a
 document that is not going to arrive. One retry, then "could not be read", which is a result the

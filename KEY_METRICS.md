@@ -134,8 +134,8 @@ now met.
 | 7 | Citation resolution: every claim, evidence entry and "what changed" line shown resolves to a record, a document page or a guideline chunk | 100 % | 69 of 69 gate cases carrying the rubric, and every one of the five contract fields is populated, not merely present | **Met** |
 | 8 | Retrieval precision at 1 on the three probe questions (high potassium with an ACE inhibitor, hypertension screening, A1C ranges) | 3 of 3 | 3 of 3 offline (BM25 only); 2 of 2 checked in full mode with the cross-encoder | **Met** |
 | 9 | Gate rubric pass rate: schema_valid, citation_present, factually_consistent, safe_refusal, no_phi_in_logs | 100 % each; a drop over 5 points blocks the push | 100 % each over **74 cases**; four injected regressions each failed the gate (`test_gate.py`), and each new routing decision is covered by a case that fails when the decision is deleted | **Met** |
-| 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | p50 **4.4 s**, p95 **33.8 s**, p99 47.0 s over 26 runs (`/metrics`, `supervise_ms`). A chart with nothing unread is the p50; the tail is the runs that read two new documents and then regenerate the brief | **Met on p50, missed on p95** |
-| 11 | Live extraction success | one lab report read end to end | **Achieved.** A two-page report read by `google/gemini-2.5-flash-lite`: five results, correct values, correct pages, nothing demoted. Repeated across the walkthrough; roughly one run in five the provider returns nothing and the co-pilot says so | **Met** |
+| 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | p50 **4.4 s**, p95 **30.5 s**, p99 47.0 s over 41 runs (`/metrics`, `supervise_ms`). A chart with nothing unread is the p50; the tail is the runs that read two new documents and then regenerate the brief | **Met on p50, missed on p95** |
+| 11 | Live extraction success | one lab report read end to end | **Achieved.** A two-page report read by `google/gemini-2.5-flash-lite`: five results, correct values, correct pages, nothing demoted. Repeated across the walkthrough: **38 documents read, 2 failed** (`/metrics`), and a failure is reported as unread rather than guessed | **Met** |
 | 12 | Cost per document read | under $0.05 | **~$0.0009**, from the request shape at gemini-2.5-flash-lite's $0.10/$0.40 per Mtok. Not instrumented per call; checked against the credit-balance delta of a whole 30-check walkthrough, **$0.011** for about 15 model calls including two document reads (`W2_COST_LATENCY.md`) | **Met** |
 
 **The p95 miss, and what it is.** The supervise path is one request that can do three model calls:
@@ -166,9 +166,9 @@ wrong-patient report is refused with the reason recorded beside the document, an
 reaches the chart.
 
 They do not prove extraction is accurate across real-world documents. Metric 11 is one report read
-correctly, repeated; the fixtures are synthetic and clean, and roughly one read in five the provider
-returns nothing. That last figure is the useful one for a deployment: the failure mode is *no
-answer*, not a wrong one, which is the behaviour the design is arranged around.
+correctly, repeated; the fixtures are synthetic and clean, and 2 of 38 reads returned nothing.
+That last figure is the useful one for a deployment: the failure mode is *no answer*, not a wrong
+one, which is the behaviour the design is arranged around.
 
 Metric 10 is missed and recorded as missed. A chart with nothing new answers in 4.4 s; a chart with
 two new documents is three model calls in one request and lands past 30 s. That is a real cost to
