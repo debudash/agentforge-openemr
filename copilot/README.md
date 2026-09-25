@@ -196,4 +196,4 @@ Current configuration (from 2026-09-23): agent and vision `google/gemini-2.5-fla
 
 ## Deploying on Railway
 
-See `deploy/railway/README.md`, "Agent service": the service is built from `Dockerfile.copilot` at the repository root and has no public domain, and the OpenEMR service gets `COPILOT_AGENT_URL=http://copilot-agent.railway.internal:8600` plus the shared secret.
+See `deploy/railway/README.md`, "Agent service": the service is built from `Dockerfile.copilot` at the repository root and has no public domain, and the OpenEMR service gets `COPILOT_AGENT_URL=http://copilot-agent-v82.railway.internal:8600` plus the shared secret.

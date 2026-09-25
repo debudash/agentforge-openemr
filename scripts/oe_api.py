@@ -64,8 +64,8 @@ READ_SCOPES = [
 ]
 
 DB_VIA = os.environ.get("OE_DB_VIA", "docker")
-RAILWAY_SERVICE = os.environ.get("RAILWAY_SERVICE", "openemr")
-RAILWAY_DB_HOST = os.environ.get("OE_DB_HOST", "mysql.railway.internal")
+RAILWAY_SERVICE = os.environ.get("RAILWAY_SERVICE", "openemr-v82")
+RAILWAY_DB_HOST = os.environ.get("OE_DB_HOST", "mysql-v82.railway.internal")
 RAILWAY_DB_USER = os.environ.get("OE_DB_USER", "openemr")
 
 # Direct-connection settings (OE_DB_VIA=mysql). Railway's private network is IPv6 and takes

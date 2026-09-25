@@ -8,11 +8,86 @@ Public deployment of this fork, reachable over HTTPS at a `*.up.railway.app` add
 
 ---
 
+## Current deployment (since 2026-09-25)
+
+Railway runs **OpenEMR 8.2.0-dev built from this repository**, the same code the dev stack runs,
+not the stock `openemr/openemr:latest` (8.0.0) it ran until then. The version skew between the
+two broke the Week 2 deploy three times ([W2_ARCHITECTURE.md](../../W2_ARCHITECTURE.md), "one
+codebase, two OpenEMRs"), so the platform was moved rather than guarded against forever.
+
+| | |
+|---|---|
+| URL | `https://openemr-production-461d.up.railway.app` (unchanged) |
+| Environment | `v82`, the project's only environment |
+| Services | `openemr-v82`, `mysql-v82`, `copilot-agent-v82`, `copilot-seeder-v82` (cron 01:05 UTC) |
+| Private hosts | `mysql-v82.railway.internal`, `copilot-agent-v82.railway.internal:8600` |
+| OpenEMR image | `debulearn4ever/openemr-agent:8.2.0-dev-9a73bae`, pinned by digest |
+| Data | 50 Synthea patients (25 per doctor), generated fresh; same `admin`/`doctor1`/`doctor2` passwords as before |
+
+Service names carry `-v82` because Railway service names are unique per project, and the new
+services were built beside the old ones before the switch.
+
+### Building from this checkout
+
+The co-pilot module is inside the OpenEMR image, so a module change ships as a new image:
+
+1. `deploy/railway/build_openemr_image.sh` (Git Bash) exports a commit with `git archive`, builds
+   upstream's `docker/release/Dockerfile` unchanged with `--build-context openemr-source=...`
+   replacing its `git clone` of upstream master, checks the image holds that commit's OpenEMR and
+   the module, and pushes to Docker Hub only after you type `DEPLOY`.
+2. Run the image locally against a fresh MariaDB with the Railway variables and no bind mount, and
+   go through the co-pilot as `doctor1` before Railway sees it.
+3. `railway service source connect --image "<tag>@<digest>" --service openemr-v82`, then
+   `.\deploy\railway\preflight_module.ps1`, which checks the live OpenEMR as the web server user
+   and exits non-zero on any failure (63 checks).
+
+The agent is unchanged: `.\deploy\railway\deploy_agent.ps1`.
+
+### Standing up a fresh instance: traps hit on 2026-09-24
+
+- **An empty Railway volume at `sites/`** hides the image's `sites/default`. Set `SWARM_MODE=yes`
+  for the **first boot only**: the image then copies `sites/` from `/swarm-pieces` into the empty
+  volume before installing. Set it back to `no` afterwards.
+- **Upstream's swarm takeover crash-loops.** If a leader file (`sites/docker-leader`) is left by a
+  failed boot, the next container waits five minutes, takes over, then demotes itself in the same
+  function and exits with `Critical failure! An OpenEMR worker is trying to run on a missing
+  configuration.` -- forever. Recover with `rm sites/docker-leader` and `SWARM_MODE=no`.
+- **Attach the volume and set the real `MYSQL_HOST` before the first deploy.** A service deploys
+  the moment it is created; a first boot that fails is what leaves that leader file behind.
+- **The first boot can race MariaDB's own first-time init** (`unable to connect to database as
+  root`). Railway restarts on failure and the second attempt installs.
+- **`sites/default` is read-only to apache** (mode 500) in this image. Create
+  `sites/default/copilot-demo/generated` as root and `chown -R apache:apache` it, then write
+  `sites/default/copilot-config.php` as in "Agent service" step 3.
+- **Register the module** (`scripts/register_module.py`), create the doctors
+  (`scripts/create_doctors.py`), import patients, assign the panel and seed appointments (below).
+  Check the patient count after the import: one run of 50 produced 48.
+- **`/meta/health/readyz` says `setup_required` on a working 8.2 install** (see the root
+  CLAUDE.md) and still returns 200, so do not use it to judge an install.
+
+### How the switch was made
+
+The new services ran at their own address until they passed the preflight, the co-pilot as
+`doctor1`, a live brief and follow-up, and the use-case suite. Then two domain renames, about
+11 seconds apart:
+
+```bash
+railway domain update openemr-production-461d.up.railway.app --domain openemr-old-461d --service openemr --environment production
+railway domain update openemr-v82-v82.up.railway.app --domain openemr-production-461d --service openemr-v82 --environment v82
+```
+
+A Railway-provided domain can be renamed, and the label it releases can be claimed straight away,
+across environments. After the switch, `OPENEMR_SETTING_site_addr_oath` on `openemr-v82` and
+`COPILOT_OPENEMR_URL` on `copilot-agent-v82` were set to the real URL. The old `production`
+environment was deleted the same day, after its database and `sites/` were backed up off-site.
+
+---
+
 ## How this differs from the local stack
 
 | | Local (`docker/development-easy`) | Railway |
 |---|---|---|
-| Image | `openemr/openemr:flex` (dev) | `openemr/openemr:latest` (stable, digest-pinned) |
+| Image | `openemr/openemr:flex` with this checkout bind-mounted | Built from this checkout (`build_openemr_image.sh`), digest-pinned; same OpenEMR version |
 | TLS | Self-signed on port 9300 | Terminated at Railway's edge; container serves plain HTTP on port 80 |
 | Certificates | Image generates them; `DOMAIN` triggers Let's Encrypt | **Never set `DOMAIN`** — certbot can't answer the ACME challenge behind Railway's proxy |
 | Volumes | 13 volumes | **One per service** (a Railway limit): `sites/` and `/var/lib/mysql` |
@@ -35,6 +110,10 @@ Public deployment of this fork, reachable over HTTPS at a `*.up.railway.app` add
 ---
 
 ## Steps
+
+> **Historical.** These are the steps for the original stock-image deployment, retired on
+> 2026-09-25. To stand up an instance today, follow "Current deployment" above; the commands in
+> the sections after "Custom modules" use today's service names.
 
 ### 1. Sign in and create the project
 
@@ -147,26 +226,20 @@ cd ..\..\usecases; .venv\Scripts\python -m pytest
 
 ## Custom modules on Railway
 
-The service runs the stock image with no bind mount, so anything copied into the
-container is lost on redeploy. Custom modules therefore live on the persistent
-volume and are symlinked into the modules directory:
+The co-pilot module is built into the OpenEMR image, at its normal place under
+`interface/modules/custom_modules/`, so it ships with every image and needs no copying. Only its
+registration row (`scripts/register_module.py`) and `sites/default/copilot-config.php` live in
+the database and on the volume.
 
-```
-sites/default/copilot-module                                   <- real files (persistent)
-interface/modules/custom_modules/oe-module-copilot-agent       -> symlink
-```
-
-After a redeploy, recreate the symlink and re-register the module (see
-[scripts/README.md](../../scripts/README.md)). If the files are missing while the
-`modules` row is active, OpenEMR retries the bootstrap three times and then sets
-`mod_active = 0` itself.
+Until 2026-09-25 the stock image had no module, so it lived on the sites volume at
+`sites/default/copilot-module` and was symlinked in; a redeploy dropped the symlink.
 
 **A fatal in a module bootstrap breaks every page**, login included, because
 bootstraps load inside `globals.php`. If the site starts returning 500s after a
 module change, disable it first and diagnose afterwards:
 
 ```powershell
-railway ssh --service openemr sh -c "mariadb -h mysql.railway.internal -uopenemr -p<pw> openemr -e \"UPDATE modules SET mod_active=0 WHERE mod_directory='oe-module-copilot-agent'\""
+railway ssh --service openemr-v82 sh -c "mariadb -h mysql-v82.railway.internal -uopenemr -p<pw> openemr -e \"UPDATE modules SET mod_active=0 WHERE mod_directory='oe-module-copilot-agent'\""
 ```
 
 ## Agent service (Clinical Co-Pilot)
@@ -182,7 +255,7 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
    (`python -c "import secrets; print(secrets.token_hex(32))"`) and keep it out of git.
    **Note:** `railway add` echoes every variable it sets, keys included, to the terminal.
    ```powershell
-   railway add --service copilot-agent `
+   railway add --service copilot-agent-v82 `
      --variables "PORT=8600" `
      --variables "COPILOT_SHARED_SECRET=<secret>" `
      --variables "COPILOT_PROVIDER=openrouter" `
@@ -195,7 +268,7 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
      --variables "LANGSMITH_API_KEY=<key>" `
      --variables "LANGSMITH_PROJECT=openemr-copilot-railway" `
      --variables "COPILOT_TRACE_REDACT=false"
-   railway variable set "RAILWAY_DOCKERFILE_PATH=Dockerfile.copilot" --service copilot-agent --skip-deploys
+   railway variable set "RAILWAY_DOCKERFILE_PATH=Dockerfile.copilot" --service copilot-agent-v82 --skip-deploys
    ```
    (For Anthropic directly: `COPILOT_PROVIDER=anthropic`, `COPILOT_MODEL=claude-sonnet-5`,
    allowlists to match, and `ANTHROPIC_API_KEY`.)
@@ -204,36 +277,28 @@ Deployed 2026-09-16 with the steps below (OpenRouter as the model provider).
    `composer.json` and tries to build OpenEMR instead. `Dockerfile.copilot` lives at the
    root for that reason, with root-relative COPY paths.
    ```powershell
-   railway up --service copilot-agent -c       # streams the build; ends with "Deploy complete"
+   railway up --service copilot-agent-v82 -c       # streams the build; ends with "Deploy complete"
    ```
    Do **not** generate a public domain for this service. Check readiness from the openemr
    container over the private network:
    ```powershell
-   railway ssh --service openemr sh -c "curl -s http://copilot-agent.railway.internal:8600/readyz"
+   railway ssh --service openemr-v82 sh -c "curl -s http://copilot-agent-v82.railway.internal:8600/readyz"
    ```
    It is 503 until the model key and secret are set (fail closed).
-3. Point OpenEMR at it without redeploying it (a redeploy would drop the module symlink):
-   write the config onto the persistent volume.
+3. Point OpenEMR at it without redeploying it: write the config onto the persistent volume.
    ```powershell
    $cfg = @"
    <?php
    return [
-       'COPILOT_AGENT_URL' => 'http://copilot-agent.railway.internal:8600',
+       'COPILOT_AGENT_URL' => 'http://copilot-agent-v82.railway.internal:8600',
        'COPILOT_SHARED_SECRET' => '<same secret>',
    ];
    "@
-   $cfg | railway ssh --service openemr sh -c "cat > /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php && chown apache:apache /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php && chmod 640 /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php"
+   $cfg | railway ssh --service openemr-v82 sh -c "cat > /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php && chown apache:apache /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php && chmod 640 /var/www/localhost/htdocs/openemr/sites/default/copilot-config.php"
    ```
    Variables on the openemr service (`COPILOT_AGENT_URL`, `COPILOT_SHARED_SECRET`) work too and
    win over the file, but setting them triggers a redeploy.
-4. Ship the module files to the volume (they are symlinked into `custom_modules`, see
-   "Custom modules on Railway"). `railway ssh` forwards stdin, so a tarball goes straight in:
-   ```bash
-   # Git Bash, from the repo root
-   tar -C interface/modules/custom_modules -cf - oe-module-copilot-agent | base64 -w0 | \
-     railway ssh --service openemr sh -c "cd /var/www/localhost/htdocs/openemr/sites/default && base64 -d > /tmp/m.tar && rm -rf copilot-module.new && mkdir copilot-module.new && tar -C copilot-module.new --strip-components=1 -xf /tmp/m.tar && rm -rf copilot-module.old && mv copilot-module copilot-module.old && mv copilot-module.new copilot-module && chown -R apache:apache copilot-module && rm -f /tmp/m.tar"
-   ```
-   Repeat after every module change. The previous version stays in `copilot-module.old`.
+4. The module itself ships inside the OpenEMR image ("Building from this checkout").
 5. Book today's rounding list (five appointments per doctor) before a demo. The list is for
    the **server's** date (UTC), which the script uses by default:
    ```powershell
@@ -260,25 +325,25 @@ Set up 2026-09-16. It runs at **01:05 UTC**, shortly after the server's date rol
 each run books `SEED_DAYS` days starting from that new date, so a missed night self-heals.
 
 ```powershell
-railway add --service copilot-seeder          # choose "Empty Service"
+railway add --service copilot-seeder-v82          # choose "Empty Service"
 # Set variables individually: `railway add --variables` echoes values to the terminal.
-railway variable set "RAILWAY_DOCKERFILE_PATH=Dockerfile.seeder" --service copilot-seeder --skip-deploys
-railway variable set "OE_DB_VIA=mysql"        --service copilot-seeder --skip-deploys
-railway variable set "MYSQL_HOST=mysql.railway.internal" --service copilot-seeder --skip-deploys
-railway variable set "MYSQL_PORT=3306"        --service copilot-seeder --skip-deploys
-railway variable set "MYSQL_USER=openemr"     --service copilot-seeder --skip-deploys
-railway variable set "MYSQL_DATABASE=openemr" --service copilot-seeder --skip-deploys
-railway variable set "MYSQL_PASSWORD=<openemr db pw>" --service copilot-seeder --skip-deploys
-railway variable set "OPENEMR_BASE_URL=https://<app>.up.railway.app" --service copilot-seeder --skip-deploys
-railway variable set "OE_USER=admin"          --service copilot-seeder --skip-deploys
-railway variable set "OE_PASS=<admin pw>"     --service copilot-seeder --skip-deploys
-railway variable set "SEED_DAYS=5"            --service copilot-seeder --skip-deploys
-railway variable set "SEED_PER_DOCTOR=5"      --service copilot-seeder --skip-deploys
-railway up --service copilot-seeder -c        # builds Dockerfile.seeder from the repo root
+railway variable set "RAILWAY_DOCKERFILE_PATH=Dockerfile.seeder" --service copilot-seeder-v82 --skip-deploys
+railway variable set "OE_DB_VIA=mysql"        --service copilot-seeder-v82 --skip-deploys
+railway variable set "MYSQL_HOST=mysql-v82.railway.internal" --service copilot-seeder-v82 --skip-deploys
+railway variable set "MYSQL_PORT=3306"        --service copilot-seeder-v82 --skip-deploys
+railway variable set "MYSQL_USER=openemr"     --service copilot-seeder-v82 --skip-deploys
+railway variable set "MYSQL_DATABASE=openemr" --service copilot-seeder-v82 --skip-deploys
+railway variable set "MYSQL_PASSWORD=<openemr db pw>" --service copilot-seeder-v82 --skip-deploys
+railway variable set "OPENEMR_BASE_URL=https://<app>.up.railway.app" --service copilot-seeder-v82 --skip-deploys
+railway variable set "OE_USER=admin"          --service copilot-seeder-v82 --skip-deploys
+railway variable set "OE_PASS=<admin pw>"     --service copilot-seeder-v82 --skip-deploys
+railway variable set "SEED_DAYS=5"            --service copilot-seeder-v82 --skip-deploys
+railway variable set "SEED_PER_DOCTOR=5"      --service copilot-seeder-v82 --skip-deploys
+railway up --service copilot-seeder-v82 -c        # builds Dockerfile.seeder from the repo root
 ```
 
 Then attach the schedule. The CLI has no cron flag, so use the GraphQL API with the
-service's own id (`railway variable list --service copilot-seeder --json` shows
+service's own id (`railway variable list --service copilot-seeder-v82 --json` shows
 `RAILWAY_SERVICE_ID` and `RAILWAY_ENVIRONMENT_ID`):
 
 ```powershell
@@ -308,12 +373,12 @@ Notes:
   private network is IPv6 and takes a moment to come up, so the connection retries briefly.
 - Appointments are still written through the REST API, so validation and audit logging run
   (AUDIT.md C1b). Only the reads and the cleanup of its own previous bookings use SQL.
-- `railway logs --service copilot-seeder` shows the last run's verification table. Logs are
+- `railway logs --service copilot-seeder-v82` shows the last run's verification table. Logs are
   scoped to the *current* deployment, so after a redeploy they stay empty until the next
   scheduled run fires.
 - To tell a stalled run from a mislabelled card, read the meter rather than the dashboard:
-  `railway metrics --service copilot-seeder` (0 vCPU means nothing is running) or
-  `railway ssh --service copilot-seeder ps` (`status: exited`). The script has no overall
+  `railway metrics --service copilot-seeder-v82` (0 vCPU means nothing is running) or
+  `railway ssh --service copilot-seeder-v82 ps` (`status: exited`). The script has no overall
   wall-clock timeout, so a genuine stall is possible and looks identical on the card.
 - To seed a different window, change `SEED_DAYS`; to pause it, set `cronSchedule` to `null`.
 
@@ -341,6 +406,10 @@ Notes:
 ---
 
 ## Persisting `sites/`
+
+> **Historical.** With the image built from this checkout, `SWARM_MODE=yes` on the first boot
+> fills an empty volume by itself ("Current deployment" above). This was the manual procedure for
+> the stock image.
 
 `sites/default` holds the site config (`sqlconf.php`), uploaded documents, LBF layouts and the OAuth keys generated on first API use. Without a volume it's recreated on every deploy, so anything written there is lost.
 
@@ -418,7 +487,7 @@ Then `railway up --service copilot-agent -c`, then the module to the sites volum
 ingest. Order matters: the agent first, because the new module calls `supervise` and the old agent
 has no such endpoint.
 
-**Shipping the module is now a script:** `.\deployailway\deploy_module.ps1`
+**Shipping the module was a script:** `deploy_module.ps1`, since replaced by `preflight_module.ps1` (the module now ships in the image)
 (`-CheckOnly` to preflight and ship nothing). It reads the module's OpenEMR dependencies, checks
 them on the target, ships with a pre-swap guard, and re-checks what it installed. 62 checks.
 
@@ -455,7 +524,7 @@ Anything that asks "can the app do X" has to ask as the app:
 su -s /bin/sh apache -c "php /tmp/check.php"
 ```
 
-The same caution applies to `chown` after any hand-run copy. `deploy_module.ps1` does this for you.
+The same caution applies to `chown` after any hand-run copy. `preflight_module.ps1` does this for you.
 
 ### Two PowerShell traps on the way to `railway ssh`
 

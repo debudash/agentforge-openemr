@@ -37,7 +37,7 @@ Nine variables decide how this behaves. Everything after this table has a workin
 | `COPILOT_JUDGE_MODEL` | `anthropic/claude-sonnet-5` | Grades the eval rubrics offline. Deliberately a different family from the agent. Never on a request path |
 | `OPENROUTER_API_KEY` | *(secret)* | Or `ANTHROPIC_API_KEY` for the direct provider |
 | `COPILOT_SHARED_SECRET` | *(secret)* | HMAC secret for every module→agent call. **Both processes need the same value** |
-| `COPILOT_AGENT_URL` | `http://127.0.0.1:8600` | Where the module finds the agent. Railway: `http://copilot-agent.railway.internal:8600` |
+| `COPILOT_AGENT_URL` | `http://127.0.0.1:8600` | Where the module finds the agent. Railway: `http://copilot-agent-v82.railway.internal:8600` |
 | `COPILOT_ALLOWED_MODELS` | gemini, sonnet, two `:free` slugs | Fail-closed allowlist. **A model not on this list is refused**, so adding a model means adding it here too |
 | `COPILOT_DEMO_TOOLS` | `1` on the demo deployment | Turns on the Demo Data tab. Off means the tab does not render *and* its actions refuse |
 
@@ -153,7 +153,7 @@ the values on its persistent volume rather than in the image.
 |---|---|---|
 | Agent variables | `copilot/.env` | Service variables on `copilot-agent` |
 | Module variables | `sites/default/copilot-config.php` | The same file, on the volume |
-| Agent address | `http://host.docker.internal:8600` | `http://copilot-agent.railway.internal:8600` |
+| Agent address | `http://host.docker.internal:8600` | `http://copilot-agent-v82.railway.internal:8600` |
 | Demo tools | on | on, for grading |
 
 Setup is in [README.md](README.md) ("First-time setup", then "Week 2"); the deployment is in

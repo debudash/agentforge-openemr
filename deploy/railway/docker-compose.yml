@@ -29,7 +29,9 @@ services:
       MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASS:?set in Railway variables}
 
   openemr:
-    image: openemr/openemr:latest@sha256:faf0b8386895ed7ab1891bb7c94012e50a91917113e3ae7111b5287d28546b38
+    # Built from this repository by build_openemr_image.sh (8.2.0-dev, the code the dev stack runs),
+    # not the stock openemr/openemr:latest (8.0.0) this deployment used until 2026-09-25.
+    image: debulearn4ever/openemr-agent:8.2.0-dev-9a73bae@sha256:9ca639c3fb87c65dff20543bb5a47c8e5f954b96dfeaee456cd8f473126841e6
     ports:
       - '80:80'
     volumes:
@@ -39,15 +41,18 @@ services:
       # HTTP on 80 and its HTTPS redirect is commented out by default.
       PORT: '80'
 
-      # Private networking: <service-name>.railway.internal. Rename if your
-      # MariaDB service is not called "mysql".
-      MYSQL_HOST: mysql.railway.internal
+      # Private networking: <service-name>.railway.internal. The live services are
+      # mysql-v82 / openemr-v82 (Railway service names are unique per project).
+      MYSQL_HOST: mysql-v82.railway.internal
       MYSQL_PORT: '3306'
       MYSQL_ROOT_PASS: ${MYSQL_ROOT_PASS:?set in Railway variables}
       MYSQL_USER: openemr
       MYSQL_PASS: ${MYSQL_PASS:?set in Railway variables}
       OE_USER: admin
       OE_PASS: ${OE_PASS:?set in Railway variables}
+      # 'yes' for the FIRST boot only: it makes the image copy sites/ into the empty Railway
+      # volume. Then set 'no' -- see README "Building from this checkout" for why.
+      SWARM_MODE: 'yes'
 
       # First install takes ~5-10 minutes; Railway's healthcheck default is 300 s.
       RAILWAY_HEALTHCHECK_TIMEOUT_SEC: '900'

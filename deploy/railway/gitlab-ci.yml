@@ -43,9 +43,9 @@ deploy agent:
     # Builds Dockerfile.copilot and replaces the running service. The image installs the CPU torch
     # wheel and prefetches the two retrieval models, so a cold start downloads nothing -- and the
     # build is slower than it looks for that reason.
-    - railway up --service copilot-agent -c
+    - railway up --service copilot-agent-v82 --environment v82 -c
     - echo "Checking readiness over the private network..."
-    - railway ssh --service openemr sh -c "curl -s -m 20 http://copilot-agent.railway.internal:8600/readyz"
+    - railway ssh --service openemr-v82 --environment v82 sh -c "curl -s -m 20 http://copilot-agent-v82.railway.internal:8600/readyz"
   when: manual
   allow_failure: false
   rules:
@@ -54,35 +54,8 @@ deploy agent:
     - if: $CI_COMMIT_BRANCH == "week2"
       when: manual
 
-deploy module:
-  extends: .railway
-  stage: deploy
-  needs: ["deploy agent"]
-  environment:
-    name: production
-    url: https://openemr-production-461d.up.railway.app
-  script:
-    # The OpenEMR module is not in the image: it lives on the persistent sites volume and is
-    # symlinked into custom_modules, so it survives a redeploy of OpenEMR itself. Shipping it is
-    # a tar over `railway ssh`, unpacked beside the live copy and swapped in one move, so a
-    # half-written module is never what the site is loading.
-    - apk add --no-cache tar coreutils
-    - tar -C interface/modules/custom_modules -cf module.tar oe-module-copilot-agent
-    - base64 -w0 module.tar > module.b64
-    - |
-      cat module.b64 | railway ssh --service openemr sh -c '
-        cd /var/www/localhost/htdocs/openemr/sites/default &&
-        base64 -d > /tmp/m.tar &&
-        rm -rf copilot-module.new && mkdir copilot-module.new &&
-        tar -C copilot-module.new --strip-components=1 -xf /tmp/m.tar &&
-        rm -rf copilot-module.old && mv copilot-module copilot-module.old &&
-        mv copilot-module.new copilot-module &&
-        chown -R apache:apache copilot-module && rm -f /tmp/m.tar &&
-        echo "module shipped"'
-  when: manual
-  allow_failure: false
-  rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: manual
-    - if: $CI_COMMIT_BRANCH == "week2"
-      when: manual
+# There is no "deploy module" job any more. Since 2026-09-25 the module ships inside the OpenEMR
+# image, built from this repository by deploy/railway/build_openemr_image.sh (it needs docker
+# buildx and a Docker Hub login, so it runs on a workstation, not here). A CI job for it would
+# build that image and then run `railway service source connect --image ... --service openemr-v82`.
+# Until 2026-09-25 this job tarred the module onto the sites volume of the stock 8.0.0 image.

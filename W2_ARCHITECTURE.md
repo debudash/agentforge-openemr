@@ -519,7 +519,7 @@ Logs carry ids and counts, never document text, extracted values or patient iden
 | Guidelines drift into advice | Rule 4 unchanged, guideline citations barred from patient-fact claims, and a rubric plus judge check on separation. |
 | Latency now visible to the clinician | Both entry points kept; the patient tab warms briefs for today's appointments in the background. |
 | Scope check is now the only barrier | Promoted in the eval suite: out-of-panel access is tested from the patient-context entry point specifically, not only from the rounding list. |
-| **The OpenEMR this runs on is not the OpenEMR it was built against** | Preflight the deploy target: `deploy/railway/deploy_module.ps1` asks it for every class and method the module calls, and calls the module's own code on it, before shipping. The module guards version-dependent APIs with `method_exists` and reflection rather than assuming. **Narrowed, not closed** -- see below. |
+| **The OpenEMR this runs on is not the OpenEMR it was built against** | Preflight the deploy target: `deploy/railway/preflight_module.ps1` asks it for every class and method the module calls, and calls the module's own code on it. The module guards version-dependent APIs with `method_exists` and reflection rather than assuming. **Closed on 2026-09-25** by running the same OpenEMR on Railway as locally -- see below. |
 
 ### The risk that materialised: one codebase, two OpenEMRs
 
@@ -559,6 +559,16 @@ version.
 gap. The underlying difference would only be closed by building an image from this checkout --
 about a day's work plus a schema migration on a live instance, which is a bigger bet than the
 problem justifies while the module's own contract is `openemr >= 7.0.0`.
+
+**Resolved, 2026-09-25.** The bet was taken after all. Railway now runs an OpenEMR image built
+from this repository (`deploy/railway/build_openemr_image.sh`: upstream's release Dockerfile,
+unchanged, with its source stage swapped for a `git archive` of the commit), so it runs the same
+8.2.0-dev as the dev stack and the test suites. There was no live-schema migration: the new
+instance was installed fresh beside the old one, with newly generated Synthea patients, and took
+over the same URL by a domain rename once it passed the preflight, the co-pilot end to end and
+the use-case suite. The `method_exists` and reflection guards stay, because the module's contract
+is still `openemr >= 7.0.0`. The preflight stays too, run after every OpenEMR deploy. Details in
+`deploy/railway/README.md`, "Current deployment".
 
 ---
 

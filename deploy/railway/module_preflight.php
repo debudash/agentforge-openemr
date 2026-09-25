@@ -3,7 +3,7 @@
 /**
  * Does this OpenEMR support the co-pilot module? Run it ON the deploy target.
  *
- *   cat module_preflight.php | railway ssh --service openemr sh -c 'cat > /tmp/p.php; php /tmp/p.php'
+ *   .\deploy\railway\preflight_module.ps1     (sends this file and the manifest; runs it as apache)
  *
  * Two live failures motivated this, and neither could be caught by anything in the repository,
  * because the repository is the newer OpenEMR:
@@ -21,7 +21,7 @@
  * Run it AS THE WEB SERVER USER. `railway ssh` lands as root, and root can write places
  * apache cannot: run as root this reported the read-only web root as writable and created it,
  * which is worse than not checking, because the module then resolves to a directory it cannot
- * write into. deploy_module.ps1 wraps the call in `su -s /bin/sh apache -c`.
+ * write into. preflight_module.ps1 wraps the call in `su -s /bin/sh apache -c`.
  *
  * @package   OpenEMR
  * @link      https://www.open-emr.org

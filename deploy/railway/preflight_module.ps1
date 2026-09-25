@@ -1,30 +1,26 @@
-# Ship the OpenEMR co-pilot module to the Railway sites volume, with a preflight.
+# Preflight the co-pilot module on the OpenEMR that Railway is actually running.
 #
-#   .\deploy\railway\deploy_module.ps1              # preflight, ship, verify
-#   .\deploy\railway\deploy_module.ps1 -CheckOnly   # preflight only, ship nothing
+#   .\deploy\railway\preflight_module.ps1
 #
-# The module is in no image: it lives on the persistent volume at sites/<site>/copilot-module and
-# is symlinked into custom_modules, so it survives a redeploy of OpenEMR itself. Shipping it is a
-# tar over `railway ssh`.
+# Run it after every OpenEMR deploy. It asks the live target -- as the web server user -- whether
+# every OpenEMR class and method the module calls exists, whether the module's own classes load
+# and answer, whether its configuration is complete, and whether the folders it writes to are
+# writable. It exits non-zero on any failure.
 #
-# Two things this does that hand-running did not, each written after a live failure:
+# Why it exists: until 2026-09-25 Railway ran the stock 8.0.0 image while this repository is
+# 8.2.0-dev, so `PatientSessionUtil::getPid()` existed here and not there, both module tabs
+# returned 500 with an empty body, and document generation died on a read-only web root. Nothing
+# in the repository could catch it, because the repository was the other version.
+# module_preflight.php asks the target instead.
 #
-#   1. Preflight. The deployed OpenEMR is NOT the one this repository runs -- Railway serves the
-#      stable image's own code (8.0.0); the dev stack bind-mounts this checkout (8.2.0-dev). So
-#      `PatientSessionUtil::getPid()` existed here and not there, both module tabs returned 500
-#      with an empty body, and the clinician saw a blank panel with no error. Separately, the
-#      image's web root is read-only, so document generation died on mkdir. Nothing in this
-#      repository could catch either: the repository is the other version. module_preflight.php
-#      asks the target -- including by calling the module's own code on it.
-#
-#   2. A check before the swap. Installing is one `mv`, so a truncated transfer would replace the
-#      live module with an empty directory, and nothing would notice until the site was broken.
+# The module now ships inside the OpenEMR image (deploy/railway/build_openemr_image.sh), so there
+# is nothing to copy: until 2026-09-25 this script also tarred the module onto the sites volume.
 #
 # Windows PowerShell 5.1 (no && / || operators).
 
 param(
-    [switch]$CheckOnly,
-    [string]$Service = "openemr",
+    [string]$Service = "openemr-v82",
+    [string]$Environment = "v82",
     [string]$Site = "default"
 )
 
@@ -54,7 +50,7 @@ function Invoke-RemoteShell {
     $lf = $ScriptText -replace "`r`n", "`n"
     [System.IO.File]::WriteAllText($file, $lf, (New-Object System.Text.UTF8Encoding $false))
     try {
-        Invoke-Native { cmd /c "railway ssh --service $Service sh < ""$file""" }
+        Invoke-Native { cmd /c "railway ssh --service $Service --environment $Environment sh < ""$file""" }
     } finally {
         Remove-Item -Force $file -ErrorAction SilentlyContinue
     }
@@ -62,7 +58,6 @@ function Invoke-RemoteShell {
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $module = Join-Path $repo "interface\modules\custom_modules\oe-module-copilot-agent"
-$remoteSite = "/var/www/localhost/htdocs/openemr/sites/$Site"
 
 if (-not (Test-Path $module)) { Write-Host "Module not found at $module" -ForegroundColor Red; exit 1 }
 
@@ -135,75 +130,18 @@ exit `$rc
 }
 
 # -- 2. preflight on the deploy target ----------------------------------------------------------
+# "post" is the strict phase: the module is installed (it is in the image), so its own classes,
+# configuration and writable paths must all check out, not only the platform APIs.
 Write-Host ""
-Write-Host "Preflight against '$Service' (the deployed OpenEMR, not this checkout)..." -ForegroundColor Cyan
-Invoke-RemoteShell -Service $Service -ScriptText (New-PreflightScript -Phase "pre")
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "Preflight failed. The module would not work on this OpenEMR; nothing was shipped." -ForegroundColor Red
-    exit 1
-}
-
-if ($CheckOnly) {
-    Write-Host ""
-    Write-Host "Preflight only; nothing was shipped." -ForegroundColor Yellow
-    exit 0
-}
-
-# -- 3. ship ------------------------------------------------------------------------------------
-Write-Host ""
-Write-Host "Shipping the module..." -ForegroundColor Cyan
-$staging = Join-Path ([System.IO.Path]::GetTempPath()) ("cpa-module-" + [Guid]::NewGuid().ToString("N"))
-New-Item -ItemType Directory -Path $staging | Out-Null
-$tar = Join-Path $staging "module.tar"
-
-Push-Location (Join-Path $repo "interface\modules\custom_modules")
-Invoke-Native { tar -cf $tar --exclude=__pycache__ oe-module-copilot-agent }
-Pop-Location
-if ($LASTEXITCODE -ne 0) { Write-Host "tar failed" -ForegroundColor Red; exit 1 }
-
-$moduleB64 = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes($tar))
-Write-Host ("  " + [math]::Round((Get-Item $tar).Length / 1KB) + " KB")
-Remove-Item -Recurse -Force $staging
-
-# Unpack beside the live copy and swap only once the files that matter are present.
-$installScript = @"
-set -e
-cd $remoteSite
-echo '$moduleB64' | base64 -d > /tmp/cpa_module.tar
-rm -rf copilot-module.new
-mkdir copilot-module.new
-tar -C copilot-module.new --strip-components=1 -xf /tmp/cpa_module.tar
-for f in openemr.bootstrap.php moduleConfig.php public/api.php public/patient.php public/demo.php public/index.php src/ActivePatient.php src/DemoDocuments.php src/DocumentWriter.php src/ChartReader.php; do
-  test -f "copilot-module.new/`$f" || { echo "MISSING after unpack: `$f"; exit 1; }
-done
-echo "  unpacked `$(find copilot-module.new -type f | wc -l) files, all expected present"
-rm -rf copilot-module.old
-mv copilot-module copilot-module.old
-mv copilot-module.new copilot-module
-chown -R apache:apache copilot-module
-rm -f /tmp/cpa_module.tar
-echo "  installed"
-"@
-
-Invoke-RemoteShell -Service $Service -ScriptText $installScript
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Install failed. The previous module is still live, or in copilot-module.old." -ForegroundColor Red
-    exit 1
-}
-
-# -- 4. preflight again, against what is now installed -------------------------------------------
-Write-Host ""
-Write-Host "Verifying the installed module..." -ForegroundColor Cyan
+Write-Host "Preflight against '$Service' in '$Environment' (the deployed OpenEMR, not this checkout)..." -ForegroundColor Cyan
 Invoke-RemoteShell -Service $Service -ScriptText (New-PreflightScript -Phase "post")
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
-    Write-Host "Installed, but preflight now fails. Roll back with:" -ForegroundColor Red
-    Write-Host "  railway ssh --service $Service sh -c 'cd $remoteSite && rm -rf copilot-module && mv copilot-module.old copilot-module'"
+    Write-Host "Preflight failed. The module will not work on this OpenEMR as deployed." -ForegroundColor Red
     exit 1
 }
 
 Write-Host ""
-Write-Host "Module shipped and verified." -ForegroundColor Green
+Write-Host "Preflight passed." -ForegroundColor Green
 Write-Host "Open a patient, then the Co-Pilot and Demo Data tabs. A blank tab is a 500: check" -ForegroundColor Yellow
-Write-Host "  railway logs --service $Service" -ForegroundColor Yellow
+Write-Host "  railway logs --service $Service --environment $Environment" -ForegroundColor Yellow
