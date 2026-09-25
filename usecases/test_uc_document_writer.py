@@ -23,9 +23,10 @@ API = f"{uc.MODULE}/api.php"
 DEMOGRAPHICS = f"{BASE_URL}/interface/patient_file/summary/demographics.php"
 LAB_OVERVIEW = f"{BASE_URL}/interface/patient_file/summary/labdata.php"
 
-IN_PANEL = 3            # doctor1's (users.id 8)
+IN_PANEL = 3            # doctor1's
 OUT_OF_PANEL = 30       # doctor2's
-DOCTOR1_ID = 8
+# Looked up, not fixed: users.id depends on the install (8 on the dev stack, 5 on Railway).
+DOCTOR1_ID = int(db_query("SELECT id FROM users WHERE username = 'doctor1'")[0][0])
 POTASSIUM_LOINC = "2823-3"
 
 # The smallest valid PDF: one blank page. Enough to be stored; extraction is not exercised here.
