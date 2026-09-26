@@ -139,7 +139,8 @@ t("TPL-PR-05", "Dead code", "Remove the non-existent block overrides.", "NONE")
 t("TPL-PR-06", "Robustness", "Guard the date filter (`|date` only on valid values).", "LEGACY")
 t("TPL-PO-02", "Clarity", "Parenthesise the intended condition.", "LEGACY")
 t("TPL-DC-01 TPL-DL-02 TPL-EX-01", "Documentation", "Fix the copied header comments.", "NONE")
-t("API-04", "API constraint", "Port calls only GET (safelisted); register the dashboard's exact origin as the OAuth redirect. Upstream: fix L68 and restrict origins to registered clients.", "CONST")
+t("API-04", "API constraint", "Serve the dashboard same-origin from `public/dashboard/` (ADR 0008). Upstream: register CORSListener above the authorization listener, fix L69, and restrict origins to registered clients.", "CONST")
+t("API-06", "API constraint", "Request `patient/*.rs` scopes; the token covers the one patient chosen at login.", "CONST")
 t("API-05", "API constraint", "Prove public client + PKCE end to end as rewrite step 1 before building cards.", "CONST")
 
 # ---- completeness check -------------------------------------------------------------------

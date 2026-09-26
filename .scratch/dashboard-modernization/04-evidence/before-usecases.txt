@@ -1,0 +1,22 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\Dev\OpenEMRAgent\usecases
+configfile: pytest.ini
+plugins: anyio-4.15.1, langsmith-0.12.5
+collected 68 items
+
+usecases\test_uc0_dataset.py ......                                      [  8%]
+usecases\test_uc_clinical.py ........                                    [ 20%]
+usecases\test_uc_copilot.py .....                                        [ 27%]
+usecases\test_uc_demo_data.py ..................                         [ 54%]
+usecases\test_uc_document_extract.py .                                   [ 55%]
+usecases\test_uc_document_intake.py ...                                  [ 60%]
+usecases\test_uc_document_page.py ....                                   [ 66%]
+usecases\test_uc_document_writer.py .......                              [ 76%]
+usecases\test_uc_patient_tab.py .........                                [ 89%]
+usecases\test_uc_security.py ...                                         [ 94%]
+usecases\test_uc_supervise.py ...                                        [ 98%]
+usecases\test_uc_ui.py .                                                 [100%]
+
+======================= 68 passed in 602.46s (0:10:02) ========================
+exit=0

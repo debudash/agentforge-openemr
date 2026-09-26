@@ -1,6 +1,6 @@
 # 0002. Host the new dashboard as a separate static service
 
-Status: accepted (2026-09-25). Supersedes: none.
+Status: superseded by [0008](0008-dashboard-served-from-openemr.md) (2026-09-25). Supersedes: none.
 
 ## Context
 

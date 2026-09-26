@@ -125,14 +125,16 @@ them.
 
 | Option | How | Pros | Cons |
 |---|---|---|---|
-| **A. Separate static service (recommended)** | Local: Vite dev server on `http://localhost:5173`. Railway: a new static service `dashboard-v82` serving the built files. | Clean separation; proves "not touching the backend"; independent deploys. | Cross-origin: relies on OpenEMR's CORS (API-04), which reflects any origin today. |
-| B. Served by OpenEMR | Built files copied into OpenEMR's `public/` and served same-origin. | No CORS dependency. | Ships the app inside the OpenEMR image; blurs the boundary the defense argues for. |
+| A. Separate static service | Local: Vite dev server on `http://localhost:5173`. Railway: a new static service serving the built files. | Clean separation; independent deploys. | **Does not work** (4.0 spike): every token-bearing FHIR call fails its CORS preflight (API-04). |
+| **B. Served by OpenEMR (decided, ADR 0008)** | Built into `public/dashboard/`, served at `https://<openemr>/public/dashboard/`. Local: `vite build --watch` into the bind-mounted folder. | Same origin: no CORS. Proven end to end by the spike. No OpenEMR code change. | Ships inside the OpenEMR image; the defense explains that OpenEMR serves the files and the app still reads only through the API. |
 
 ### Authentication: SMART App Launch v2, public client with PKCE
 
 1. **Register** the app once as an OAuth client in OpenEMR (Admin → System → API Clients, or
-   dynamic registration), **public** (no secret; `ClientRepository.php` L56), with redirect URIs
-   for local and Railway, `token_endpoint_auth_method: none`.
+   dynamic registration), **public** (no secret; `ClientRepository.php` L56), with redirect URI
+   `https://<openemr>/public/dashboard/` per environment. Omit `token_endpoint_auth_method`:
+   sending `none` is rejected (`AuthorizationController.php` L274), and omitting it is what makes
+   the client public.
 2. **Standalone launch** (primary): the user opens the app → `fhirclient` discovers
    `/.well-known/smart-configuration` → redirects to OpenEMR's authorize page → the user logs in
    with their OpenEMR credentials and **selects a patient** (`launch/patient`) → authorization code
@@ -142,14 +144,16 @@ them.
    patient. No code beyond `fhirclient`'s EHR launch handler.
 
 **Scopes** (read-only, R2): `openid fhirUser launch/patient offline_access` plus
-`user/Patient.rs user/AllergyIntolerance.rs user/Condition.rs user/MedicationRequest.rs
-user/CareTeam.rs user/Practitioner.rs user/Observation.rs` (and `user/Encounter.rs` or
-`user/Appointment.rs` if the extra section changes). Exact scope strings are verified against
-OpenEMR's scope repository in the Phase 4 spike.
+`patient/Patient.rs patient/AllergyIntolerance.rs patient/Condition.rs
+patient/MedicationRequest.rs patient/CareTeam.rs patient/Practitioner.rs patient/Observation.rs`.
+OpenEMR refuses `user/` scopes for public clients (`AuthorizationController.php` L325-330);
+`patient/` scopes with a provider login work, and bind every request to the patient chosen at
+login (`BearerTokenAuthorizationStrategy.php` L259-265). Verified in the 4.0 spike, except
+whether `patient/Practitioner.rs` resolves CareTeam members (the spike patient had no care team).
 
 **Tokens** live where `fhirclient` keeps them (session storage for the tab), never in URLs or
-logs (R8). A strict Content-Security-Policy on the static host limits script sources to the app
-itself.
+logs (R8). A strict Content-Security-Policy in the app's `index.html` (meta tag, since OpenEMR
+serves the files) limits script sources to the app itself.
 
 ---
 
@@ -242,8 +246,8 @@ It opens the legacy dashboard through the tabs shell (the `pat` frame), as a use
 `demographics.php` loaded on its own calls `parent.left_nav`.
 
 Why not the dev stack's Selenium container: a browser inside Docker sees `localhost` as its own
-container, but OpenEMR's OAuth address (`site_addr_oath`) is `https://localhost:9300` and the SPA
-runs on the host at `localhost:5173`, so the SMART login cannot complete from there. Playwright on
+container, but OpenEMR's OAuth address (`site_addr_oath`) is `https://localhost:9300`, so the
+SMART login cannot complete from there. Playwright on
 the host reaches both. Selenium stays in the stack for OpenEMR's own E2E suite and browser
 debugging; nothing of ours used it.
 
@@ -260,8 +264,9 @@ certificate on 9300 is self-signed; tests set `ignoreHTTPSErrors`.
 | API-01: API authorization is `patients/med`, not per issue type or squad | Users restricted by issue type or squad see more in the port than in the legacy page | Stated in the defense; request only needed scopes; a note in the app's About panel. The real fix is server-side and is proposed as an upstream issue, not done here. |
 | API-02: `Patient.active` always true | Header status derived from deceased fields | §5 header rule |
 | API-03: no `list_touch` in FHIR | "No Known Allergies" only when recorded as an entry | §5 allergy rule |
-| API-04: CORS reflects any origin; Allow-Methods malformed | Works for GET; not a guarantee | App uses GET only; hosting option B is the fallback |
-| API-05: public client + PKCE unproven end to end | Phase 4 cannot start on cards until it works | Spike first (Phase 4.0) |
+| API-04: CORS preflight is never answered (404), `Allow-Methods` is malformed, any origin is reflected with credentials | No cross-origin browser app can call the API with a token | Served same-origin from `public/dashboard/` (ADR 0008); reported upstream |
+| API-05: public client + PKCE | Proven by the 4.0 spike | — |
+| API-06: public clients may not hold `user/` scopes | Each token covers one patient, chosen at login | `patient/*.rs` scopes (§4); the header shows the patient in context |
 
 ---
 
@@ -272,13 +277,13 @@ Railway without the owner's approval (the existing publish gate).
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| **4.0 Spike** | A throwaway page that completes SMART standalone launch with PKCE against the local dev stack and prints the selected `Patient`. | Token obtained, `Patient` read, scopes confirmed. Unblocks API-05. |
+| **4.0 Spike** | A throwaway page that completes SMART standalone launch with PKCE against the local dev stack and prints the selected `Patient`. | Token obtained, `Patient` read, scopes confirmed. Unblocks API-05. **Done** (`04-evidence/spike-4.0.md`); found API-04 and API-06. |
 | **4.1 Scaffold** | `dashboard/` app: Vite + React + TS strict, ESLint (`react/no-danger` = error), Vitest, MSW, the R6 formatting module, card chrome with R5 states and R7 toggles, R9 slots. CI job added to the pipeline. | Lint, typecheck and tests pass in CI on an empty dashboard. |
 | **4.2 Header + auth** | Launch flow, token handling, header component. | Header matches the legacy bar for all dev patients, plus sex and status. |
 | **4.3 Clinical cards** | Allergies, Problems, Medications, Prescriptions, Care Team — one vertical slice each: schema → view model → component → tests (fixtures) → live check. | Each card's rules (§5) have tests; parity harness green for that card. |
 | **4.4 Vitals** | Extra section. | Same bar as 4.3. |
 | **4.5 Parity + hardening** | Full parity harness run; Playwright end to end through real login; CSP; accessibility check; error boundary. | Harness report committed; no unexplained differences. |
-| **4.6 Deploy** | Static service on Railway, OAuth client registered for the production URL. | **Owner approval**, then the live check. |
+| **4.6 Deploy** | Built app in the Railway OpenEMR image under `public/dashboard/` (how it gets there is decided at this step), OAuth client registered for the production URL. | **Owner approval**, then the live check. |
 | **4.7 Defense** | `PATIENT_DASHBOARD_MIGRATION.md` at the repo root: framework choice (§3), gains, tradeoffs, constraints (§8), parity evidence (§7), the audit and catalog as the basis. | Committed on this branch; merged to `week2` with the rest. |
 
 ### Tests written first (from the catalog)
@@ -332,7 +337,7 @@ All decided 2026-09-25.
 | # | Decision | Outcome | ADR |
 |---|---|---|---|
 | 1 | Framework | React + TypeScript + Vite | [0001](../../docs/adr/0001-dashboard-react-typescript-vite.md) |
-| 2 | Hosting | A: separate static service | [0002](../../docs/adr/0002-dashboard-separate-static-hosting.md) |
+| 2 | Hosting | B: served by OpenEMR from `public/dashboard/` (A failed the 4.0 spike) | [0008](../../docs/adr/0008-dashboard-served-from-openemr.md), supersedes [0002](../../docs/adr/0002-dashboard-separate-static-hosting.md) |
 | 3 | Extra section | Vitals | [0003](../../docs/adr/0003-dashboard-vitals-extra-section.md) |
 | 4 | Fix the Critical/High LEGACY rows before merge | Yes, separate small change with reproduction tests | [0004](../../docs/adr/0004-fix-legacy-critical-high-before-merge.md) |
 | 5 | Create a restricted test user on the dev stack to reproduce the Critical findings | Yes, dev stack only | [0005](../../docs/adr/0005-restricted-test-user-dev-stack.md) |

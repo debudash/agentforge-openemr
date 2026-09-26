@@ -10,8 +10,8 @@ Each phase produces an artifact the next one leans on.
 |---|---|---|
 | 0. Entry point and dependency tree | [00-tree.md](00-tree.md) | done |
 | 1. Per-file audit | [01-audit/](01-audit/) — 51 files, plus [the API the port depends on](01-audit/_api-port-dependencies.md) | done |
-| 2. Bug catalog | [02-bug-catalog.md](02-bug-catalog.md) — 145 findings in 104 rows | done |
-| 3. Migration spec | [03-migration-spec.md](03-migration-spec.md) | draft; 5 open decisions in §12 |
+| 2. Bug catalog | [02-bug-catalog.md](02-bug-catalog.md) — 146 findings in 105 rows | done |
+| 3. Migration spec | [03-migration-spec.md](03-migration-spec.md) | decided (§12, ADRs 0001-0008) |
 | 4. Rewrite | `dashboard/` and `PATIENT_DASHBOARD_MIGRATION.md` | not started |
 
 Audit file names are the source path with `/` replaced by `-`, e.g.
