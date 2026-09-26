@@ -143,6 +143,13 @@ t("API-04", "API constraint", "Serve the dashboard same-origin from `public/dash
 t("API-06", "API constraint", "Request `patient/*.rs` scopes; the token covers the one patient chosen at login.", "CONST")
 t("API-05", "API constraint", "Prove public client + PKCE end to end as rewrite step 1 before building cards.", "CONST")
 
+# --- found in Phase 4 (appended after the Phase 2 rows so earlier BUG ids keep their numbers) ---
+PHASE4 = ["API-07", "API-08", "API-09", "API-10"]
+t("API-07", "API constraint / Info leak", "Port: never send `clinical-status`; fetch the category and apply the one \"active\" rule in `src/fhir/` (R4). Upstream: implement the parameter for Condition and AllergyIntolerance, and stop returning exception messages from `ExceptionHandlerListener`.", "CONST")
+t("API-08", "API constraint / Clinical safety", "Port: list every participant, and say in the defense that former members cannot be told apart. The parity harness flags each occurrence. Upstream: map member status to `period.end` (or drop inactive members) and the note to an extension.", "CONST")
+t("API-09", "API constraint", "Port: never send `_count`; follow `next` links on the same server only.", "CONST")
+t("API-10", "API constraint / Data", "Port: show criticality (\"High criticality\") and pin high-criticality allergies first; the legacy severity word is not available. Upstream: send `reaction.severity`.", "CONST")
+
 # ---- completeness check -------------------------------------------------------------------
 covered = set()
 for k, v in T.items():
@@ -159,7 +166,7 @@ for n, (k, v) in enumerate(T.items()):
     sev = min((findings[i]["sev"] for i in ids), key=SEV_ORDER.get)
     where = "; ".join(f"`{findings[i]['file'].replace('.md','').replace('-','/',2)}` {findings[i]['lines']}" for i in ids)
     rows.append(dict(ids=ids, sev=sev, cat=v["cat"], title=findings[k]["title"], mit=v["mit"], disp=v["disp"], where=where))
-rows.sort(key=lambda r: (SEV_ORDER[r["sev"]], r["cat"]))
+rows.sort(key=lambda r: (r["ids"][0] in PHASE4, 0 if r["ids"][0] in PHASE4 else SEV_ORDER[r["sev"]], r["cat"] if r["ids"][0] not in PHASE4 else PHASE4.index(r["ids"][0])))
 
 sev_counts = Counter(r["sev"] for r in rows)
 disp_counts = Counter()
@@ -208,11 +215,10 @@ so the two cannot drift.
 A row can carry two codes (e.g. `LEGACY + PORT`: the legacy page needs a fix, and the port avoids
 the defect by design).
 
-**Verification.** Every row cites the file and lines it came from. Findings were verified by
-reading the cited code. The Critical and High authorization and XSS findings (BUG rows citing
-DEM-01, CTC-01, TPC-01, TPL-CT-01, TPL-PR-01/02) have **not been reproduced live**: that needs a
-restricted user on the dev stack, which was not created without the owner's approval. Each is
-listed in the spec as a failing test to write first.
+**Verification.** Every row cites the file and lines it came from, and was verified by reading the
+cited code. In Phase 4 the Critical and High LEGACY rows (BUG-001 to BUG-011, except the CONST row
+BUG-007) were **reproduced live** on the dev stack, as the restricted users of ADR 0005, before they
+were fixed: see `04-evidence/red-*.txt` and `green-*.txt`. BUG-106 to BUG-109 were found in Phase 4.
 
 ## Summary
 

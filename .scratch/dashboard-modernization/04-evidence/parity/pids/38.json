@@ -1,0 +1,158 @@
+{
+  "pid": 38,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Portia383 Inga743 Kreiger457",
+        "38",
+        "1986-02-26",
+        "40"
+      ],
+      "port": [
+        "Portia383 Inga743 Kreiger457",
+        "38",
+        "1986-02-26",
+        "40",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Only received primary school education (finding)",
+        "Prediabetes (finding)",
+        "Has a criminal record (finding)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Hypertriglyceridemia (disorder)",
+        "Anemia (disorder)",
+        "Metabolic syndrome X (disorder)",
+        "Chronic kidney disease stage 1 (disorder)",
+        "Disorder of kidney due to diabetes mellitus (disorder)",
+        "Stress (finding)",
+        "Full-time employment (finding)"
+      ],
+      "port": [
+        "Only received primary school education (finding)",
+        "Prediabetes (finding)",
+        "Has a criminal record (finding)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Hypertriglyceridemia (disorder)",
+        "Anemia (disorder)",
+        "Metabolic syndrome X (disorder)",
+        "Chronic kidney disease stage 1 (disorder)",
+        "Disorder of kidney due to diabetes mellitus (disorder)",
+        "Stress (finding)",
+        "Full-time employment (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "21 DAY ethinyl estradiol 0.000625 MG/HR / etonogestrel 0.005 MG/HR Vaginal System [NuvaRing]",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "insulin isophane, human 70 UNT/ML / insulin, regular, human 30 UNT/ML Injectable Suspension [Humulin]",
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System",
+        "Ibuprofen 200 MG Oral Tablet",
+        "Amoxicillin 250 MG / Clavulanate 125 MG Oral Tablet",
+        "Etonogestrel 68 MG Drug Implant",
+        "levonorgestrel 0.000813 MG/HR Intrauterine System [Liletta]"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: 21 DAY ethinyl estradiol 0.000625 MG/HR / etonogestrel 0.005 MG/HR Vaginal System [NuvaRing]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: insulin isophane, human 70 UNT/ML / insulin, regular, human 30 UNT/ML Injectable Suspension [Humulin]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Ibuprofen 200 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Amoxicillin 250 MG / Clavulanate 125 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Etonogestrel 68 MG Drug Implant",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: levonorgestrel 0.000813 MG/HR Intrauterine System [Liletta]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 159 in (403.90 cm)",
+        "Pulse: 64 per min",
+        "Respiration: 16 per min",
+        "BMI: 26 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 159 in",
+        "pulse: 64 /min",
+        "respiration: 16 /min",
+        "bmi: 26.2 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 26 kg/m^2 vs 26.2 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

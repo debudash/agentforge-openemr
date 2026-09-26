@@ -1,0 +1,180 @@
+{
+  "pid": 29,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Malena136 Roxann426 Witting912",
+        "29",
+        "1966-04-01",
+        "60"
+      ],
+      "port": [
+        "Malena136 Roxann426 Witting912",
+        "29",
+        "1966-04-01",
+        "60",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Housing unsatisfactory (finding)",
+        "Only received primary school education (finding)",
+        "Essential hypertension (disorder)",
+        "Chronic pain (finding)",
+        "Chronic intractable migraine without aura (disorder)",
+        "Impacted molars (disorder)",
+        "Dependent drug abuse (disorder)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Has a criminal record (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "Osteoarthritis of knee (disorder)",
+        "Prediabetes (finding)",
+        "Chronic low back pain (finding)",
+        "Chronic neck pain (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Metabolic syndrome X (disorder)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Stress (finding)",
+        "Hypertriglyceridemia (disorder)",
+        "Hyperglycemia (disorder)",
+        "Full-time employment (finding)"
+      ],
+      "port": [
+        "Housing unsatisfactory (finding)",
+        "Only received primary school education (finding)",
+        "Essential hypertension (disorder)",
+        "Chronic pain (finding)",
+        "Chronic intractable migraine without aura (disorder)",
+        "Impacted molars (disorder)",
+        "Dependent drug abuse (disorder)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Has a criminal record (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "Osteoarthritis of knee (disorder)",
+        "Prediabetes (finding)",
+        "Chronic low back pain (finding)",
+        "Chronic neck pain (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Metabolic syndrome X (disorder)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Stress (finding)",
+        "Hypertriglyceridemia (disorder)",
+        "Hyperglycemia (disorder)",
+        "Full-time employment (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Naproxen sodium 220 MG Oral Tablet"
+      ],
+      "port": [
+        "Naproxen sodium 220 MG Oral Tablet"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+        "tropicamide 5 MG/ML Ophthalmic Solution",
+        "Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Errin 28 Day]",
+        "Hydrochlorothiazide 25 MG Oral Tablet",
+        "lisinopril 10 MG Oral Tablet",
+        "amLODIPine 2.5 MG Oral Tablet",
+        "Naproxen sodium 220 MG Oral Tablet"
+      ],
+      "port": [
+        "Naproxen sodium 220 MG Oral Tablet"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: 24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: tropicamide 5 MG/ML Ophthalmic Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: {28 (norethindrone 0.35 MG Oral Tablet) } Pack [Errin 28 Day]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Hydrochlorothiazide 25 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: lisinopril 10 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: amLODIPine 2.5 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 161.4 in (410.00 cm)",
+        "Pulse: 80 per min",
+        "Respiration: 13 per min",
+        "BMI: 28 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 161.4 in",
+        "pulse: 80 /min",
+        "respiration: 13 /min",
+        "bmi: 28.04 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 28 kg/m^2 vs 28.04 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

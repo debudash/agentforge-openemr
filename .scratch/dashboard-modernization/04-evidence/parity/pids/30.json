@@ -1,0 +1,157 @@
+{
+  "pid": 30,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Mariano761 Zepeda235",
+        "30",
+        "1959-06-18",
+        "67"
+      ],
+      "port": [
+        "Mariano761 Zepeda235",
+        "30",
+        "1959-06-18",
+        "67",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Chronic sinusitis (disorder)",
+        "Received higher education (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Has a criminal record (finding)",
+        "History of appendectomy (situation)",
+        "Refugee (person)",
+        "Body mass index 30+ - obesity (finding)",
+        "Victim of intimate partner abuse (finding)",
+        "Chronic pain (finding)",
+        "Chronic low back pain (finding)",
+        "Fibromyalgia (disorder)",
+        "Full-time employment (finding)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)"
+      ],
+      "port": [
+        "Chronic sinusitis (disorder)",
+        "Received higher education (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Has a criminal record (finding)",
+        "History of appendectomy (situation)",
+        "Refugee (person)",
+        "Body mass index 30+ - obesity (finding)",
+        "Victim of intimate partner abuse (finding)",
+        "Chronic pain (finding)",
+        "Chronic low back pain (finding)",
+        "Fibromyalgia (disorder)",
+        "Full-time employment (finding)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "port": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "Acetaminophen 325 MG Oral Tablet",
+        "Ibuprofen 400 MG Oral Tablet [Ibu]"
+      ],
+      "port": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Ibuprofen 400 MG Oral Tablet [Ibu]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 184.2 in (467.90 cm)",
+        "Pulse: 83 per min",
+        "Respiration: 15 per min",
+        "BMI: 28 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 184.2 in",
+        "pulse: 83 /min",
+        "respiration: 15 /min",
+        "bmi: 28.12 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 28 kg/m^2 vs 28.12 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

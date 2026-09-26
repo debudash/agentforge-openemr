@@ -1,0 +1,14 @@
+# PHPUnit isolated suite (phpunit-isolated.xml), in the openemr container
+
+## Before: tracked changes stashed, the two new test classes present (their red cases are the 2 failures)
+There were 2 failures:
+1) OpenEMR\Tests\Isolated\Patient\Cards\PatientCardTemplateEscapingTest::observationCodeTextIsEscapedInThePreferenceList
+2) OpenEMR\Tests\Isolated\Patient\Cards\PatientCardTemplateEscapingTest::aQuoteInAStoredValueCannotEndTheEditButtonsDataAttribute
+FAILURES!
+Tests: 3491, Assertions: 8666, Failures: 2, Warnings: 3, Notices: 1, Skipped: 4, Incomplete: 14.
+exit=1
+
+## After: final tree
+OK, but there were issues!
+Tests: 3491, Assertions: 8671, Warnings: 3, Notices: 1, Skipped: 4, Incomplete: 14.
+exit=0

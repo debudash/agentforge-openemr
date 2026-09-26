@@ -1,0 +1,4 @@
+ ✔ Observation code text is escaped in the preference list
+ ✔ Code display is the fallback when observation code text is empty
+ ✔ A quote in a stored value cannot end the edit buttons data attribute
+OK (3 tests, 9 assertions)

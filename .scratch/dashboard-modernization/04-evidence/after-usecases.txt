@@ -1,0 +1,27 @@
+# usecases suite after Phase 4, run file by file (each run under 10 minutes)
+
+OE_DOCTOR_PASS="$(cat copilot/.local-doctor1-pass)" copilot/.venv/Scripts/python -m pytest usecases/<file> -q
+
+test_uc0_dataset.py            6 passed
+test_uc_clinical.py            8 passed
+test_uc_copilot.py             5 passed
+test_uc_demo_data.py          18 passed
+test_uc_document_extract.py    1 passed
+test_uc_document_intake.py     3 passed
+test_uc_document_page.py       4 passed
+test_uc_document_writer.py     7 passed
+test_uc_patient_tab.py         9 passed (rerun twice: 49 s, 53 s; see below)
+test_uc_security.py            3 passed
+test_uc_supervise.py           3 passed
+test_uc_ui.py                  1 passed
+
+Existing suite: 68 passed of 68, as before (before-usecases.txt: 68 passed).
+New file test_uc_dashboard_links.py (ADR 0006 refusal path): 26 passed.
+
+test_uc_patient_tab.py in the first after-run: "1 failed, 8 passed in 1706.24s (0:28:26)". The run
+was captured with `| tail -1`, so the failing case was not recorded. It took 28 minutes against
+about 50 seconds normally, which points to a request that timed out rather than an assertion, most
+likely the one case that calls the agent sidecar (test_open_patient_returns_that_patient_only_and_
+keeps_its_own_session). Two reruns straight after, with -rA, passed 9 of 9. None of this file's
+cases passes a `patient` parameter, so the link gate is not on its path. Recorded as not
+reproduced, not as fixed.

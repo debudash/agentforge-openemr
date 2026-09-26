@@ -1,0 +1,23 @@
+# Runtime bundle contents vs npm audit advisories
+
+A source-mapped production build lists every npm package that ends up in the shipped JavaScript:
+14 packages: @tanstack/query-core, @tanstack/react-query, abortcontroller-polyfill, bootstrap, cross-fetch, debug, fhirclient, isomorphic-webcrypto, js-base64, ms, react, react-dom, scheduler, zod
+advisory packages in the bundle: none
+
+npm audit (all advisories, dev and optional included):
+uuid  <11.1.1
+Severity: moderate
+uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided - https://github.com/advisories/GHSA-w5hq-g745-h8pq
+fix available via `npm audit fix`
+node_modules/uuid
+10 moderate severity vulnerabilities
+
+npm explain uuid:
+uuid@7.0.3 optional
+node_modules/uuid
+  uuid@"^7.0.3" from xcode@3.0.1
+  node_modules/xcode
+    xcode@"^3.0.1" from @expo/config-plugins@57.0.9
+    node_modules/@expo/config-plugins
+      @expo/config-plugins@"~57.0.9" from expo@57.0.25
+      node_modules/expo

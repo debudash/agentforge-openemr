@@ -6,7 +6,7 @@ Findings reported in more than one file are merged into one row that cites all o
 catalog is generated from the audit tables by a script that fails if any audit finding is missing,
 so the two cannot drift.
 
-**146 audit findings → 105 catalog rows.**
+**150 audit findings → 109 catalog rows.**
 
 ## How to read it
 
@@ -26,17 +26,16 @@ so the two cannot drift.
 | PORT | Designed out: the new dashboard has no equivalent code path. | 4 |
 | REQ | A requirement the port must meet (parity, or a rule the legacy page promised and broke). Each becomes a test in Phase 4. | 12 |
 | LEGACY | Fix in the PHP dashboard, which stays in the product alongside the port. Separate change, candidate for upstream. | 78 |
-| CONST | Accepted constraint of "no backend changes"; stated in the spec and in `PATIENT_DASHBOARD_MIGRATION.md`. | 7 |
+| CONST | Accepted constraint of "no backend changes"; stated in the spec and in `PATIENT_DASHBOARD_MIGRATION.md`. | 11 |
 | NONE | No action: dead or cosmetic legacy code the port does not reuse. | 16 |
 
 A row can carry two codes (e.g. `LEGACY + PORT`: the legacy page needs a fix, and the port avoids
 the defect by design).
 
-**Verification.** Every row cites the file and lines it came from. Findings were verified by
-reading the cited code. The Critical and High authorization and XSS findings (BUG rows citing
-DEM-01, CTC-01, TPC-01, TPL-CT-01, TPL-PR-01/02) have **not been reproduced live**: that needs a
-restricted user on the dev stack, which was not created without the owner's approval. Each is
-listed in the spec as a failing test to write first.
+**Verification.** Every row cites the file and lines it came from, and was verified by reading the
+cited code. In Phase 4 the Critical and High LEGACY rows (BUG-001 to BUG-011, except the CONST row
+BUG-007) were **reproduced live** on the dev stack, as the restricted users of ADR 0005, before they
+were fixed: see `04-evidence/red-*.txt` and `green-*.txt`. BUG-106 to BUG-109 were found in Phase 4.
 
 ## Summary
 
@@ -44,8 +43,8 @@ listed in the spec as a failing test to write first.
 |---|---|
 | Critical | 3 |
 | High | 8 |
-| Medium | 31 |
-| Low | 63 |
+| Medium | 33 |
+| Low | 65 |
 
 **The pattern behind the worst rows:** the dashboard authorizes *rendering*, not *data*. The page
 decides which cards to draw; the endpoints behind them (fragments, card POST handlers) assume the
@@ -164,6 +163,10 @@ patching it.
 | BUG-103 | Low | XSS (config) | `onclick` from the menu JSON is printed unescaped | Escape `on_click` with `attr()` or whitelist it. | LEGACY | MNU-01 |
 | BUG-104 | Low | i18n | Untranslated labels | Wrap visible labels in `xl()`. | LEGACY | DEM-17, TPL-RX-01 |
 | BUG-105 | Low | i18n / Code quality | Button visibility keys off English labels | Decide button visibility from `canAdd()`/`canEdit()`, not label text. | LEGACY | TPL-CB-03 |
+| BUG-106 | Medium | API constraint / Info leak | `clinical-status` search does not work, and its failure leaks SQL | Port: never send `clinical-status`; fetch the category and apply the one "active" rule in `src/fhir/` (R4). Upstream: implement the parameter for Condition and AllergyIntolerance, and stop returning exception messages from `ExceptionHandlerListener`. | CONST | API-07 |
+| BUG-107 | Medium | API constraint / Clinical safety | CareTeam participants carry no status and no note | Port: list every participant, and say in the defense that former members cannot be told apart. The parity harness flags each occurrence. Upstream: map member status to `period.end` (or drop inactive members) and the note to an extension. | CONST | API-08 |
+| BUG-108 | Low | API constraint | `_count` truncates silently | Port: never send `_count`; follow `next` links on the same server only. | CONST | API-09 |
+| BUG-109 | Low | API constraint / Data | Allergy severity is collapsed into criticality | Port: show criticality ("High criticality") and pin high-criticality allergies first; the legacy severity word is not available. Upstream: send `reaction.severity`. | CONST | API-10 |
 
 ## Systemic note
 

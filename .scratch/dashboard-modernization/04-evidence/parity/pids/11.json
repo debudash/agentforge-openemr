@@ -1,0 +1,167 @@
+{
+  "pid": 11,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Earl438 Cartwright189",
+        "11",
+        "1996-10-14",
+        "29"
+      ],
+      "port": [
+        "Earl438 Cartwright189",
+        "11",
+        "1996-10-14",
+        "29",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "match",
+      "legacy": [
+        "Allergic disposition (finding)",
+        "Latex (substance)",
+        "Bee venom (substance)",
+        "Mold (organism)",
+        "House dust mite (organism)",
+        "Animal dander (substance)",
+        "Grass pollen (substance)",
+        "Tree pollen (substance)",
+        "Sulfamethoxazole / Trimethoprim",
+        "Wheat (substance)",
+        "Shellfish (substance)",
+        "Fish (substance)"
+      ],
+      "port": [
+        "Allergic disposition (finding)",
+        "Latex (substance)",
+        "Bee venom (substance)",
+        "Mold (organism)",
+        "House dust mite (organism)",
+        "Animal dander (substance)",
+        "Grass pollen (substance)",
+        "Tree pollen (substance)",
+        "Sulfamethoxazole / Trimethoprim",
+        "Wheat (substance)",
+        "Shellfish (substance)",
+        "Fish (substance)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Housing unsatisfactory (finding)",
+        "Educated to high school level (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "Limited social contact (finding)",
+        "Medication review due (situation)",
+        "Full-time employment (finding)"
+      ],
+      "port": [
+        "Housing unsatisfactory (finding)",
+        "Educated to high school level (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "Limited social contact (finding)",
+        "Medication review due (situation)",
+        "Full-time employment (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "port": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "Meperidine Hydrochloride 50 MG Oral Tablet",
+        "Naproxen sodium 220 MG Oral Tablet",
+        "Acetaminophen 325 MG Oral Tablet",
+        "Amoxicillin 250 MG Oral Capsule",
+        "Ibuprofen 200 MG Oral Tablet",
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "port": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Meperidine Hydrochloride 50 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Naproxen sodium 220 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Amoxicillin 250 MG Oral Capsule",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Ibuprofen 200 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 187.9 in (477.30 cm)",
+        "Temperature: 37.269299 F (2.93 C)",
+        "Pulse: 65 per min",
+        "Respiration: 13 per min",
+        "BMI: 30 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 187.9 in",
+        "pulse: 65 /min",
+        "respiration: 13 /min",
+        "temperature: 37.27 °F",
+        "bmi: 30.25 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 30 kg/m^2 vs 30.25 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

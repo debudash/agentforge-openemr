@@ -12,7 +12,7 @@ Each phase produces an artifact the next one leans on.
 | 1. Per-file audit | [01-audit/](01-audit/) — 51 files, plus [the API the port depends on](01-audit/_api-port-dependencies.md) | done |
 | 2. Bug catalog | [02-bug-catalog.md](02-bug-catalog.md) — 146 findings in 105 rows | done |
 | 3. Migration spec | [03-migration-spec.md](03-migration-spec.md) | decided (§12, ADRs 0001-0008) |
-| 4. Rewrite | `dashboard/` and `PATIENT_DASHBOARD_MIGRATION.md` | not started |
+| 4. Rewrite | `dashboard/`, `PATIENT_DASHBOARD_MIGRATION.md`, [04-evidence/](04-evidence/) | done except 4.6 (deploy) |
 
 Audit file names are the source path with `/` replaced by `-`, e.g.
 `src-Patient-Cards-CareTeamViewCard.php.md`.
