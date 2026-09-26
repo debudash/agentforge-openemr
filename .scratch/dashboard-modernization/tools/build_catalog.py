@@ -149,6 +149,9 @@ t("API-07", "API constraint / Info leak", "Port: never send `clinical-status`; f
 t("API-08", "API constraint / Clinical safety", "Port: list every participant, and say in the defense that former members cannot be told apart. The parity harness flags each occurrence. Upstream: map member status to `period.end` (or drop inactive members) and the note to an extension.", "CONST")
 t("API-09", "API constraint", "Port: never send `_count`; follow `next` links on the same server only.", "CONST")
 t("API-10", "API constraint / Data", "Port: show criticality (\"High criticality\") and pin high-criticality allergies first; the legacy severity word is not available. Upstream: send `reaction.severity`.", "CONST")
+# ADR 0010 (appended last so every earlier BUG id keeps its number).
+PHASE4.append("API-11")
+t("API-11", "AuthZ / API constraint", "Chart: embed the app only for users with `patients/med` and the allergy, problem and medication issue ACLs; everyone else gets the legacy cards (ADR 0010). Standalone: not mitigable in a browser client; a characterization test records the leak. Upstream: apply the route's gacl checks to `users`-role tokens on patient requests (`04-evidence/in-chart/upstream-issue-api-acl.md`).", "CONST")
 
 # ---- completeness check -------------------------------------------------------------------
 covered = set()
@@ -218,7 +221,7 @@ the defect by design).
 **Verification.** Every row cites the file and lines it came from, and was verified by reading the
 cited code. In Phase 4 the Critical and High LEGACY rows (BUG-001 to BUG-011, except the CONST row
 BUG-007) were **reproduced live** on the dev stack, as the restricted users of ADR 0005, before they
-were fixed: see `04-evidence/red-*.txt` and `green-*.txt`. BUG-106 to BUG-109 were found in Phase 4.
+were fixed: see `04-evidence/red-*.txt` and `green-*.txt`. BUG-106 to BUG-110 were found in Phase 4.
 
 ## Summary
 

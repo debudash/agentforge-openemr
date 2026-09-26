@@ -6,7 +6,7 @@ Findings reported in more than one file are merged into one row that cites all o
 catalog is generated from the audit tables by a script that fails if any audit finding is missing,
 so the two cannot drift.
 
-**150 audit findings → 109 catalog rows.**
+**151 audit findings → 110 catalog rows.**
 
 ## How to read it
 
@@ -26,7 +26,7 @@ so the two cannot drift.
 | PORT | Designed out: the new dashboard has no equivalent code path. | 4 |
 | REQ | A requirement the port must meet (parity, or a rule the legacy page promised and broke). Each becomes a test in Phase 4. | 12 |
 | LEGACY | Fix in the PHP dashboard, which stays in the product alongside the port. Separate change, candidate for upstream. | 78 |
-| CONST | Accepted constraint of "no backend changes"; stated in the spec and in `PATIENT_DASHBOARD_MIGRATION.md`. | 11 |
+| CONST | Accepted constraint of "no backend changes"; stated in the spec and in `PATIENT_DASHBOARD_MIGRATION.md`. | 12 |
 | NONE | No action: dead or cosmetic legacy code the port does not reuse. | 16 |
 
 A row can carry two codes (e.g. `LEGACY + PORT`: the legacy page needs a fix, and the port avoids
@@ -35,14 +35,14 @@ the defect by design).
 **Verification.** Every row cites the file and lines it came from, and was verified by reading the
 cited code. In Phase 4 the Critical and High LEGACY rows (BUG-001 to BUG-011, except the CONST row
 BUG-007) were **reproduced live** on the dev stack, as the restricted users of ADR 0005, before they
-were fixed: see `04-evidence/red-*.txt` and `green-*.txt`. BUG-106 to BUG-109 were found in Phase 4.
+were fixed: see `04-evidence/red-*.txt` and `green-*.txt`. BUG-106 to BUG-110 were found in Phase 4.
 
 ## Summary
 
 | Severity | Rows |
 |---|---|
 | Critical | 3 |
-| High | 8 |
+| High | 9 |
 | Medium | 33 |
 | Low | 65 |
 
@@ -167,6 +167,7 @@ patching it.
 | BUG-107 | Medium | API constraint / Clinical safety | CareTeam participants carry no status and no note | Port: list every participant, and say in the defense that former members cannot be told apart. The parity harness flags each occurrence. Upstream: map member status to `period.end` (or drop inactive members) and the note to an extension. | CONST | API-08 |
 | BUG-108 | Low | API constraint | `_count` truncates silently | Port: never send `_count`; follow `next` links on the same server only. | CONST | API-09 |
 | BUG-109 | Low | API constraint / Data | Allergy severity is collapsed into criticality | Port: show criticality ("High criticality") and pin high-criticality allergies first; the legacy severity word is not available. Upstream: send `reaction.severity`. | CONST | API-10 |
+| BUG-110 | High | AuthZ / API constraint | A patient-scoped token skips the user's ACL | Chart: embed the app only for users with `patients/med` and the allergy, problem and medication issue ACLs; everyone else gets the legacy cards (ADR 0010). Standalone: not mitigable in a browser client; a characterization test records the leak. Upstream: apply the route's gacl checks to `users`-role tokens on patient requests (`04-evidence/in-chart/upstream-issue-api-acl.md`). | CONST | API-11 |
 
 ## Systemic note
 
