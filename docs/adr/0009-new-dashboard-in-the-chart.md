@@ -6,7 +6,7 @@ Status: accepted (2026-09-26). Supersedes: none.
 
 The new dashboard is a SMART app served from `public/dashboard/` (ADR 0008). Opened on its own it
 asks the doctor to log in, pick the patient and approve access again, outside the EMR's
-workflow. The EHR-launch spike (`.scratch/dashboard-modernization/04-evidence/spike-ehr/`) proved
+workflow. The EHR-launch spike (`dashboard-modernization/04-evidence/spike-ehr/`) proved
 that a SMART app launched from the chart gets the chart's patient, an OpenID ID token for the
 signed-in user and a PKCE token in one click, with no login or consent screen when the admin
 trusts the client. Without a code change the launch point is only the chart's collapsed "SMART

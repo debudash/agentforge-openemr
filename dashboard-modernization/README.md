@@ -17,6 +17,6 @@ Each phase produces an artifact the next one leans on.
 Audit file names are the source path with `/` replaced by `-`, e.g.
 `src-Patient-Cards-CareTeamViewCard.php.md`.
 
-The catalog is generated from the audit tables: `python .scratch/dashboard-modernization/tools/build_catalog.py`.
+The catalog is generated from the audit tables: `python dashboard-modernization/tools/build_catalog.py`.
 It fails if any audit finding is missing from its triage map. `tools/check_tables.py` checks that
 every markdown table row has the right number of cells.

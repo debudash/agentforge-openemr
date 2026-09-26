@@ -5,7 +5,7 @@ TypeScript single-page app that reads OpenEMR's FHIR API. The app is in `dashboa
 the built files from `public/dashboard/`, and the app reads patient data only through the FHIR API,
 with its own SMART token.
 
-The work behind it is in `.scratch/dashboard-modernization/`: a dependency tree of the legacy page
+The work behind it is in `dashboard-modernization/`: a dependency tree of the legacy page
 (51 files), a per-file audit, a bug catalog of 110 rows, a migration spec with ten design rules, and
 the evidence in `04-evidence/`. Decisions are ADRs 0001-0010 in `docs/adr/`.
 

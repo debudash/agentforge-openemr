@@ -1,6 +1,6 @@
 // Local dev stack only: gives two patients a care team through the legacy dashboard's own
 // Care Team form, so the port's Care Team card and the parity harness have data to compare.
-// Removal: see .scratch/dashboard-modernization/04-evidence/stack-changes.md.
+// Removal: see dashboard-modernization/04-evidence/stack-changes.md.
 import { request } from "@playwright/test";
 
 const BASE = process.env.OE_BASE_URL ?? "http://localhost:8300";

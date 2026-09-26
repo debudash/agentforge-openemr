@@ -336,15 +336,15 @@ Rows 1-7 decided 2026-09-25; rows 8-9 on 2026-09-26.
 
 | # | Decision | Outcome | ADR |
 |---|---|---|---|
-| 1 | Framework | React + TypeScript + Vite | [0001](../../docs/adr/0001-dashboard-react-typescript-vite.md) |
-| 2 | Hosting | B: served by OpenEMR from `public/dashboard/` (A failed the 4.0 spike) | [0008](../../docs/adr/0008-dashboard-served-from-openemr.md), supersedes [0002](../../docs/adr/0002-dashboard-separate-static-hosting.md) |
-| 3 | Extra section | Vitals | [0003](../../docs/adr/0003-dashboard-vitals-extra-section.md) |
-| 4 | Fix the Critical/High LEGACY rows before merge | Yes, separate small change with reproduction tests | [0004](../../docs/adr/0004-fix-legacy-critical-high-before-merge.md) |
-| 5 | Create a restricted test user on the dev stack to reproduce the Critical findings | Yes, dev stack only | [0005](../../docs/adr/0005-restricted-test-user-dev-stack.md) |
-| 6 | Co-Pilot and Demo Data tabs | Links inside the SPA (see below) | [0006](../../docs/adr/0006-copilot-links-carry-fhir-patient-id.md) |
-| 7 | Browser test tool | Playwright only, for end to end and the parity harness (§7) | [0007](../../docs/adr/0007-playwright-for-dashboard-browser-tests.md) |
-| 8 | In-EMR entry point | The chart opens the new dashboard in place of the old cards, behind an admin setting (off by default). Deviates from "no backend changes" | [0009](../../docs/adr/0009-new-dashboard-in-the-chart.md) |
-| 9 | FHIR API skips the user's ACL for patient-scoped tokens (API-11) | Accept as a constraint; the chart embeds the app only for users with `patients/med` and the issue ACLs; a characterization test records the standalone leak | [0010](../../docs/adr/0010-accept-fhir-acl-gap-guard-the-chart.md) |
+| 1 | Framework | React + TypeScript + Vite | [0001](../docs/adr/0001-dashboard-react-typescript-vite.md) |
+| 2 | Hosting | B: served by OpenEMR from `public/dashboard/` (A failed the 4.0 spike) | [0008](../docs/adr/0008-dashboard-served-from-openemr.md), supersedes [0002](../docs/adr/0002-dashboard-separate-static-hosting.md) |
+| 3 | Extra section | Vitals | [0003](../docs/adr/0003-dashboard-vitals-extra-section.md) |
+| 4 | Fix the Critical/High LEGACY rows before merge | Yes, separate small change with reproduction tests | [0004](../docs/adr/0004-fix-legacy-critical-high-before-merge.md) |
+| 5 | Create a restricted test user on the dev stack to reproduce the Critical findings | Yes, dev stack only | [0005](../docs/adr/0005-restricted-test-user-dev-stack.md) |
+| 6 | Co-Pilot and Demo Data tabs | Links inside the SPA (see below) | [0006](../docs/adr/0006-copilot-links-carry-fhir-patient-id.md) |
+| 7 | Browser test tool | Playwright only, for end to end and the parity harness (§7) | [0007](../docs/adr/0007-playwright-for-dashboard-browser-tests.md) |
+| 8 | In-EMR entry point | The chart opens the new dashboard in place of the old cards, behind an admin setting (off by default). Deviates from "no backend changes" | [0009](../docs/adr/0009-new-dashboard-in-the-chart.md) |
+| 9 | FHIR API skips the user's ACL for patient-scoped tokens (API-11) | Accept as a constraint; the chart embeds the app only for users with `patients/med` and the issue ACLs; a characterization test records the standalone leak | [0010](../docs/adr/0010-accept-fhir-acl-gap-guard-the-chart.md) |
 
 ### 12.1 Co-Pilot and Demo Data links
 

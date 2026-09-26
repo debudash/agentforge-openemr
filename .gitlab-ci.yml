@@ -93,7 +93,7 @@ dashboard:
   # The new patient dashboard (dashboard/, ADR 0001): lint (which carries the no-HTML-sink and
   # GET-only rules), typecheck and the Vitest suite over recorded FHIR fixtures. The browser
   # suites (end to end, parity harness, legacy reproductions) need the OpenEMR dev stack and run
-  # locally; their reports are committed under .scratch/dashboard-modernization/04-evidence/.
+  # locally; their reports are committed under dashboard-modernization/04-evidence/.
   stage: test
   image: node:22-alpine
   cache:

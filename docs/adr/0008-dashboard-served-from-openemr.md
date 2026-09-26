@@ -4,7 +4,7 @@ Status: accepted (2026-09-25). Supersedes: [0002](0002-dashboard-separate-static
 
 ## Context
 
-The Phase 4.0 spike (`.scratch/dashboard-modernization/04-evidence/spike-4.0.md`) proved SMART
+The Phase 4.0 spike (`dashboard-modernization/04-evidence/spike-4.0.md`) proved SMART
 login with a public client and PKCE, but every FHIR call from a separate origin fails. A bearer
 token forces a CORS preflight, and OpenEMR answers `OPTIONS` with `404 Route not found`:
 `CORSListener` runs at priority 25, after authorization (50) and routing (40)

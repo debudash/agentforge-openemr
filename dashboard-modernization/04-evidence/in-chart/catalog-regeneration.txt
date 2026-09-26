@@ -1,6 +1,6 @@
 # Catalog regeneration after adding API-11 (ADR 0010)
 
-copilot/.venv/Scripts/python .scratch/dashboard-modernization/tools/build_catalog.py
+copilot/.venv/Scripts/python dashboard-modernization/tools/build_catalog.py
 151 findings -> 110 rows {'Critical': 3, 'High': 9, 'Medium': 33, 'Low': 65} {'LEGACY': 78, 'PORT': 4, 'CONST': 12, 'REQ': 12, 'NONE': 16}
 
 diff <catalog before> <catalog after>:

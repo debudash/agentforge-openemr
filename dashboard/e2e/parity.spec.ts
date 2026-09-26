@@ -1,7 +1,7 @@
 // The parity harness (spec section 7): for every patient on the dev stack, the legacy dashboard
 // (through the tabs shell, as doctor1) and the new one (through SMART login, as doctor1) are
 // rendered, their cards extracted and compared. The run fails on any unexplained difference.
-// The report is written to .scratch/dashboard-modernization/04-evidence/parity/.
+// The report is written to dashboard-modernization/04-evidence/parity/.
 import { test, expect, type Browser } from "@playwright/test";
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,7 @@ const renderer = useRenderer("legacy");
 test.beforeAll(renderer.set);
 test.afterAll(renderer.restore);
 
-const REPORT_DIR = fileURLToPath(new URL("../../.scratch/dashboard-modernization/04-evidence/parity/", import.meta.url));
+const REPORT_DIR = fileURLToPath(new URL("../../dashboard-modernization/04-evidence/parity/", import.meta.url));
 const only = process.env.PARITY_PIDS?.split(",").map(Number);
 const patients: StackPatient[] = stackPatients().filter((p) => !only || only.includes(p.pid));
 type PatientResult = { pid: number; cards: CardResult[] };

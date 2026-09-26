@@ -397,6 +397,9 @@ demo a second time produces a truthful "what changed" without anything having to
 | [deploy/digitalocean/](deploy/digitalocean/) | Reference VM deployment (droplet or Vultr): hardened production Compose, Let's Encrypt via `DOMAIN` |
 | [AUDIT.md](AUDIT.md) | Security, performance, architecture, data quality and compliance audit of this system |
 | [USER.md](USER.md) | Target user (hospitalist), workflow and the use cases the agent must serve |
+| [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md) | **Patient dashboard port: the defense.** Why React + TypeScript + Vite, gains, tradeoffs, API constraints, parity evidence, legacy fixes, and the one deliberate OpenEMR change |
+| [dashboard/](dashboard/) | The new patient dashboard: a SMART on FHIR app served from `public/dashboard/`, with its unit, end-to-end, parity and legacy-security tests |
+| [dashboard-modernization/](dashboard-modernization/) | How the port was derived: dependency tree, per-file audit of the legacy dashboard, bug catalog, migration spec, and the run evidence (`04-evidence/`) |
 | [copilot/](copilot/) | **The agent**: LangChain tool-calling loop (max 5 rounds), rule engine, claim verifier, FastAPI gateway, evals and grounding rules, LangSmith tracing |
 | [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/) | OpenEMR module: CopilotAgent tab, role and patient-scope enforcement, chart reader, signed proxy to the agent |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | PHI data flow, trust boundaries, authorization, model gateway, states, logging, retention, incident path |

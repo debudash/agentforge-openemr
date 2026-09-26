@@ -7,7 +7,7 @@ Status: accepted (2026-09-25). Supersedes: none.
 The brief asks for the patient dashboard's presentation layer to be ported to a modern framework
 over OpenEMR's REST/FHIR API. The legacy page mixes SQL, authorization, HTML and JavaScript in one
 2,080-line file, and Twig runs with autoescape off, which produced three stored-XSS sinks
-(`.scratch/dashboard-modernization/02-bug-catalog.md`, BUG-009/010/011). Options were React, Vue 3,
+(`dashboard-modernization/02-bug-catalog.md`, BUG-009/010/011). Options were React, Vue 3,
 Svelte, modern Angular, an SSR framework, Streamlit, or PHP with htmx (spec §3).
 
 ## Decision

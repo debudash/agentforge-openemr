@@ -1,4 +1,4 @@
-"""Run: python .scratch/dashboard-modernization/tools/build_catalog.py
+"""Run: python dashboard-modernization/tools/build_catalog.py
 
 Build 02-bug-catalog.md from the Phase 1 audit tables plus a hand-written triage map.
 

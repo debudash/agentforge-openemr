@@ -29,7 +29,7 @@ function patient(pid: number): StackPatient {
   return p;
 }
 
-const SHOTS = fileURLToPath(new URL("../../.scratch/dashboard-modernization/04-evidence/in-chart/", import.meta.url));
+const SHOTS = fileURLToPath(new URL("../../dashboard-modernization/04-evidence/in-chart/", import.meta.url));
 
 const renderer = useRenderer("smart_app");
 test.beforeAll(renderer.set);
