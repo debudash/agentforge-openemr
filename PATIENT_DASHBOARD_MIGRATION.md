@@ -224,10 +224,13 @@ The differences, and the rule behind each:
 - **Empty-state wording** (allergies 43, medications 28, problems 6). The legacy page shows
   "Nothing Recorded" or "No Known Allergies" according to `list_touch`, which FHIR does not carry
   (API-03). The item lists match.
-- **Prescriptions: 243 rows in 46 patients.** The legacy card lists every row flagged `active=1`,
-  including prescriptions whose end date has passed. The API reports those as `completed`, and the
-  port shows only active ones: one definition of "active" (R4, BUG-028). This is the largest
-  visible difference. The harness checked each such row's end date, and every one had passed.
+- **Prescriptions: 243 rows in 46 patients in this run, since restored.** The legacy card is
+  "Prescription History": every row flagged `active=1`, including ended ones, which the API reports
+  as `completed`. The port first showed active ones only. It now lists active and completed
+  prescriptions, active first, with a Status column, and hides stopped ones, as the legacy card
+  does. A re-run on the 10 patients with the most prescription history matched the legacy card for
+  every item (140 / 140), with no other card changed (`04-evidence/prescription-history/`). The
+  50-patient table above predates the change.
 - **Vitals: BMI in 40 patients.** The legacy report rounds BMI to a whole number; the port shows
   the recorded value (R6). Every other vital matched.
 - **Header: age in 2 patients.** The legacy bar writes "23 month"; the port writes "23 months" (R6).

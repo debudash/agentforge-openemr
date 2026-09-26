@@ -78,7 +78,8 @@ export function usePrescriptions(): UseQueryResult<CardData<readonly Prescriptio
   return useQuery({
     queryKey: ["MedicationRequest", "order", s.patientId],
     queryFn: async ({ signal }) => {
-      const r = await searchAll(s, "MedicationRequest", { intent: "order", status: "active" }, MedicationRequestResource, signal);
+      // No status filter: the card is Prescription History (active and completed); toPrescriptionList drops stopped.
+      const r = await searchAll(s, "MedicationRequest", { intent: "order" }, MedicationRequestResource, signal);
       return { value: toPrescriptionList(r.items), unreadable: r.unreadable, truncated: r.truncated };
     },
   });

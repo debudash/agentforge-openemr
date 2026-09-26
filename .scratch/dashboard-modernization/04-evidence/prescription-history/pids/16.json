@@ -1,0 +1,116 @@
+{
+  "pid": 16,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "explained",
+      "legacy": [
+        "Harlan808 Jaskolski867",
+        "16",
+        "2024-10-09",
+        "23 month"
+      ],
+      "port": [
+        "Harlan808 Jaskolski867",
+        "16",
+        "2024-10-09",
+        "23 months",
+        "Male",
+        "Active"
+      ],
+      "differences": [
+        {
+          "what": "age: \"23 month\" vs \"23 months\"",
+          "rule": "R6: months pluralised"
+        }
+      ]
+    },
+    {
+      "card": "allergies",
+      "verdict": "match",
+      "legacy": [
+        "Allergic disposition (finding)",
+        "Bee venom (substance)",
+        "Mold (organism)",
+        "House dust mite (organism)",
+        "Animal dander (substance)",
+        "Grass pollen (substance)",
+        "Tree pollen (substance)",
+        "Aspirin",
+        "Cow's milk (substance)"
+      ],
+      "port": [
+        "Allergic disposition (finding)",
+        "Bee venom (substance)",
+        "Mold (organism)",
+        "House dust mite (organism)",
+        "Animal dander (substance)",
+        "Grass pollen (substance)",
+        "Tree pollen (substance)",
+        "Aspirin",
+        "Cow's milk (substance)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Medication review due (situation)"
+      ],
+      "port": [
+        "Medication review due (situation)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "port": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "match",
+      "legacy": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "port": [
+        "Loratadine 5 MG Chewable Tablet",
+        "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+      ],
+      "differences": []
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "match",
+      "legacy": [
+        "Height: 53.6 in (136.10 cm)",
+        "Pulse: 78 per min",
+        "Respiration: 13 per min",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 53.6 in",
+        "pulse: 78 /min",
+        "respiration: 13 /min"
+      ],
+      "differences": []
+    }
+  ]
+}

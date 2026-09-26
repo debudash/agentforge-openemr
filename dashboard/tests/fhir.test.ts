@@ -122,6 +122,21 @@ describe("medications and prescriptions", () => {
     expect(list).toEqual([{ id: "1", name: "Drug 1", instructions: "1 tab daily" }]);
   });
 
+  it("lists current and ended prescriptions, active first, and hides stopped ones (Prescription History)", () => {
+    const list = toPrescriptionList([
+      med("1", "order", "completed"),
+      med("2", "order", "stopped"),
+      med("3", "order", "active"),
+      med("4", "plan", "active"),
+      med("5", "order", "completed"),
+    ]);
+    expect(list.map((p) => [p.id, p.status])).toEqual([
+      ["3", "Active"],
+      ["1", "Completed"],
+      ["5", "Completed"],
+    ]);
+  });
+
   it("puts a space between every part of a prescription's details (TPL-ER-01)", () => {
     const [rx] = toPrescriptionList([
       med("1", "order", "active", {

@@ -26,17 +26,19 @@ export function PrescriptionsCard() {
                 <th scope="col">Refills</th>
                 <th scope="col">Written</th>
                 <th scope="col">Prescriber</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
               {d.value.map((p) => (
-                <tr key={p.id} data-item={p.drug}>
+                <tr key={p.id} data-item={p.drug} data-status={p.status} className={p.status === "Active" ? undefined : "text-muted"}>
                   <td>{p.drug}</td>
                   <td>{p.details}</td>
                   <td>{p.quantity}</td>
                   <td>{p.refills}</td>
                   <td>{formatDate(p.dateWritten)}</td>
                   <td>{p.prescriberRef ? (names.get(p.prescriberRef) ?? "") : ""}</td>
+                  <td>{p.status}</td>
                 </tr>
               ))}
             </tbody>

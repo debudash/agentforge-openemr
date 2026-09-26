@@ -88,12 +88,22 @@ export interface PrescriptionView {
   readonly dateWritten: string | undefined;
   /** Practitioner/<id> when the prescriber is a practitioner; resolved to a name by the card. */
   readonly prescriberRef: string | undefined;
+  /** The record's status as the API reports it. "Completed" means the row has an end date, past or future. */
+  readonly status: "Active" | "Completed";
 }
 
+/**
+ * The legacy card is "Prescription History": every prescription not discontinued, current or
+ * ended. OpenEMR reports those as active (no end date) or completed (any end date, including a
+ * future one, PrescriptionService L181-182); discontinued rows are stopped and stay hidden.
+ * Active orders come first so history is never read as current therapy.
+ */
 export function toPrescriptionList(resources: readonly MedicationRequestResource[]): readonly PrescriptionView[] {
   return resources
-    .filter((m) => m.intent === "order" && isActiveRequest(m))
+    .filter((m) => m.intent === "order" && (m.status === "active" || m.status === "completed"))
+    .toSorted((a, b) => Number(!isActiveRequest(a)) - Number(!isActiveRequest(b)))
     .map((m) => ({
+      status: isActiveRequest(m) ? ("Active" as const) : ("Completed" as const),
       id: m.id,
       drug: medicationName(m),
       details: dosageDetails(m),
