@@ -6,8 +6,7 @@ dashboard that **designs the bug catalog out** rather than porting it. It leans 
 (what is wrong with it). References like BUG-003 point into the catalog; DEM-01 and similar
 point into the audits.
 
-**Status:** draft for review. Decisions marked **[confirm]** need the owner's answer before
-Phase 4 starts.
+**Status:** decisions made 2026-09-25 (§12). Ready for Phase 4.
 
 ---
 
@@ -28,7 +27,7 @@ From the brief (`requirements/…Modernize the Patient Dashboard.pdf`):
 | Medications | `medication.html.twig` (medication *list*) | FHIR `MedicationRequest?intent=plan` |
 | Prescriptions | `rx.html.twig` + Smarty fragment | FHIR `MedicationRequest?intent=order` |
 | Care Team | `manage_care_team.html.twig` | FHIR `CareTeam` |
-| One more section | — | **Vitals** (recommended, see §6) **[confirm]** |
+| One more section | — | **Vitals** (recommended, see §6) |
 | `PATIENT_DASHBOARD_MIGRATION.md` | — | the graded defense, written from §3 and §9 |
 
 **Not in scope:** every other card (22 exist; see `00-tree.md`), all editing, the patient menu's
@@ -76,7 +75,7 @@ them.
 | Data fetching | TanStack Query | Per-card request, caching, retry, and the loading/error/data states R5 needs, without writing them by hand. |
 | Boundary parsing | Zod schemas per resource (R4), typed with `@types/fhir` | "Parse, don't validate" (the repo's own coding standard) applied to API responses. |
 | Styling | Bootstrap 4.6 CSS (the version OpenEMR ships) | The brief says do not redesign. Using the same CSS keeps the look; no component library. |
-| Tests | Vitest + Testing Library + MSW (recorded FHIR fixtures); Playwright against the dev stack | Unit tests per card rule; end to end through the real OAuth flow and API. |
+| Tests | Vitest + Testing Library + MSW (recorded FHIR fixtures); Playwright against the dev stack | Unit tests per card rule; end to end through the real OAuth flow and API, and the parity harness (§7). Playwright only; not the stack's Selenium container (decision 7). |
 | Lint | ESLint with `react/no-danger` as an error, TypeScript ESLint | Enforces R3 in CI. |
 
 ### What moving off PHP gains
@@ -116,13 +115,13 @@ them.
 | **Streamlit (Python)** | The usual demo default here, but a poor fit: it renders on a Python server (reintroducing server-side presentation and a second backend holding tokens), and browser OAuth/SMART flows are awkward. |
 | **Keep PHP, add htmx / Alpine** | Not a "modern framework" port as the brief asks, and it keeps the server-rendered model that produced BUG-003. |
 
-**[confirm]** React + TypeScript + Vite.
+**Decided (§12):** React + TypeScript + Vite.
 
 ---
 
 ## 4. Route: how the app is reached and authenticated
 
-### Hosting **[confirm]**
+### Hosting
 
 | Option | How | Pros | Cons |
 |---|---|---|---|
@@ -217,7 +216,7 @@ once, in the schema module (R4).
 
 ---
 
-## 6. Why Vitals for the extra section **[confirm]**
+## 6. Why Vitals for the extra section
 
 The legacy dashboard has a Vitals card, so parity can be measured rather than asserted; US Core
 defines vital-signs Observations precisely; and it is clinically the most-glanced section after
@@ -237,8 +236,20 @@ A **parity harness**, not screenshots by eye:
 3. Compare per card: same items, same order rules, same empty state. Differences must match a
    documented rule change (R10, API-02, API-03) or they fail.
 
-The harness runs locally against the dev stack (Selenium is already there) and its report goes
-into the evidence for the defense.
+The harness is a Playwright test (decision 7) that runs on the host against the dev stack, in
+the same process as the end-to-end tests, and its report goes into the evidence for the defense.
+It opens the legacy dashboard through the tabs shell (the `pat` frame), as a user does, because
+`demographics.php` loaded on its own calls `parent.left_nav`.
+
+Why not the dev stack's Selenium container: a browser inside Docker sees `localhost` as its own
+container, but OpenEMR's OAuth address (`site_addr_oath`) is `https://localhost:9300` and the SPA
+runs on the host at `localhost:5173`, so the SMART login cannot complete from there. Playwright on
+the host reaches both. Selenium stays in the stack for OpenEMR's own E2E suite and browser
+debugging; nothing of ours used it.
+
+Local only: the GitLab pipeline has no OpenEMR stack, so CI runs the unit tests (Vitest) and the
+harness and end-to-end tests run on the dev stack, with their reports committed. The stack's
+certificate on 9300 is self-signed; tests set `ignoreHTTPSErrors`.
 
 ---
 
@@ -289,7 +300,7 @@ Before the cards they protect:
 The port does not fix the PHP page, which stays in the product. The catalog's **LEGACY** rows
 (78) include three Critical and several High security defects in code that is live today
 (BUG-001 care team save without permission, BUG-002 cross-patient preference edits, BUG-003 PHI
-before authorization, BUG-010/011 stored XSS). **Recommendation [confirm]:** fix the Critical and
+before authorization, BUG-010/011 stored XSS). **Decided (§12):** fix the Critical and
 High LEGACY rows as a separate, small change on this branch before the merge — each needs a
 reproduction test first, which requires a restricted test user on the dev stack (not created
 without approval) — and report them upstream.
@@ -314,12 +325,41 @@ dashboard/                       new top-level directory, own package.json (Node
 
 ---
 
-## 12. Open decisions
+## 12. Decisions
 
-| # | Decision | Recommendation |
-|---|---|---|
-| 1 | Framework | React + TypeScript + Vite |
-| 2 | Hosting | A: separate static service |
-| 3 | Extra section | Vitals |
-| 4 | Fix the Critical/High LEGACY rows before merge | Yes, separate small change with reproduction tests |
-| 5 | Create a restricted test user on the dev stack to reproduce the Critical findings | Yes, dev stack only |
+All decided 2026-09-25.
+
+| # | Decision | Outcome | ADR |
+|---|---|---|---|
+| 1 | Framework | React + TypeScript + Vite | [0001](../../docs/adr/0001-dashboard-react-typescript-vite.md) |
+| 2 | Hosting | A: separate static service | [0002](../../docs/adr/0002-dashboard-separate-static-hosting.md) |
+| 3 | Extra section | Vitals | [0003](../../docs/adr/0003-dashboard-vitals-extra-section.md) |
+| 4 | Fix the Critical/High LEGACY rows before merge | Yes, separate small change with reproduction tests | [0004](../../docs/adr/0004-fix-legacy-critical-high-before-merge.md) |
+| 5 | Create a restricted test user on the dev stack to reproduce the Critical findings | Yes, dev stack only | [0005](../../docs/adr/0005-restricted-test-user-dev-stack.md) |
+| 6 | Co-Pilot and Demo Data tabs | Links inside the SPA (see below) | [0006](../../docs/adr/0006-copilot-links-carry-fhir-patient-id.md) |
+| 7 | Browser test tool | Playwright only, for end to end and the parity harness (§7) | [0007](../../docs/adr/0007-playwright-for-dashboard-browser-tests.md) |
+
+### 12.1 Co-Pilot and Demo Data links
+
+Today both tabs live in the chart's patient navbar (`PatientMenuEvent`, module `Bootstrap.php`)
+and read the patient from the PHP session (`ActivePatient`). The SPA has neither the navbar nor
+the session; its patient comes from the SMART launch as a FHIR id.
+
+The SPA header gets two links. Rules:
+
+- The link carries the patient's FHIR id (`?patient=<uuid>`), never the internal `pid`.
+- The module page resolves the uuid to a `pid` and **refuses unless it equals the session
+  patient**. The refusal names the mismatch and offers to open the chart for the SPA's patient;
+  it never shows the session patient's data under the SPA's patient. The existing page with no
+  `patient` parameter behaves as today.
+- No OpenEMR session: the page shows OpenEMR's login, as any module page does. The SMART login
+  does not create an interface session.
+- Demo Data is linked only when the module reports `demoTools` on; the SPA reads that from a
+  public, PHI-free flag, or the link is omitted.
+- Tests first: matching uuid → page; mismatched uuid → refusal; unknown uuid → refusal; no
+  session → login; no parameter → unchanged.
+
+This is a change to our module, not to OpenEMR core. The brief's "no backend changes" is read as
+OpenEMR's backend; the defense says so. Open for the Phase 4.0 spike: whether `patient.php` and
+`demo.php` render correctly outside the tabs shell (they call `top.navigateTab` and
+`top.restoreSession` where present).
