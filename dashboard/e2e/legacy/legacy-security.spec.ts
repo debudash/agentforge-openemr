@@ -3,6 +3,13 @@
 // e2e/setup/restricted-users.php. Each test restores the data it changes.
 import { test, expect, request, type APIRequestContext } from "@playwright/test";
 import { DOCTOR, doctorPassword, restrictedPasswords, sql } from "../support/env";
+import { useRenderer } from "../support/chart";
+
+// ADR 0009: this file is about the legacy cards, so it runs with the setting on legacy and puts
+// the previous value back afterwards.
+const renderer = useRenderer("legacy");
+test.beforeAll(renderer.set);
+test.afterAll(renderer.restore);
 
 const LEGACY_BASE = "http://localhost:8300";
 const DASHBOARD = "/interface/patient_file/summary/demographics.php";

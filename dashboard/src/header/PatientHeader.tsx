@@ -1,6 +1,9 @@
 // The persistent identity bar: name, DOB, age, sex, MRN and status (brief; spec section 5).
 // The status never comes from Patient.active (API-02). The Co-Pilot links carry the FHIR
 // patient id, never the internal pid (ADR 0006); the module page refuses a mismatch.
+// Inside the chart (ADR 0009) the header stays, as the visible check of which patient the token
+// is bound to, but the Co-Pilot links and Sign out are left to the chart: its patient menu has
+// the module tabs, and the OpenEMR session, not the app, decides who is signed in.
 import { useQuery } from "@tanstack/react-query";
 import { usePatient, useSignedInUserName } from "../app/queries";
 import { useSession } from "../app/session";
@@ -38,7 +41,7 @@ export function PatientHeader() {
   const userName = useSignedInUserName();
 
   return (
-    <header className="bg-white border-bottom mb-2 px-2 py-2" aria-label="Patient">
+    <header className="bg-white border-bottom mb-2 px-2 py-2" aria-label="Patient" data-patient-id={session.patientId}>
       <div className="d-flex flex-wrap justify-content-between align-items-start">
         <div data-header-state={patient.isPending ? "loading" : patient.isError ? "error" : "data"}>
           {patient.isPending ? (
@@ -77,11 +80,13 @@ export function PatientHeader() {
           )}
         </div>
         <div className="d-flex align-items-center">
-          <CopilotLinks patientId={session.patientId} />
+          {session.inChart ? null : <CopilotLinks patientId={session.patientId} />}
           <span className="small text-muted mx-2">{userName ? `Signed in as ${userName}` : null}</span>
-          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={signOut}>
-            Sign out
-          </button>
+          {session.inChart ? null : (
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={signOut}>
+              Sign out
+            </button>
+          )}
         </div>
       </div>
     </header>

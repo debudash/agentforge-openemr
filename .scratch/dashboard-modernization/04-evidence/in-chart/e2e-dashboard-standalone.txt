@@ -1,0 +1,5 @@
+  ok 1 e2e\dashboard.spec.ts:14:1 › signs in with SMART, shows the chosen patient, and reads only with GET (24.0s)
+  ok 2 e2e\dashboard.spec.ts:55:1 › has no serious or critical accessibility violations (WCAG 2 A/AA) (22.7s)
+  ok 3 e2e\dashboard.spec.ts:62:1 › sign out forgets the token, and the app then sends nothing (20.8s)
+  ok 4 e2e\dashboard.spec.ts:77:1 › the Co-Pilot link lands on OpenEMR's login when there is no OpenEMR session (ADR 0006) (25.4s)
+  4 passed (1.6m)

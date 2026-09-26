@@ -10,6 +10,13 @@ import { signInToLegacy, openLegacyPatient, extractLegacy } from "./support/lega
 import { signInToDashboard } from "./support/smart";
 import { extractPort } from "./support/port";
 import { comparePatient, type CardResult } from "./support/compare";
+import { useRenderer } from "./support/chart";
+
+// ADR 0009: this file is about the legacy cards, so it runs with the setting on legacy and puts
+// the previous value back afterwards.
+const renderer = useRenderer("legacy");
+test.beforeAll(renderer.set);
+test.afterAll(renderer.restore);
 
 const REPORT_DIR = fileURLToPath(new URL("../../.scratch/dashboard-modernization/04-evidence/parity/", import.meta.url));
 const only = process.env.PARITY_PIDS?.split(",").map(Number);

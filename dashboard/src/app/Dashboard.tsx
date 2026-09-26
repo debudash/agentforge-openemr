@@ -42,9 +42,10 @@ export function Dashboard() {
             when signing in.
           </p>
           <p className="mb-1">
-            OpenEMR&apos;s API checks medical-record access as a whole. Restrictions the classic dashboard applies per
-            issue type or per patient group (squad) are not applied by the API, so this dashboard can show sections
-            the classic one hides for such accounts.
+            OpenEMR&apos;s API does not apply the classic dashboard&apos;s access rules to this app&apos;s sign-in: not
+            medical-record access, not per issue type, not per patient group (squad). An account the classic dashboard
+            limits can see more here. Opened from the chart, the dashboard is shown only to accounts with
+            medical-record access.
           </p>
           <p className="mb-0">
             &quot;No Known Allergies&quot; appears only when it was recorded as an allergy entry; otherwise an empty

@@ -1,0 +1,12 @@
+# PHPStan level 10, full codebase (phpstan.neon.dist, parallel.processTimeout raised locally via tmp/phpstan-local.neon), run in the openemr container after the ADR 0009 change and again after the ADR 0010 guard (same result)
+
+Total reported: 461 errors; in oe-module-copilot-agent: 461 (no baseline, same 461 as Phase 4).
+Outside the module: 0 errors.
+In interface/patient_file/summary/demographics.php: 0. In library/globals.inc.php: 0.
+
+Baseline: no file changed by this change; git diff --stat .phpstan/ is the Phase 4 diff:
+ 6 files changed, 24 insertions(+), 84 deletions(-)
+
+# PHPCS (vendor/bin/phpcs) on the changed PHP files
+interface/patient_file/summary/demographics.php library/globals.inc.php: 0 errors, 0 warnings (exit 0)
+php -l: no syntax errors in either file

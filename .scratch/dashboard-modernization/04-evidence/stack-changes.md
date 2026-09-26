@@ -20,6 +20,31 @@ Every harness and e2e run signs doctor1 in through this client, so `api_token` a
 `oauth_trusted_user` gain rows per run. They expire on their own; the delete above removes them
 (add `DELETE FROM oauth_trusted_user WHERE client_id=…` for the second table).
 
+## In-chart launch (ADR 0009, 2026-09-26)
+
+| What | Was | Now | Undo |
+|---|---|---|---|
+| Client `pB6GFK_o8Ium1cjJISg1e1FBpSh1oD3XELVtco7fi64` scope | ends `... patient/Organization.rs` | ` launch` appended | `$SQL "UPDATE oauth_clients SET scope=TRIM(TRAILING ' launch' FROM scope) WHERE client_id='pB6GFK_o8Ium1cjJISg1e1FBpSh1oD3XELVtco7fi64'"` |
+| Same client `initiate_login_uri` | NULL | `https://localhost:9300/public/dashboard/` | `... SET initiate_login_uri=NULL ...` |
+| Same client `skip_ehr_launch_authorization_flow` | 0 | 1 (the admin's trust decision: no login or consent on an EHR launch) | `... SET skip_ehr_launch_authorization_flow=0 ...` |
+| Global `patient_dashboard_renderer` | no row (default `legacy`) | `smart_app` | Back to legacy: `$SQL "UPDATE globals SET gl_value='legacy' WHERE gl_name='patient_dashboard_renderer'"` (or Admin > Globals > Appearance > Patient Dashboard Cards). Remove: `$SQL "DELETE FROM globals WHERE gl_name='patient_dashboard_renderer'"` |
+| Global `patient_dashboard_smart_client_id` | no row | the client id above | `$SQL "DELETE FROM globals WHERE gl_name='patient_dashboard_smart_client_id'"` |
+
+The client was already enabled, and the global `oauth_ehr_launch_authorization_flow_skip` was
+already 1; neither was changed. With the client's skip flag off, the chart launch still works but
+shows OpenEMR's login and consent screens.
+
+The in-chart tests change settings and data, and put them back:
+- The legacy suites and the parity harness switch `patient_dashboard_renderer` to `legacy` in
+  `beforeAll` and restore it in `afterAll`.
+- `in-chart.spec.ts` sets `smart_app` for its run and restores the previous value afterwards.
+- One test removes the client-id global and restores it.
+- One test sets `issue_types.aco_spec` for `default`/`allergy` to `admin|super` and restores
+  `patients|med`.
+
+Every chart open also adds `api_token`, `api_refresh_token` and `oauth_trusted_user` rows for
+this client; the delete above covers them.
+
 ## Users and ACL groups (ADR 0005)
 
 Created by `dashboard/e2e/setup/restricted-users.php create`; passwords are in the gitignored

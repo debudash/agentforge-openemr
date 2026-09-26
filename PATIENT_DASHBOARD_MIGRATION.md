@@ -6,14 +6,14 @@ the built files from `public/dashboard/`, and the app reads patient data only th
 with its own SMART token.
 
 The work behind it is in `.scratch/dashboard-modernization/`: a dependency tree of the legacy page
-(51 files), a per-file audit, a bug catalog of 109 rows, a migration spec with ten design rules, and
-the evidence in `04-evidence/`. Decisions are ADRs 0001-0008 in `docs/adr/`.
+(51 files), a per-file audit, a bug catalog of 110 rows, a migration spec with ten design rules, and
+the evidence in `04-evidence/`. Decisions are ADRs 0001-0010 in `docs/adr/`.
 
 ## What was built
 
 | Brief | Built |
 |---|---|
-| Login via OAuth2 / OpenID Connect | SMART App Launch v2, standalone, public client with PKCE (S256), `openid fhirUser launch/patient` plus read-only `patient/*.rs` scopes. The user signs in with their OpenEMR account and picks the patient in OpenEMR's own picker. |
+| Login via OAuth2 / OpenID Connect | SMART App Launch v2, public client with PKCE (S256), `openid fhirUser` plus read-only `patient/*.rs` scopes. Two ways in: standalone (`launch/patient`: the user signs in with their OpenEMR account and picks the patient in OpenEMR's picker), and EHR launch from the chart (`launch`: the chart's patient, no second login; ADR 0009). |
 | Patient header: name, DOB, sex, MRN, active status | Name, MRN (the `PT` identifier, i.e. pubpid), DOB, age (or age at death), sex, status, and the signed-in user. |
 | Allergies, Problem List, Medications, Prescriptions, Care Team from FHIR | One card each, from `AllergyIntolerance`, `Condition`, `MedicationRequest` (`intent=plan` and `intent=order`) and `CareTeam`, with member, prescriber and facility names read from `Practitioner`, `RelatedPerson` and `Organization`. |
 | One more section | Vitals: the latest set from `Observation?category=vital-signs` (ADR 0003). |
@@ -62,24 +62,28 @@ is broken:
 
 To check that the tests would catch a regression, 22 rule-carrying lines were broken on purpose
 one at a time. Each time, the named test or the lint failed
-(`04-evidence/unit-test-mutations.txt`).
+(`04-evidence/unit-test-mutations.txt`). The same for the four lines ADR 0009 and 0010 added
+(`04-evidence/in-chart/unit-test-mutations.txt`).
 
 Other gains:
 
 - **Separation.** The legacy entry point is 2,080 lines of SQL, authorization, HTML, CSS and
   JavaScript, and three of its card classes write to the database while rendering. The port has
-  1,850 lines of source in six directories (auth, fhir, format, cards, header, app). Its only
+  1,950 lines of source in six directories (auth, fhir, format, cards, header, app). Its only
   input is API responses.
 - **A published contract.** The data layer is FHIR R4 / US Core, not OpenEMR's table layout.
-- **Testability.** Every card is a function of parsed resources. 57 unit tests run in about 5
+- **Testability.** Every card is a function of parsed resources. 73 unit tests run in about 5
   seconds with no database and no browser, over responses recorded from the dev stack.
 
 ## Tradeoffs
 
-- **Authorization is as coarse as the API** (API-01, CONST). The legacy page checks each issue type
-  and the patient's squad. The API checks `patients/med`. A user restricted by issue type or squad
-  can see more in the port than in the legacy page. A browser client cannot enforce what the server
-  does not, so the app says so in its About panel. The real fix is server-side.
+- **Authorization is coarser than the legacy page** (API-01, API-11, CONST). The legacy page checks
+  `patients/med`, each issue type and the patient's squad. For this app's tokens the API checks
+  none of them: a `patient/`-scoped token skips the user's ACL entirely (API-11, ADR 0010). A user
+  restricted by any of these can see more in the port than in the legacy page. A browser client
+  cannot enforce what the server does not, so the app says so in its About panel, and the chart
+  embeds the app only for users with `patients/med` and the issue ACLs. The real fix is
+  server-side.
 - **No refresh token.** The app does not ask for `offline_access`, which spec section 4 listed: a
   public client in a browser has nowhere safe to keep one. A sign-in lasts one access token (an
   hour); after that each card says the sign-in expired.
@@ -107,9 +111,10 @@ Other gains:
 - **More requests.** One page view becomes one request per card, plus one per referenced
   practitioner or organization. Each is authorized separately, which is the point of R1. TanStack
   Query caches them for the session.
-- **No shared session with the chart.** SMART login does not create an OpenEMR interface session.
-  The header's Co-Pilot link lands on OpenEMR's login page unless the user already has one
-  (ADR 0006). Embedding the app back into the tabs shell would need an EHR launch.
+- **No shared session with the chart, standalone.** SMART login does not create an OpenEMR
+  interface session. The header's Co-Pilot link lands on OpenEMR's login page unless the user
+  already has one (ADR 0006). Opened from the chart (ADR 0009) the app reuses the chart's sign-in
+  and hides these links: the chart's patient menu has them.
 - **`fhirclient` 2.6.3, not 3.0.0.** 3.0.0 (a week old) ships type declarations that import a file
   it does not contain. 2.6.3 brings 10 moderate `npm audit` advisories: `uuid` < 11.1.1 through
   `xcode`, pulled in by the optional Expo dependencies of `isomorphic-webcrypto`, plus the Expo
@@ -134,14 +139,62 @@ Other gains:
 | BUG-107 (API-08) | CareTeam participants carry no status | Former members listed; flagged by the parity harness |
 | BUG-108 (API-09) | `_count` truncates silently | Never sent |
 | BUG-109 (API-10) | Allergy severity collapsed into criticality | "High criticality", pinned first |
+| BUG-110 (API-11) | A `patient/`-scoped token skips the user's ACL | Chart: app only for users with `patients/med` and the issue ACLs (ADR 0010). Standalone: a user with `patients/demo` but not `patients/med` reads the clinical record; `e2e/known-limits.spec.ts` proves it and fails once the API is fixed |
 
-"No backend changes" is read as OpenEMR's backend. Two changes were made outside the port, each
-decided in an ADR and kept in its own commit:
+"No backend changes" is read as OpenEMR's backend. Three changes were made outside the port, each
+decided in an ADR and kept in its own commit. The third is a deviation from the brief (next
+section).
 
 - **Our Co-Pilot module** (ADR 0006). The header links to the Co-Pilot and Demo Data pages with the
   FHIR patient id. The page refuses unless the id is the patient the OpenEMR session has open.
 - **The legacy dashboard's Critical and High bugs** (ADR 0004). They are fixed in the PHP page,
   which stays in the product.
+- **The chart opens the new dashboard** (ADR 0009, guarded by ADR 0010).
+
+## Deviation from the brief: one OpenEMR change
+
+The brief says the backend is not touched. ADR 0009 changes one OpenEMR page and adds two
+settings, so that clicking a patient opens the new dashboard inside the EMR.
+
+**What changed**
+
+| File | Change |
+|---|---|
+| `library/globals.inc.php` | Two settings under Admin > Globals > Appearance: `patient_dashboard_renderer` (`legacy`, the default, or `smart_app`) and `patient_dashboard_smart_client_id`. |
+| `interface/patient_file/summary/demographics.php` | With the SMART app selected, a client ID set, and a user who passes the guard (below): the card area is replaced by a frame that EHR-launches the app for the patient through `interface/smart/ehr-launch-client.php`. Everything above the cards stays: the authorization check, `set_pid`, the identity bar, the header, the patient menu with its module tabs, clinical alerts and popups. |
+| `dashboard/` | The app also accepts an EHR launch (`iss` + `launch`). Not an OpenEMR file. |
+
+**Why.** Standalone, the doctor signs in again, picks the patient again and approves again, outside
+the chart. Every way of opening a patient (calendar, finder, recent patients, "back to
+dashboard") loads `demographics.php`, so changing that one page puts the new dashboard in all of
+them, for the patient being opened, with no second login.
+
+**On and off.** Admin > Globals > Appearance > Patient Dashboard Cards. `OpenEMR cards` is today's
+page, unchanged; it is the default, and rollback is this one setting. `SMART app` also needs:
+
+- the client ID in Patient Dashboard SMART Client ID;
+- the client registered with the `launch` scope and an `initiate_login_uri` of
+  `https://<openemr>/public/dashboard/`, and enabled (new clients start disabled);
+- for no login or consent screen: the global `oauth_ehr_launch_authorization_flow_skip` (on by
+  default) and the client's "skip EHR launch authorization flow" flag.
+
+With no client ID, or a user who fails the guard, the page shows the cards.
+
+**What stays read-only and API-only.** The frame is the only new output. The app still reads every
+value through the FHIR API with its own token, sends GET only, and renders text only (R1-R3).
+`demographics.php` passes the app nothing but the launch (built by OpenEMR's own
+`SmartLaunchController`) and the patient's FHIR id on the frame. The app refuses a token for any
+other patient, so a launch that races a patient switch shows an error, not the other patient.
+
+**The trust flag.** Skipping the authorization flow skips both login and consent for that client:
+the app gets every scope it registered, for the patient on screen, as the signed-in user. It is an
+admin decision per client, meant for the clinic's own app. The OAuth2/OIDC exchange with PKCE
+still runs on every open.
+
+**The chart guard** (ADR 0010). The FHIR API skips the user's ACL for this app's tokens (API-11).
+The chart therefore embeds the app only for a user with `patients/med` and the allergy,
+medical-problem and medication issue ACLs, the checks the legacy clinical cards make. Anyone else
+gets the legacy cards, and no token is issued. Tested: `dashboard/e2e/in-chart.spec.ts`.
 
 ## Parity
 
@@ -209,14 +262,15 @@ in the catalog, deferred.
 ## Running it
 
 ```bash
-# once: register the public client (redirect https://<openemr>/public/dashboard/, patient/*.rs)
+# once: register the public client (redirect https://<openemr>/public/dashboard/, patient/*.rs;
+#       for the chart also `launch` and initiate_login_uri = the same URL), enable it,
 #       and put its id in dashboard/.env.local as VITE_SMART_CLIENT_ID (see .env.example)
 cd dashboard
 npm ci
 npm run build          # writes ../public/dashboard/, served by OpenEMR
 npm run build:watch    # during development (not the Vite dev server: it would be cross-origin)
 npm run lint && npm run typecheck && npm test      # what CI runs
-npm run e2e            # local only: end to end, parity harness, legacy reproductions
+npm run e2e            # local only: end to end, in-chart, parity, legacy reproductions, known limits
 ```
 
 The GitLab job `dashboard` runs lint, typecheck and the unit tests. The browser suites need the
@@ -226,6 +280,5 @@ OpenEMR dev stack, so they run locally and their reports are committed under `04
 
 - **Deploy (4.6).** How the Railway image gets `public/dashboard/` (a Node build stage or committed
   output) is decided at that step, with the owner's approval.
-- **EHR launch** from the legacy dashboard's SMART card. `fhirclient` supports it, but the client
-  would need the `launch` scope.
-- **Upstream reports** for API-04, API-07, API-08 and the legacy fixes.
+- **Upstream reports** for API-04, API-07, API-08, API-11 (drafted in
+  `04-evidence/in-chart/upstream-issue-api-acl.md`) and the legacy fixes.

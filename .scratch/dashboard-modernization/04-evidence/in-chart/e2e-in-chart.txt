@@ -1,0 +1,12 @@
+Running 10 tests using 1 worker
+  ok  1 e2e\in-chart.spec.ts:69:3 › as doctor1, setting on the SMART app › calendar: clicking a scheduled patient opens the new dashboard for that patient (31.9s)
+  ok  2 e2e\in-chart.spec.ts:94:3 › as doctor1, setting on the SMART app › patient finder: clicking a row opens the new dashboard for that patient (30.1s)
+  ok  3 e2e\in-chart.spec.ts:116:3 › as doctor1, setting on the SMART app › switching quickly between two patients never shows the previous patient (1.2m)
+  ok  4 e2e\in-chart.spec.ts:136:3 › as doctor1, setting on the SMART app › a launch that races a patient switch is refused, not shown for the other patient (32.2s)
+  ok  5 e2e\in-chart.spec.ts:167:3 › restricted users, setting on the SMART app › a user without patients/demo gets 403 and no app (13.6s)
+  ok  6 e2e\in-chart.spec.ts:185:3 › restricted users, setting on the SMART app › a user without patients/med gets the legacy page, no app and no clinical card (ADR 0010) (25.6s)
+  ok  7 e2e\in-chart.spec.ts:209:3 › restricted users, setting on the SMART app › a user with patients/med but without an issue ACL gets the legacy page and no app (ADR 0010) (26.3s)
+  ok  8 e2e\in-chart.spec.ts:233:3 › fallbacks to the legacy cards › with the setting on legacy the old cards render and no app is launched (24.2s)
+  ok  9 e2e\in-chart.spec.ts:247:3 › fallbacks to the legacy cards › with the SMART app selected but no client ID the old cards render (22.1s)
+  ok 10 e2e\known-limits.spec.ts:8:1 › known-limit: patient-scoped token skips the user's ACL (API-11, BUG-110) (20.7s)
+  10 passed (5.1m)

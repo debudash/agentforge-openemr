@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>EHR launch spike</title><script src="fhir-client.min.js"></script></head>
+<body><pre id="out">ready:</pre>
+<script>
+const log = s => { document.getElementById("out").textContent += "\n" + s; };
+FHIR.oauth2.ready().then(async c => {
+  log("TOKEN_OK scopes=" + c.state.tokenResponse.scope);
+  log("PATIENT_CONTEXT " + c.patient.id);
+  const idt = c.getIdToken();
+  log("ID_TOKEN " + (idt ? "yes fhirUser=" + c.getFhirUser() : "no"));
+  const p = await c.patient.read();
+  log("PATIENT " + JSON.stringify({ id: p.id, name: (p.name && p.name[0]) ? [p.name[0].given, p.name[0].family].join(" ") : "" }));
+  const b = await c.request("AllergyIntolerance?patient=" + c.patient.id);
+  log("RES AllergyIntolerance total=" + (b.total ?? (b.entry || []).length));
+  log("DONE");
+}).catch(e => log("FAIL " + e));
+</script></body></html>

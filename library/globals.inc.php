@@ -206,6 +206,21 @@ $GLOBALS_METADATA = [
             '',
             xl('Multi (Shift or CTRL) Select the cards you want to hide on the patient dashboard.')
         ],
+        'patient_dashboard_renderer' => [
+            xl('Patient Dashboard Cards'),
+            [
+                'legacy' => xl('OpenEMR cards'),
+                'smart_app' => xl('SMART app (EHR launch)'),
+            ],
+            'legacy',
+            xl('What the patient dashboard shows below its header and menu. The SMART app is launched for the open patient; it needs the client ID below and an enabled client with the launch scope. It opens without a login or consent screen only if that client is set to skip the EHR launch authorization flow.')
+        ],
+        'patient_dashboard_smart_client_id' => [
+            xl('Patient Dashboard SMART Client ID'),
+            'text',
+            '',
+            xl('Client ID of the SMART app shown on the patient dashboard when Patient Dashboard Cards is set to SMART app.')
+        ],
         'window_title_add_patient_name' => [
             xl('Add Patient Name To Window Title'),
             'bool',                           // data type

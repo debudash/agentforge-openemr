@@ -9,8 +9,8 @@ import { App, makeQueryClient, type AppDeps } from "../src/app/App";
 
 export const FHIR_BASE = "https://openemr.test/apis/default/fhir";
 
-export function session(patientId = "p-1"): SignedIn {
-  return { serverUrl: FHIR_BASE, accessToken: "test-token", patientId, fhirUser: undefined, expiresAt: undefined };
+export function session(patientId = "p-1", inChart = false): SignedIn {
+  return { serverUrl: FHIR_BASE, accessToken: "test-token", patientId, fhirUser: undefined, expiresAt: undefined, inChart };
 }
 
 export function bundle(resources: readonly unknown[]): unknown {

@@ -1,0 +1,14 @@
+
+> openemr-patient-dashboard@0.1.0 lint
+> eslint . --max-warnings 0
+
+> openemr-patient-dashboard@0.1.0 typecheck
+> tsc -b
+
+ RUN  v5.0.2 D:/Dev/OpenEMRAgent/dashboard
+
+
+ Test Files  4 passed (4)
+      Tests  57 passed (57)
+   Start at  13:02:35
+   Duration  45.25s (environment 74%, import 16%, setup 7%, tests 2%, transform 1%)

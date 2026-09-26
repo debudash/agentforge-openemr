@@ -400,6 +400,32 @@ if (!empty($result3['provider'])) {   // Use provider in case there is an ins re
     $insco_name = getInsuranceProvider($result3['provider']);
 }
 
+// ADR 0009: an admin setting can replace the cards below the header and patient menu with a
+// SMART app, EHR-launched for the patient authorized above. ehr-launch-client.php builds the
+// launch from the session patient; the app refuses a launch whose patient is not the one this
+// page declares on its frame. Any other value, or no client ID, keeps the cards.
+// ADR 0010: the FHIR API skips the user's ACL for patient-scoped tokens (API-11), so the app is
+// embedded only for a user who may see the clinical cards anyway: patients/med and the allergy,
+// problem and medication issue ACLs. Anyone else gets the cards, which check their own ACLs.
+// With the setting on legacy nothing below runs, not even the ACL checks.
+$dashboardSmartClientId = OEGlobalsBag::getInstance()->getString('patient_dashboard_smart_client_id');
+$dashboardPatientUuid = '';
+if (
+    OEGlobalsBag::getInstance()->getString('patient_dashboard_renderer') === 'smart_app'
+    && $dashboardSmartClientId !== ''
+    && is_int($requestedPid)
+    && AclMain::aclCheckCore('patients', 'med')
+    && AclMain::aclCheckIssue('allergy')
+    && AclMain::aclCheckIssue('medical_problem')
+    && AclMain::aclCheckIssue('medication')
+) {
+    $dashboardPatientUuidBytes = (new PatientService())->getUuid((string) $requestedPid);
+    if (is_string($dashboardPatientUuidBytes) && $dashboardPatientUuidBytes !== '') {
+        $dashboardPatientUuid = \OpenEMR\Common\Uuid\UuidRegistry::uuidToString($dashboardPatientUuidBytes);
+    }
+}
+$dashboardSmartApp = $dashboardPatientUuid !== '';
+
 $arrOeUiSettings = [
     'page_id' => 'core.mrd',
     'heading_title' => xl('Medical Record Dashboard'),
@@ -1108,6 +1134,30 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
             $idcard_doc_id = get_document_by_catg($pid, OEGlobalsBag::getInstance()->getString('patient_id_category_name'), 3);
         }
         ?>
+        <?php if ($dashboardSmartApp) : ?>
+        <div class="main mb-1">
+            <iframe id="dashboard_smart_app" class="d-block w-100 border-0" title="<?php echo xla('Patient Dashboard'); ?>"
+                src="<?php echo attr(OEGlobalsBag::getInstance()->getWebRoot() . '/interface/smart/ehr-launch-client.php?' . http_build_query([
+                    'client_id' => $dashboardSmartClientId,
+                    'csrf_token' => CsrfUtils::collectCsrfToken(session: $session),
+                    'intent' => \OpenEMR\FHIR\SMART\SMARTLaunchToken::INTENT_PATIENT_DEMOGRAPHICS_DIALOG,
+                ])); ?>"
+                data-fhir-patient="<?php echo attr($dashboardPatientUuid); ?>"
+                referrerpolicy="no-referrer"></iframe>
+        </div>
+        <script>
+            // The app fills the rest of the tab and scrolls inside it.
+            (function () {
+                const frame = document.getElementById('dashboard_smart_app');
+                const fit = function () {
+                    frame.style.height = Math.max(480, window.innerHeight - frame.getBoundingClientRect().top - 8) + 'px';
+                };
+                fit();
+                window.addEventListener('resize', fit);
+                window.addEventListener('load', fit);
+            })();
+        </script>
+        <?php else : ?>
         <div class="main mb-1">
             <!-- start main content div -->
             <div class="row">
@@ -2075,6 +2125,7 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
                 </div> <!-- end right column div -->
             </div> <!-- end div.main > row:first  -->
         </div> <!-- end main content div -->
+        <?php endif; ?>
     </div><!-- end container div -->
     <?php $oemr_ui->oeBelowContainerDiv(); ?>
     <script>
