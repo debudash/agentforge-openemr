@@ -18,8 +18,13 @@ $pid = $session->get('pid', 0);
 
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Csrf\CsrfUtils;
+use OpenEMR\Patient\Summary\DashboardFragmentGuard;
 
 CsrfUtils::checkCsrfInput(INPUT_POST, dieOnFail: true);
+// The page shows this card only with patients/disclosure (BUG-006).
+if (!DashboardFragmentGuard::allows($pid, [['patients', 'disclosure']])) {
+    DashboardFragmentGuard::deny();
+}
 
 /**
  * Retrieve the recent 'N' disclosures.

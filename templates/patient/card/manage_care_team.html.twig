@@ -14,6 +14,12 @@
                     format: 'Y-m-d'
                 });
 
+                // Stored values are built into rows with innerHTML below, so every one of them is
+                // escaped first (BUG-010: a care team note used to run as markup).
+                function escapeHtml(value) {
+                    return String(value ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+                }
+
                 function toggleEditMode(enable = true) {
                     document.querySelectorAll('.editShow').forEach(el => el.classList.toggle('d-none', !enable));
                     document.querySelectorAll('.viewOnly').forEach(el => el.classList.toggle('d-none', enable));
@@ -46,31 +52,31 @@
                             <td>
                                 <span class="viewOnly badge ${badgeClass}">${badgeText}</span>
                                 <span class="editShow badge ${badgeClass} d-none">${badgeText}</span>
-                                <input type="hidden" name="team[${idx}][member_type]" value="${memberType}">
+                                <input type="hidden" name="team[${idx}][member_type]" value="${escapeHtml(memberType)}">
                             </td>
                             <td>
-                                <span class="viewOnly">${memberName}</span>
+                                <span class="viewOnly">${escapeHtml(memberName)}</span>
                                 <select name="team[${idx}][${memberSelectName}]" class="form-control form-control-sm editShow d-none">${memberOptions}</select>
                             </td>
                             <td>
-                                <span class="viewOnly">${member.role_display || ''}</span>
+                                <span class="viewOnly">${escapeHtml(member.role_display)}</span>
                                 <select name="team[${idx}][role]" class="form-control form-control-sm editShow d-none">${roleOptions}</select>
                             </td>
                             <td>
-                                <span class="viewOnly">${member.facility_display || ''}</span>
+                                <span class="viewOnly">${escapeHtml(member.facility_display)}</span>
                                 <select name="team[${idx}][facility_id]" class="form-control form-control-sm editShow d-none" ${facilityDisabled}>${facilityOptions}</select>
                             </td>
                             <td>
-                                <span class="viewOnly">${member.provider_since || ''}</span>
-                                <input type="text" name="team[${idx}][provider_since]" value="${member.provider_since || ''}" class="datepicker form-control form-control-sm editShow d-none">
+                                <span class="viewOnly">${escapeHtml(member.provider_since)}</span>
+                                <input type="text" name="team[${idx}][provider_since]" value="${escapeHtml(member.provider_since)}" class="datepicker form-control form-control-sm editShow d-none">
                             </td>
                             <td>
-                                <span class="viewOnly">${member.status_display || ''}</span>
+                                <span class="viewOnly">${escapeHtml(member.status_display)}</span>
                                 <select name="team[${idx}][status]" class="form-control form-control-sm editShow d-none">${statusOptions}</select>
                             </td>
                             <td>
-                                <span class="viewOnly">${member.note || ''}</span>
-                                <input name="team[${idx}][note]" value="${member.note || ''}" class="form-control form-control-sm editShow d-none">
+                                <span class="viewOnly">${escapeHtml(member.note)}</span>
+                                <input name="team[${idx}][note]" value="${escapeHtml(member.note)}" class="form-control form-control-sm editShow d-none">
                             </td>
                             <td>
                                 <button type="button" class="btn btn-danger btn-sm float-right editShow d-none" onclick="this.closest('tr').remove()">×</button>

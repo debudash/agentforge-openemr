@@ -16,10 +16,15 @@ require_once("../../globals.php");
 
 use OpenEMR\Common\Csrf\CsrfUtils;
 use OpenEMR\Common\Session\SessionWrapperFactory;
+use OpenEMR\Patient\Summary\DashboardFragmentGuard;
 
 $session = SessionWrapperFactory::getInstance()->getActiveSession();
 $pid = $session->get('pid', 0);
 CsrfUtils::checkCsrfInput(INPUT_POST, dieOnFail: true);
+// The page shows this card only with patients/lab (BUG-006).
+if (!DashboardFragmentGuard::allows($pid, [['patients', 'lab']])) {
+    DashboardFragmentGuard::deny();
+}
 
 ?>
 <div id='labdata' style='margin-top: 3px; margin-left: 10px; margin-right: 10px'><!--outer div-->

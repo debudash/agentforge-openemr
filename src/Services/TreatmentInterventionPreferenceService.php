@@ -125,9 +125,12 @@ class TreatmentInterventionPreferenceService extends BaseService
     }
 
     /**
-     * Update preference
+     * Update a preference of this patient. Scoped by patient as well as row id, so an id from
+     * another patient's chart changes nothing (BUG-002).
+     *
+     * @param array<string, mixed> $data
      */
-    public function update($id, $data)
+    public function update(int $id, int $patientId, array $data)
     {
         $sql = "UPDATE " . escape_table_name(self::TABLE_NAME) . "
                 SET observation_code = ?,
@@ -141,7 +144,7 @@ class TreatmentInterventionPreferenceService extends BaseService
                     effective_datetime = ?,
                     status = ?,
                     note = ?
-                WHERE id = ?";
+                WHERE id = ? AND patient_id = ?";
 
         $params = [
             $data['observation_code'] ?? null,
@@ -155,7 +158,8 @@ class TreatmentInterventionPreferenceService extends BaseService
             $data['effective_datetime'] ?? date('Y-m-d H:i:s'),
             $data['status'] ?? 'final',
             $data['note'] ?? null,
-            $id
+            $id,
+            $patientId
         ];
 
         return QueryUtils::sqlStatementThrowException($sql, $params);
@@ -164,12 +168,12 @@ class TreatmentInterventionPreferenceService extends BaseService
     /**
      * Delete preference (soft delete by setting status)
      */
-    public function delete($id)
+    public function delete(int $id, int $patientId)
     {
         $sql = "UPDATE " . escape_table_name(self::TABLE_NAME) . "
                 SET status = ?
-                WHERE id = ?";
+                WHERE id = ? AND patient_id = ?";
 
-        return QueryUtils::sqlStatementThrowException($sql, ['entered-in-error', $id]);
+        return QueryUtils::sqlStatementThrowException($sql, ['entered-in-error', $id, $patientId]);
     }
 }

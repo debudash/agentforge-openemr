@@ -40993,22 +40993,22 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'effective_datetime\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'note\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'observation_code\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'observation_code_text\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
@@ -41018,7 +41018,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'status\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
@@ -41028,32 +41028,32 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_boolean\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_code\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_code_system\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_display\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_text\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_type\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
 $ignoreErrors[] = [
@@ -47633,22 +47633,22 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'effective_datetime\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'note\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'observation_code\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'observation_code_text\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
@@ -47658,7 +47658,7 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'status\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
@@ -47668,32 +47668,32 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_boolean\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_code\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_code_system\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_display\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_text\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [
     'message' => '#^Cannot access offset \'value_type\' on mixed\\.$#',
-    'count' => 2,
+    'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];
 $ignoreErrors[] = [

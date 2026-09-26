@@ -15,10 +15,15 @@ require_once("../../globals.php");
 use OpenEMR\Common\Csrf\CsrfUtils;
 use OpenEMR\Common\Session\SessionWrapperFactory;
 use OpenEMR\Core\OEGlobalsBag;
+use OpenEMR\Patient\Summary\DashboardFragmentGuard;
 
 $session = SessionWrapperFactory::getInstance()->getActiveSession();
 $pid = $session->get('pid', 0);
 CsrfUtils::checkCsrfInput(INPUT_POST, dieOnFail: true);
+// The page shows this card only with patients/med (BUG-006).
+if (!DashboardFragmentGuard::allows($pid, [['patients', 'med']])) {
+    DashboardFragmentGuard::deny();
+}
 
 ?>
 <div id='vitals''><!--outer div-->
