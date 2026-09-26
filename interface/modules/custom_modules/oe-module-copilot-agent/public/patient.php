@@ -28,11 +28,15 @@ require_once $openemrRoot . "/interface/globals.php";
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Common\Database\QueryUtils;
 use OpenEMR\Common\Logging\EventAuditLogger;
-use OpenEMR\Modules\CopilotAgent\ActivePatient;
 use OpenEMR\Common\Twig\TwigContainer;
 use OpenEMR\Core\Header;
+use OpenEMR\Modules\CopilotAgent\ActivePatient;
 use OpenEMR\Modules\CopilotAgent\Config;
+use OpenEMR\Modules\CopilotAgent\LinkedPatient;
+use OpenEMR\Modules\CopilotAgent\LinkGate;
+use OpenEMR\Modules\CopilotAgent\LinkRequest;
 use OpenEMR\Modules\CopilotAgent\PanelScope;
+use Symfony\Component\HttpFoundation\Request;
 
 if (!AclMain::aclCheckCore('patients', 'demo')) {
     echo (new TwigContainer(null, $GLOBALS['kernel']))->getTwig()->render(
@@ -46,6 +50,17 @@ if (!AclMain::aclCheckCore('patients', 'demo')) {
 $csrf = hash_hmac('sha256', 'copilot', (string) ($_SESSION['csrf_private_key'] ?? session_id()));
 $authGroup = (string) ($_SESSION['authProvider'] ?? '');
 $pid = ActivePatient::pid();
+
+// A link from the new dashboard names its patient by FHIR id (ADR 0006). Anything but the open
+// chart is refused here, before any patient data is read.
+$sessionKey = is_string($_SESSION['csrf_private_key'] ?? null) ? $_SESSION['csrf_private_key'] : (session_id() ?: '');
+$scope = PanelScope::forCurrentUser();
+$linkRequest = LinkRequest::fromRequest(Request::createFromGlobals());
+(new LinkGate('patient', xl("Clinical Co-Pilot"), $scope->username(), $authGroup, $sessionKey))->enforce(
+    LinkedPatient::fromQuery($linkRequest->queryString, $pid, LinkedPatient::resolveFromDatabase(...)),
+    $pid,
+    $linkRequest
+);
 $correlationId = sprintf(
     '%s-%s-4%s-%s-%s',
     bin2hex(random_bytes(4)),
@@ -61,7 +76,6 @@ function auditPage(string $event, string $username, string $group, string $comme
     EventAuditLogger::getInstance()->newEvent($event, $username, $group, 0, $comment, $pid);
 }
 
-$scope = PanelScope::forCurrentUser();
 [$isHospitalist, $roleReason] = $scope->isHospitalist();
 $config = Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''));
 
