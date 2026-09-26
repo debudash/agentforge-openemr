@@ -1,0 +1,21 @@
+/*
+ * The Bootstrap 4.6 look OpenEMR uses, with the few shades that fall short of WCAG 2 AA contrast
+ * (4.5:1 for normal text) darkened to their own hover shades. Found by the axe check in
+ * e2e/dashboard.spec.ts. Nothing else is restyled.
+ */
+.btn-link,
+.btn-outline-primary {
+  color: #0056b3;
+}
+.btn-outline-primary {
+  border-color: #0056b3;
+}
+.badge-primary {
+  background-color: #0056b3;
+}
+.badge-success {
+  background-color: #1e7e34;
+}
+.text-muted {
+  color: #5a6268 !important;
+}

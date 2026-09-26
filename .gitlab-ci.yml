@@ -88,3 +88,23 @@ php syntax:
   image: php:8.2-cli-alpine
   script:
     - find interface/modules/custom_modules/oe-module-copilot-agent -name '*.php' -print0 | xargs -0 -n1 php -l
+
+dashboard:
+  # The new patient dashboard (dashboard/, ADR 0001): lint (which carries the no-HTML-sink and
+  # GET-only rules), typecheck and the Vitest suite over recorded FHIR fixtures. The browser
+  # suites (end to end, parity harness, legacy reproductions) need the OpenEMR dev stack and run
+  # locally; their reports are committed under .scratch/dashboard-modernization/04-evidence/.
+  stage: test
+  image: node:22-alpine
+  cache:
+    key:
+      files:
+        - dashboard/package-lock.json
+    paths:
+      - .cache/npm
+  script:
+    - cd dashboard
+    - npm ci --no-audit --no-fund --cache ../.cache/npm
+    - npm run lint
+    - npm run typecheck
+    - npm test

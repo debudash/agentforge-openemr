@@ -70,3 +70,6 @@ __pycache__/
 
 # Synthetic documents written by the Demo Data tab (validation tooling)
 demo/generated/*.pdf
+
+# New patient dashboard build output (ADR 0008); built from dashboard/
+/public/dashboard/

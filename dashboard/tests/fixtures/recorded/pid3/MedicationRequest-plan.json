@@ -1,0 +1,154 @@
+{
+  "meta": {
+    "lastUpdated": "2026-09-26T02:40:52"
+  },
+  "resourceType": "Bundle",
+  "type": "collection",
+  "total": 3,
+  "link": [
+    {
+      "relation": "self",
+      "url": "https://localhost:9300/apis/default/fhir/MedicationRequest"
+    }
+  ],
+  "entry": [
+    {
+      "fullUrl": "https://localhost:9300/apis/default/fhir/MedicationRequest/a2bf7afa-be42-4969-9631-cb9ea723afd9",
+      "resource": {
+        "id": "a2bf7afa-be42-4969-9631-cb9ea723afd9",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-09-15T00:40:57+00:00"
+        },
+        "resourceType": "MedicationRequest",
+        "status": "active",
+        "intent": "plan",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/medicationrequest-category",
+                "code": "community",
+                "display": "Home/Community"
+              }
+            ]
+          }
+        ],
+        "reportedBoolean": false,
+        "medicationCodeableConcept": {
+          "text": "Fexofenadine hydrochloride 30 MG Oral Tablet"
+        },
+        "subject": {
+          "reference": "Patient/a2bf78bb-8052-4600-a47f-567135c1f296",
+          "type": "Patient"
+        },
+        "authoredOn": "2026-09-15T00:34:40+00:00",
+        "reasonCode": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "997488"
+              }
+            ]
+          }
+        ],
+        "dispenseRequest": {
+          "numberOfRepeatsAllowed": 0
+        }
+      }
+    },
+    {
+      "fullUrl": "https://localhost:9300/apis/default/fhir/MedicationRequest/a2bf7afa-be48-411e-9b6f-ecc3013d1608",
+      "resource": {
+        "id": "a2bf7afa-be48-411e-9b6f-ecc3013d1608",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-09-15T00:40:57+00:00"
+        },
+        "resourceType": "MedicationRequest",
+        "status": "active",
+        "intent": "plan",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/medicationrequest-category",
+                "code": "community",
+                "display": "Home/Community"
+              }
+            ]
+          }
+        ],
+        "reportedBoolean": false,
+        "medicationCodeableConcept": {
+          "text": "NDA020800 0.3 ML Epinephrine 1 MG/ML Auto-Injector"
+        },
+        "subject": {
+          "reference": "Patient/a2bf78bb-8052-4600-a47f-567135c1f296",
+          "type": "Patient"
+        },
+        "authoredOn": "2026-09-15T00:34:40+00:00",
+        "reasonCode": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "1870230"
+              }
+            ]
+          }
+        ],
+        "dispenseRequest": {
+          "numberOfRepeatsAllowed": 0
+        }
+      }
+    },
+    {
+      "fullUrl": "https://localhost:9300/apis/default/fhir/MedicationRequest/a2bf7afa-be70-47ca-ac33-e2401d8628cf",
+      "resource": {
+        "id": "a2bf7afa-be70-47ca-ac33-e2401d8628cf",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-09-15T00:40:57+00:00"
+        },
+        "resourceType": "MedicationRequest",
+        "status": "active",
+        "intent": "plan",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/medicationrequest-category",
+                "code": "community",
+                "display": "Home/Community"
+              }
+            ]
+          }
+        ],
+        "reportedBoolean": false,
+        "medicationCodeableConcept": {
+          "text": "doxycycline hyclate 100 MG"
+        },
+        "subject": {
+          "reference": "Patient/a2bf78bb-8052-4600-a47f-567135c1f296",
+          "type": "Patient"
+        },
+        "authoredOn": "2026-09-15T00:34:40+00:00",
+        "reasonCode": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "1649987"
+              }
+            ]
+          }
+        ],
+        "dispenseRequest": {
+          "numberOfRepeatsAllowed": 0
+        }
+      }
+    }
+  ]
+}
