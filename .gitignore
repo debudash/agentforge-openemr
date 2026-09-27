@@ -73,3 +73,6 @@ demo/generated/*.pdf
 
 # New patient dashboard build output (ADR 0008); built from dashboard/
 /public/dashboard/
+
+# Personal demo narration (kept locally, not published in the repo)
+/artifacts/demo-video-script.html
