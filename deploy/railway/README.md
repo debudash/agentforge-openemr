@@ -43,6 +43,26 @@ The co-pilot module is inside the OpenEMR image, so a module change ships as a n
 
 The agent is unchanged: `.\deploy\railway\deploy_agent.ps1`.
 
+### Patient dashboard
+
+The new dashboard (`dashboard/`, ADR 0008) is built into the image's `public/dashboard/` by
+`build_openemr_image.sh`, which also drops its source and write-ups from the web root. Its OAuth
+client ID is compiled in, so the client comes first. One time per instance:
+
+1. Register a public client (dynamic registration, `POST /oauth2/default/registration`) with
+   `redirect_uris` and `initiate_login_uri` both `https://<host>/public/dashboard/`, and the scopes
+   in `dashboard/src/auth/smart.ts` plus `launch`. Omit `token_endpoint_auth_method`.
+2. Enable it and trust it (skips the second login and consent in the chart):
+   `UPDATE oauth_clients SET is_enabled=1, skip_ehr_launch_authorization_flow=1 WHERE client_id='<id>'`.
+   The global `oauth_ehr_launch_authorization_flow_skip` must be 1 (it is by default).
+3. Build with the ID: `VITE_SMART_CLIENT_ID=<id> deploy/railway/build_openemr_image.sh`.
+4. After the new image is live, turn the chart on (Admin > Globals > Appearance, or SQL):
+   `patient_dashboard_renderer=smart_app` and `patient_dashboard_smart_client_id=<id>`. Rollback is
+   `patient_dashboard_renderer=legacy`.
+
+Production's client, registered 2026-09-26: `J1AhFXCvkrO3Fpd_ZqizB0L-GkNOaFePCL56jghk8Y4` (public,
+so the ID is not a secret).
+
 ### Standing up a fresh instance: traps hit on 2026-09-24
 
 - **An empty Railway volume at `sites/`** hides the image's `sites/default`. Set `SWARM_MODE=yes`

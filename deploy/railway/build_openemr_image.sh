@@ -32,15 +32,30 @@ v_part() { git -C "$REPO_ROOT" show "$COMMIT:version.php" | sed -nE "s/^.v_$1 *=
 version="$(v_part major).$(v_part minor).$(v_part patch)$(v_part tag)"
 TAG="$IMAGE_REPO:$version-$COMMIT"
 
+# The patient dashboard (ADR 0008) is served from public/dashboard/, which is build output and not
+# in git. Its OAuth client ID is compiled in, so the client must be registered on the target
+# instance first (deploy/railway/README.md, "Patient dashboard").
+if [[ -z "${VITE_SMART_CLIENT_ID:-}" ]]; then
+    echo "Set VITE_SMART_CLIENT_ID to the target instance's dashboard OAuth client ID." >&2
+    exit 1
+fi
+
 src=$(mktemp -d)
 trap 'rm -rf "$src"' EXIT
 mkdir "$src/openemr"
 git -C "$REPO_ROOT" archive "$COMMIT" | tar -x -C "$src/openemr"
-# The agent, evals, artifacts and write-ups are not OpenEMR and must not sit in the web root.
+
+echo "Building the patient dashboard into public/dashboard/ ..."
+(cd "$src/openemr/dashboard" && npm ci --no-audit --no-fund && VITE_SMART_CLIENT_ID="$VITE_SMART_CLIENT_ID" npm run build)
+test -f "$src/openemr/public/dashboard/index.html"
+
+# The agent, evals, artifacts, the dashboard's source and write-ups are not OpenEMR and must not
+# sit in the web root.
 (cd "$src/openemr" && rm -rf copilot artifacts deploy usecases docs .gitlab-ci.yml .coderabbit.yaml \
     Dockerfile.copilot Dockerfile.seeder ALERTS.md ARCHITECTURE.md AUDIT.md COST_ANALYSIS.md \
     ENVIRONMENT.md EVAL_DATASET.md EVAL_GATE.md KEY_METRICS.md SECURITY_TESTS.md USER.md \
-    W2_ARCHITECTURE.md W2_COST_LATENCY.md)
+    W2_ARCHITECTURE.md W2_COST_LATENCY.md \
+    dashboard dashboard-modernization PATIENT_DASHBOARD_MIGRATION.md)
 
 echo "Building $TAG ..."
 docker buildx build --platform linux/amd64 --load \
@@ -56,6 +71,8 @@ MSYS_NO_PATHCONV=1 docker run --rm --entrypoint sh "$TAG" -c '
     cd /var/www/localhost/htdocs/openemr &&
     test -f interface/modules/custom_modules/oe-module-copilot-agent/openemr.bootstrap.php &&
     test ! -e copilot &&
+    test -f public/dashboard/index.html &&
+    test ! -e dashboard &&
     grep -E "v_(major|minor|patch|tag) " version.php'
 
 echo
