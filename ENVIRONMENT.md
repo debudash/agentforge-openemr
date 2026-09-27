@@ -147,6 +147,31 @@ the values on its persistent volume rather than in the image.
 
 ---
 
+## Patient dashboard
+
+The new dashboard ([PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md)) is a static
+build, so its variables are read when it is built, not at runtime. Set them in
+`dashboard/.env.local` (gitignored; see `dashboard/.env.example`), or in the environment of
+`deploy/railway/build_openemr_image.sh`, which requires the first.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VITE_SMART_CLIENT_ID` | *(empty)* | The instance's public OAuth client for the dashboard. Compiled into the app, so each instance needs its own build |
+| `VITE_OPENEMR_SITE` | `default` | OpenEMR site, for the Co-Pilot links |
+
+Two OpenEMR globals (Admin > Globals > Appearance, stored in the `globals` table) turn it on in
+the chart:
+
+| Global | Default | Purpose |
+|---|---|---|
+| `patient_dashboard_renderer` | `legacy` | `smart_app` shows the new dashboard in place of the old cards. `legacy` is the rollback |
+| `patient_dashboard_smart_client_id` | *(empty)* | Same ID as `VITE_SMART_CLIENT_ID`. Empty keeps the old cards |
+
+Registering the client (redirect and launch URL `https://<host>/public/dashboard/`) is in
+[deploy/railway/README.md](deploy/railway/README.md), "Patient dashboard".
+
+---
+
 ## Where these are set in practice
 
 | Setting | Local | Railway |

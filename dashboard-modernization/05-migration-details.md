@@ -300,7 +300,7 @@ OpenEMR dev stack, so they run locally and their reports are committed under `04
 
 ## Not done
 
-- **Deploy (4.6).** How the Railway image gets `public/dashboard/` (a Node build stage or committed
-  output) is decided at that step, with the owner's approval.
+- ~~Deploy (4.6).~~ Done 2026-09-26: `build_openemr_image.sh` builds `public/dashboard/` into the
+  image (image `8.2.0-dev-949e911` from `week2`); the chart setting is on in production.
 - **Upstream reports** for API-04, API-07, API-08, API-11 (drafted in
   `04-evidence/in-chart/upstream-issue-api-acl.md`) and the legacy fixes.

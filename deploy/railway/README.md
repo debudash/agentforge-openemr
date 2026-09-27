@@ -21,7 +21,7 @@ codebase, two OpenEMRs"), so the platform was moved rather than guarded against 
 | Environment | `v82`, the project's only environment |
 | Services | `openemr-v82`, `mysql-v82`, `copilot-agent-v82`, `copilot-seeder-v82` (cron 01:05 UTC) |
 | Private hosts | `mysql-v82.railway.internal`, `copilot-agent-v82.railway.internal:8600` |
-| OpenEMR image | `debulearn4ever/openemr-agent:8.2.0-dev-9a73bae`, pinned by digest |
+| OpenEMR image | `debulearn4ever/openemr-agent:8.2.0-dev-949e911`, pinned by digest (since 2026-09-26; adds the patient dashboard). Previous: `8.2.0-dev-9a73bae` |
 | Data | 50 Synthea patients (25 per doctor), generated fresh; same `admin`/`doctor1`/`doctor2` passwords as before |
 
 Service names carry `-v82` because Railway service names are unique per project, and the new

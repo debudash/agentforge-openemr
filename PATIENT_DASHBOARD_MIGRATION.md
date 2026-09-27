@@ -114,7 +114,13 @@ items on the 10 patients with the most prescriptions
   permission check, so a user with demographics access but no clinical access could read clinical
   data. The fix belongs in OpenEMR's API; a test records the gap and will fail once it is fixed.
   Use that URL for the login demo only.
-- **Not deployed** to the public Railway instance yet.
+
+## Where to see it
+
+Live at https://openemr-production-461d.up.railway.app: sign in, open any patient, and the chart
+shows the new dashboard. Its own URL, `/public/dashboard/`, is the login demo. Deployed
+2026-09-26 from `week2` (image `8.2.0-dev-949e911`); in-chart check and module preflight passed
+([screenshot](dashboard-modernization/04-evidence/in-chart/railway-in-chart.png)).
 
 ## Running it
 

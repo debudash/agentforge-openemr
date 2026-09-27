@@ -27,7 +27,9 @@ is signed with, so it is kept out of the repository for the same reason the pass
 
 **Expect `doctor1` to see all 50 patients**, not just their 25. OpenEMR's permissions are role-based, so an assigned provider is a data attribute, not an access restriction — see [AUDIT.md](AUDIT.md) S3. Restricting a clinician to their own panel is the agent's job, specified as REQ-SCOPE-1 in [USER.md](USER.md).
 
-**A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters. As `admin`, **Admin → Users** shows the two provider accounts.
+**A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters.
+
+**The chart opens the new patient dashboard**, a React app reading the FHIR API that replaces the old PHP cards (Week 2 add-on; the defense is [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md)). Its own URL, `/public/dashboard/`, shows the full OAuth2 / OpenID Connect sign-in. As `admin`, **Admin → Globals → Appearance → Patient Dashboard Cards** switches the chart back to the old cards. As `admin`, **Admin → Users** shows the two provider accounts.
 
 **Trying the co-pilot on the deployment.** Both weeks are live, and they are different surfaces:
 
