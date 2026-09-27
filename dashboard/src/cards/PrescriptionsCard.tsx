@@ -7,6 +7,7 @@ export function PrescriptionsCard() {
   const names = useReferenceNames(query.data?.value.map((p) => p.prescriberRef) ?? []);
   return (
     <Card
+      edit="prescriptions"
       id="prescriptions"
       title="Prescriptions"
       query={query}

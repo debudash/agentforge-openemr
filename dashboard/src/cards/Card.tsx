@@ -5,6 +5,7 @@
 import { createContext, useContext, useId, useState, type ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { FhirHttpError } from "../fhir/http";
+import { ChartEditContext, requestChartEdit, type EditAction } from "../app/chartEdit";
 
 export type CardId = "allergies" | "problems" | "medications" | "prescriptions" | "care-team" | "vitals";
 
@@ -64,13 +65,17 @@ interface CardProps<T> {
   readonly unreadable?: (data: T) => number;
   /** True when the server had more entries than were read. */
   readonly truncated?: (data: T) => boolean;
+  /** The chart editor this card's Edit button opens, shown only when the chart grants it. */
+  readonly edit?: EditAction;
 }
 
-export function Card<T>({ id, title, query, isEmpty, empty, children, unreadable, truncated }: CardProps<T>) {
+export function Card<T>({ id, title, query, isEmpty, empty, children, unreadable, truncated, edit }: CardProps<T>) {
   const [collapsed, setCollapsed] = useState(() => readCollapsed(id));
   const bodyId = useId();
   const headingId = useId();
   const slots = useContext(CardSlotsContext)[id];
+  const editGrants = useContext(ChartEditContext);
+  const canEdit = edit !== undefined && editGrants.has(edit);
 
   const toggle = () => {
     setCollapsed((c) => {
@@ -126,6 +131,14 @@ export function Card<T>({ id, title, query, isEmpty, empty, children, unreadable
         <h2 id={headingId} className="h6 mb-0 font-weight-bold">
           {title}
         </h2>
+        <div>
+          {canEdit ? (
+            <button type="button" className="btn btn-sm btn-link text-decoration-none" data-edit={edit} onClick={() => {
+              requestChartEdit(edit);
+            }}>
+              Edit<span className="sr-only"> {title}</span>
+            </button>
+          ) : null}
         <button
           type="button"
           className="btn btn-sm btn-link text-decoration-none"
@@ -136,6 +149,7 @@ export function Card<T>({ id, title, query, isEmpty, empty, children, unreadable
           {collapsed ? "Show" : "Hide"}
           <span className="sr-only"> {title}</span>
         </button>
+        </div>
       </div>
       <div id={bodyId} className="card-body p-1" hidden={collapsed}>
         <div data-slot={`${id}:before`}>{slots?.before}</div>

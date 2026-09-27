@@ -18,6 +18,7 @@ import { SessionProvider } from "./session";
 import { shouldRetry } from "./queries";
 import { Dashboard } from "./Dashboard";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { ChartEditContext, chartEditActions, type EditAction } from "./chartEdit";
 
 type AppState =
   | { readonly kind: "launching"; readonly ehr: EhrLaunch }
@@ -35,6 +36,8 @@ export interface AppDeps {
   readonly startEhr?: (ehr: EhrLaunch) => Promise<void>;
   /** True when the chart embeds the app: it then offers no standalone sign-in. */
   readonly inChart?: () => boolean;
+  /** The chart editors the embedding chart grants this user (option A); read only inside the chart. */
+  readonly editActions?: () => ReadonlySet<EditAction>;
 }
 
 const defaultDeps: AppDeps = {
@@ -44,6 +47,7 @@ const defaultDeps: AppDeps = {
   ehrLaunch: ehrLaunchParams,
   startEhr: (ehr) => startEhrLaunch(ehr),
   inChart: () => chartPatient() !== null,
+  editActions: chartEditActions,
 };
 
 function initialState(deps: AppDeps): AppState {
@@ -84,6 +88,7 @@ export function App({ deps = defaultDeps, queryClient }: { deps?: AppDeps; query
   const [state, setState] = useState<AppState>(() => initialState(deps));
   const [client] = useState(() => queryClient ?? makeQueryClient());
   const [inChart] = useState(() => deps.inChart?.() ?? false);
+  const [editActions] = useState<ReadonlySet<EditAction>>(() => (inChart ? (deps.editActions?.() ?? new Set()) : new Set()));
 
   useEffect(() => {
     if (state.kind !== "launching") return;
@@ -156,7 +161,9 @@ export function App({ deps = defaultDeps, queryClient }: { deps?: AppDeps; query
         <ErrorBoundary>
           <QueryClientProvider client={client}>
             <SessionProvider session={state.session}>
-              <Dashboard />
+              <ChartEditContext.Provider value={state.session.inChart ? editActions : new Set()}>
+                <Dashboard />
+              </ChartEditContext.Provider>
             </SessionProvider>
           </QueryClientProvider>
         </ErrorBoundary>

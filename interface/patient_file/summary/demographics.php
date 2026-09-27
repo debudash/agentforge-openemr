@@ -426,6 +426,28 @@ if (
 }
 $dashboardSmartApp = $dashboardPatientUuid !== '';
 
+// Edit in the chart: the app's Edit buttons open the editors the legacy cards open, under the same
+// rules. Allergies, problems and medications always offer Edit (the editor checks its own ACL);
+// prescriptions only with patients/rx write or addonly, and not when prescriptions are disabled.
+$dashboardEditActions = [];
+if ($dashboardSmartApp) {
+    $dashboardWebRoot = OEGlobalsBag::getInstance()->getWebRoot();
+    foreach (['allergy', 'medical_problem', 'medication'] as $dashboardIssueType) {
+        $dashboardEditActions[$dashboardIssueType] = [
+            'url' => $dashboardWebRoot . '/interface/patient_file/summary/stats_full.php?active=all&category=' . $dashboardIssueType,
+            'dialog' => false,
+        ];
+    }
+    if (
+        !OEGlobalsBag::getInstance()->getBoolean('disable_prescriptions')
+        && AclMain::aclCheckCore('patients', 'rx', '', ['write', 'addonly'])
+    ) {
+        $dashboardEditActions['prescriptions'] = OEGlobalsBag::getInstance()->getBoolean('erx_enable')
+            ? ['url' => $dashboardWebRoot . '/interface/eRx.php?page=compose', 'dialog' => false]
+            : ['url' => $dashboardWebRoot . '/controller.php?prescription&list&' . http_build_query(['id' => $requestedPid]), 'dialog' => true];
+    }
+}
+
 $arrOeUiSettings = [
     'page_id' => 'core.mrd',
     'heading_title' => xl('Medical Record Dashboard'),
@@ -1143,12 +1165,32 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
                     'intent' => \OpenEMR\FHIR\SMART\SMARTLaunchToken::INTENT_PATIENT_DEMOGRAPHICS_DIALOG,
                 ])); ?>"
                 data-fhir-patient="<?php echo attr($dashboardPatientUuid); ?>"
+                data-edit-actions="<?php echo attr(implode(' ', array_keys($dashboardEditActions))); ?>"
                 referrerpolicy="no-referrer"></iframe>
         </div>
         <script>
             // The app fills the rest of the tab and scrolls inside it.
             (function () {
                 const frame = document.getElementById('dashboard_smart_app');
+                // Edit in the chart: the app's Edit button names an action; this page opens the
+                // same legacy editor the old card opens, from URLs built here. Only this frame, on
+                // this origin, and only an action granted above, is honoured.
+                const editors = <?php echo json_encode($dashboardEditActions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_THROW_ON_ERROR); ?>;
+                window.addEventListener('message', function (event) {
+                    if (event.origin !== window.location.origin || event.source !== frame.contentWindow) {
+                        return;
+                    }
+                    const data = event.data;
+                    if (!data || data.type !== 'oe-dashboard-edit' || typeof data.action !== 'string' || !Object.prototype.hasOwnProperty.call(editors, data.action)) {
+                        return;
+                    }
+                    const editor = editors[data.action];
+                    if (editor.dialog) {
+                        editScripts(editor.url);
+                    } else {
+                        load_location(editor.url);
+                    }
+                });
                 const fit = function () {
                     frame.style.height = Math.max(480, window.innerHeight - frame.getBoundingClientRect().top - 8) + 'px';
                 };

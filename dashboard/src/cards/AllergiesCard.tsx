@@ -5,6 +5,7 @@ export function AllergiesCard() {
   const query = useAllergies();
   return (
     <Card
+      edit="allergy"
       id="allergies"
       title="Allergies"
       query={query}
