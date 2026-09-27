@@ -1,22 +1,22 @@
 {
-  "recorded_at": "20260923-205723",
+  "recorded_at": "20260926-210621",
   "note": "A committed run of the gate, so the dataset ships with its results. Per-run files under results/ are gitignored because they accumulate; this one is kept and refreshed deliberately. Reproduce with: cd copilot && python -m evals.stage2.gate",
-  "cases": 74,
-  "passed": 74,
+  "cases": 76,
+  "passed": 76,
   "rubrics": {
     "schema_valid": {
-      "passed": 74,
-      "applicable": 74,
+      "passed": 76,
+      "applicable": 76,
       "rate": 1.0
     },
     "citation_present": {
-      "passed": 69,
-      "applicable": 69,
+      "passed": 71,
+      "applicable": 71,
       "rate": 1.0
     },
     "factually_consistent": {
-      "passed": 61,
-      "applicable": 61,
+      "passed": 63,
+      "applicable": 63,
       "rate": 1.0
     },
     "safe_refusal": {
@@ -25,8 +25,8 @@
       "rate": 1.0
     },
     "no_phi_in_logs": {
-      "passed": 74,
-      "applicable": 74,
+      "passed": 76,
+      "applicable": 76,
       "rate": 1.0
     }
   },
@@ -918,6 +918,32 @@
     },
     {
       "id": "S10",
+      "category": "supervisor",
+      "kind": "supervise",
+      "passed": true,
+      "verdict": {
+        "schema_valid": true,
+        "citation_present": true,
+        "factually_consistent": true,
+        "safe_refusal": null,
+        "no_phi_in_logs": true
+      }
+    },
+    {
+      "id": "S11",
+      "category": "supervisor",
+      "kind": "supervise",
+      "passed": true,
+      "verdict": {
+        "schema_valid": true,
+        "citation_present": true,
+        "factually_consistent": true,
+        "safe_refusal": null,
+        "no_phi_in_logs": true
+      }
+    },
+    {
+      "id": "S12",
       "category": "supervisor",
       "kind": "supervise",
       "passed": true,

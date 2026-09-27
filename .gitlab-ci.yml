@@ -4,7 +4,7 @@
 # publishing stays a deliberate, human-approved act, and the deploy jobs are parked out of the
 # root at deploy/railway/gitlab-ci.yml where GitLab never reads them.
 #
-# Every job here needs no API key, no network and no running service. The eval gate replays 74
+# Every job here needs no API key, no network and no running service. The eval gate replays 76
 # recorded cases through the real code, so the same cases that block a local push block a merge
 # here. Verified: the gate is green with OPENROUTER_API_KEY, ANTHROPIC_API_KEY and LANGSMITH_API_KEY
 # all unset. A deterministic gate cannot flake on a provider outage, which is the whole point.
@@ -63,7 +63,7 @@ eval gate:
   extends: .python
   stage: test
   script:
-    # 74 recorded cases, five boolean rubrics, a committed baseline. The job fails if any rubric
+    # 76 recorded cases, five boolean rubrics, a committed baseline. The job fails if any rubric
     # falls below its threshold or more than five points below the baseline -- that failure is
     # what blocks the merge.
     - python -m evals.stage2.gate

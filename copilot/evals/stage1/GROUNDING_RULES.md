@@ -93,12 +93,13 @@ How the existing rules apply to the new sources:
 | 4 | Unchanged. Guidelines may be quoted as evidence, never applied as advice. |
 | 7 | A lab report's own abnormal flag is extracted data. "Abnormal" in a response still needs a rule-engine outcome. |
 
-Two rules added:
+Three rules added:
 
 | # | Rule | Enforced by |
 |---|---|---|
 | 11 | Every extracted fact shown to the clinician carries a document citation with a page, and its extraction confidence is displayed. A field the model could not read is null with confidence 0, never guessed: the schema refuses a value without a citation. | `documents/schemas.py`, verifier, UI |
 | 12 | Guideline evidence sits in its own response section, structurally and visually apart from patient facts. An evidence entry must cite a `guideline:` id (`evidence_without_guideline`); a claim about the patient may not cite a guideline alone (`guideline_only`). | `AnswerDraft.evidence`, verifier, UI, judge |
+| 13 | **An answer may say what a search found only if the search ran that turn.** A question the supervisor routes to the guideline corpus must call `search_guidelines`: its first round is forced to call a tool, and if no search has run, one more forced pass follows, even when the model gave a boundary statement. If a search still never ran, no evidence is shown, the model's wording about guidance is replaced with "No guideline search ran for this question", and the answer is `partial`, never `complete`. Added 2026-09-27 after a live answer said "no specific guidelines were found in the search results" with no search run and was marked Complete. | `answer_followup` (`force_first`, forced evidence search, `NO_SEARCH_STATEMENT`), gate S11 and S12 |
 
 ## How a control is built here
 

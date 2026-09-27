@@ -285,15 +285,17 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
                     fail("citation_present", "an answer claim cites nothing")
             if expect.get("max_claims") is not None and len(answer.claims) > expect["max_claims"]:
                 fail("factually_consistent", f"{len(answer.claims)} claim(s) > {expect['max_claims']}")
+            # Everything the clinician reads: the missing and boundary statements as well as the
+            # claims. A false statement in the boundary text is as visible as one in a claim.
+            said = " ".join([answer.missing or "", answer.boundary or "", *(c.text for c in answer.claims)]).lower()
             if expect.get("answer_text_any"):
-                haystack = " ".join([answer.missing or "", *(c.text for c in answer.claims)]).lower()
+                haystack = said
                 if not any(needle.lower() in haystack for needle in expect["answer_text_any"]):
                     fail("factually_consistent",
                          f"the answer says none of {expect['answer_text_any']} (said {answer.missing!r})")
             for needle in expect.get("forbidden_text", []):
-                haystack = " ".join([answer.missing or "", *(c.text for c in answer.claims)]).lower()
-                if needle.lower() in haystack:
-                    fail("factually_consistent", f"the answer says '{needle}' although the chart holds documents")
+                if needle.lower() in said:
+                    fail("factually_consistent", f"the answer says '{needle}'")
             if expect.get("answer_tools_include"):
                 missing = [t for t in expect["answer_tools_include"] if t not in answer.tool_calls]
                 if missing:

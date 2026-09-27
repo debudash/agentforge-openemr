@@ -455,7 +455,7 @@ cover document images and extracted fields in traces.
 
 ## 10. Eval gate
 
-`copilot/evals/stage2/`, **74 cases**, boolean rubrics only. Stage 1's 9 golden and 7 behavioural
+`copilot/evals/stage2/`, **76 cases**, boolean rubrics only. Stage 1's 9 golden and 7 behavioural
 cases stay untouched and keep running, which is what keeps the Week 1 baseline verifiable.
 [EVAL_GATE.md](EVAL_GATE.md) is the operator's view of the same thing: where the prompts, schemas
 and golden set live, how to run it, and a merge request it blocked.
@@ -669,6 +669,28 @@ into "nothing to report". **Build the refusal path with the same rigour as the a
 the system will be safe and look unsafe -- or worse, be safe and look fine while saying nothing at
 all.**
 
+### The same pattern, found again on 2026-09-27
+
+Asked "what is the recommendation" twice in a row, the co-pilot gave two different answers. The
+supervisor routed both to the guideline corpus. The second time the model searched, and three
+guideline passages were shown. The first time it made no tool call and answered with a boundary
+statement plus "no specific guidelines were found in the search results", about a search that
+never ran, and the turn was reported **Complete**.
+
+The prompt asked for the search but nothing enforced it. The two passes that catch "answered
+without looking" both stand aside for a boundary statement, and a boundary is exactly what the
+model wrote. The boundary and "missing" text is not a claim, so the verifier never checked it, and
+a turn with nothing kept and nothing removed counted as complete. Every gate case on the evidence
+path had scripted a model that searched, so the path where a refusal meets an evidence question had
+no case.
+
+The fix is grounding rule 13 (`copilot/evals/stage1/GROUNDING_RULES.md`). An evidence turn's first
+round is forced to call a tool. A second forced pass follows if no search ran, even after a
+boundary. If the search still never ran, the answer shows no guidance, says "No guideline search ran
+for this question", and is `partial`. Gate cases S11 (made to search) and S12 (never searches) were
+written first and failed on the unfixed code. The gate's text checks now read the boundary as well
+as the claims.
+
 ---
 
 ## 13. Implementation sequence
@@ -681,11 +703,11 @@ Thin vertical slice first, gate early, breadth last. Each stage ends green.
 | 1 | **Done.** `documents/schemas.py`; `Citation` gains the v2 fields; verifier learns `document:` and `guideline:` | Week 1 citations still resolve; unsupported fields cannot validate as supported (`test_document_schemas.py`, `test_verify.py`) |
 | 2 | **Done.** `DocumentWriter.php`; `api.php` actions `attach` and `persist_extraction` | An extracted lab reads back as a FHIR Observation (`status: preliminary`) and is selectable in Lab Overview (`test_uc_document_writer.py`) |
 | 3 | **Built.** `documents/extract.py`, `POST /documents/extract`, `attach` extracts then persists; `/ready` checks the vision model | Proven with a scripted model (`test_extract.py`) and fail-closed live. A successful live extraction is pending a vision model with quota: OpenRouter's free tier is rate-limited per account, and the build exhausted it (§9) |
-| 4 | **Done.** `evals/stage2/gate.py`, 74 cases, `baseline.json`, `hooks/pre-push`, and the `eval gate` job in CI; `test_gate.py` removes four guards in turn | An injected regression blocks a push *and* a merge — demonstrated in MR !2, where the pipeline failed and the merge was blocked |
+| 4 | **Done.** `evals/stage2/gate.py`, 76 cases, `baseline.json`, `hooks/pre-push`, and the `eval gate` job in CI; `test_gate.py` removes four guards in turn | An injected regression blocks a push *and* a merge — demonstrated in MR !2, where the pipeline failed and the merge was blocked |
 | 5 | **Done.** `IntakeForm` extraction; sidecar document under Medical Record; six intake cases in the gate | Intake facts cited to the form, never merged into `lists` (`test_uc_document_intake.py` asserts the row count is unchanged) |
 | 6 | **Done.** `guidelines/retrieve.py`, 20-chunk corpus, `search_guidelines` tool, `evidence` section; six retrieval cases in the gate (62) | Guideline evidence cited separately, barred from patient-fact claims (`test_guidelines.py`, G01–G06) |
 | 7 | **Done.** `supervisor.py` (LangGraph, interrupt while the module persists), `/session/{sid}/supervise` and `/resume`, module `supervise` action, patient tab runs it on open | Routing reconstructable from logs (`test_supervisor.py`, `test_uc_supervise.py`); no-documents path degrades to Week 1 |
-| 8 | **Done.** 74 cases across extraction, intake, citation, retrieval, refusal, brief, missing data and the supervisor graph, including the routing decisions added later; baseline recorded | All five rubrics at 100 % |
+| 8 | **Done.** 76 cases across extraction, intake, citation, retrieval, refusal, brief, missing data and the supervisor graph, including the routing decisions added later; baseline recorded | All five rubrics at 100 % |
 | 9 | **Done.** `documents/pages.py`, `POST /documents/page`, module `page` action, chip click opens the page with the quote boxed; lab rows read from a document carry `document_id` and `page` | A claim opens its page with the quote highlighted (`test_pages.py`, `test_uc_document_page.py`) |
 | 10 | **Docs done.** README Week 2 section, `KEY_METRICS.md` Week 2 section, `W2_COST_LATENCY.md`, `USER.md` Week 2 use cases, collection requests 11–13, and the three artifacts refreshed. Railway deploy waits on the publish gate; the GitLab CI pipeline is parked, not wired | Graders can run the Week 2 flow without guessing; the deployed app is the remaining item |
 

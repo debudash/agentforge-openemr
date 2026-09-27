@@ -4,7 +4,7 @@ How to find, run and break the gate that guards the Week 2 co-pilot.
 
 **Branch:** everything below is on `week2`. `main` is the Week 1 submission and is unchanged.
 
-**The short version.** 74 recorded cases run through the real code with five boolean rubrics.
+**The short version.** 76 recorded cases run through the real code with five boolean rubrics.
 No model, no API key, no network, no database, no running service — the gate replays recorded
 model outputs, so a provider outage cannot silence it. It takes about ten seconds and fails if
 any rubric drops below 100 % or more than five points below the committed baseline. It runs in
@@ -22,7 +22,7 @@ All three are committed. Nothing is generated at run time and nothing is fetched
 | **Prompts** — document reading | [`copilot/copilot/documents/extract.py`](copilot/copilot/documents/extract.py) | `EXTRACTION_SYSTEM` (lab reports) and `INTAKE_SYSTEM` (intake forms), lines 35–67 |
 | **Schemas** — chart, brief, claims, citations, agent response | [`copilot/copilot/schemas.py`](copilot/copilot/schemas.py) | 24 Pydantic models; the typed wire contract between the module and the agent |
 | **Schemas** — extracted documents | [`copilot/copilot/documents/schemas.py`](copilot/copilot/documents/schemas.py) | 7 models: `LabDocument` (`lab_pdf`), `IntakeForm` (`intake_form`), `ExtractedField`, `DocumentCitation`, … Validated by 37 cases in [`test_document_schemas.py`](copilot/tests/test_document_schemas.py) |
-| **Golden set** — the 74 cases | [`copilot/evals/stage2/cases.json`](copilot/evals/stage2/cases.json) | 356 KB; each case carries `id`, `category`, `kind`, `input`, `expect`, `rubric`, `phi_terms` |
+| **Golden set** — the 76 cases | [`copilot/evals/stage2/cases.json`](copilot/evals/stage2/cases.json) | 351 KB; each case carries `id`, `category`, `kind`, `input`, `expect`, `rubric`, `phi_terms` |
 | **Golden set** — fixtures the cases read | [`copilot/evals/stage2/fixtures/documents/`](copilot/evals/stage2/fixtures/documents/) | Three PDFs: a two-page lab report, an intake form, a blank scan. Regenerate with `make_fixtures.py` |
 | **Golden set** — chart fixtures | [`copilot/evals/stage1/fixtures/charts/`](copilot/evals/stage1/fixtures/charts/) | Three charts, reused from Week 1 |
 | **Committed baseline** | [`copilot/evals/stage2/baseline.json`](copilot/evals/stage2/baseline.json) | Recorded rates the run is compared against |
@@ -50,12 +50,12 @@ not needed here.
 Expected output:
 
 ```
-74/74 cases passed
-  schema_valid            74/74  100%  baseline 100%
-  citation_present        69/69  100%  baseline 100%
-  factually_consistent    61/61  100%  baseline 100%
+76/76 cases passed
+  schema_valid            76/76  100%  baseline 100%
+  citation_present        71/71  100%  baseline 100%
+  factually_consistent    63/63  100%  baseline 100%
   safe_refusal            10/10  100%  baseline 100%
-  no_phi_in_logs          74/74  100%  baseline 100%
+  no_phi_in_logs          76/76  100%  baseline 100%
 GATE: PASS
 ```
 
@@ -91,7 +91,7 @@ pipelines run while that machine is up, and a push made while it is off leaves a
 until it returns. Setup and reasoning: `deploy/railway/README.md`, "Where the pipeline runs".
 
 None of that is in the way of checking this work. **The gate needs no runner, no key and no
-network** -- the fresh-clone commands above are the whole of it, and they are the same 74 cases CI
+network** -- the fresh-clone commands above are the whole of it, and they are the same 76 cases CI
 runs. CI is where a *merge* is blocked, not the only place the gate can be observed.
 
 ### Local pre-push hook — needs one install command
@@ -115,14 +115,14 @@ Each case is replayed through the production code path for its `kind` — `extra
 verifier, the demotion logic, the scope checks, the topic check and the supervisor graph are the
 real ones.
 
-**The 74 cases, by category**
+**The 76 cases, by category**
 
 | Category | Cases | What they pin |
 |---|---|---|
 | `extraction` | 23 | Values read off a page, with the page and the quote that carry them |
 | `refusal` | 12 | Treatment boundary, out-of-scope questions, another patient's chart |
 | `citation` | 10 | Every claim resolves to a record, a document page or a guideline chunk |
-| `supervisor` | 10 | Which worker the supervisor hands to, and why |
+| `supervisor` | 12 | Which worker the supervisor hands to, and why, including an evidence question the model tries to answer without searching (S11, S12) |
 | `missing_data` | 9 | Absent is reported as absent, never as normal |
 | `retrieval` | 6 | Guideline evidence, cited to the corpus, never turned into advice |
 | `brief` | 4 | The rounding brief over a chart |
@@ -138,7 +138,7 @@ real ones.
 | `no_phi_in_logs` | No patient identifier or clinical value appears in any emitted event | 100 % |
 
 A rubric that does not apply to a case is scored `None` and excluded from its denominator — which
-is why the denominators differ (69, 61, 10). A case that cannot be graded is never counted as a
+is why the denominators differ (71, 63, 10). A case that cannot be graded is never counted as a
 pass.
 
 **Two independent failure rules**, either of which fails the job:

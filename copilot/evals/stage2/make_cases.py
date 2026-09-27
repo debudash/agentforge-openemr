@@ -443,7 +443,32 @@ cases += [
               # Cites a lab rather than the document: the shared stage-1 fixture chart carries no
               # documents section, and this case is about the decision, not about what it cites.
               script=[{"tool": "get_documents", "args": {"pid": 101}}, {"tool": "get_labs", "args": {"pid": 101}},
-                      {"answer": {"claims": [{"text": "Potassium was 5.4 mmol/L on 2026-08-16.", "source_ids": ["lab:6001"]}]}}])
+                      {"answer": {"claims": [{"text": "Potassium was 5.4 mmol/L on 2026-08-16.", "source_ids": ["lab:6001"]}]}}]),
+    # Seen live 2026-09-27: routed to the guideline corpus, the model answered "what is the
+    # recommendation" with no tool call and a boundary saying "no specific guidelines were found in
+    # the search results" -- about a search that never ran -- and the turn came back Complete. The
+    # boundary flag had switched off the forced lookup. S11 is the model that searches once told
+    # to; S12 is the model that never does.
+    supervise("S11", "an evidence question answered without searching is made to search", [], [], [],
+              {"phase": "done", "answer_tools_include": ["search_guidelines"], "answer_state": "partial",
+               "edges_include": [["supervisor", "evidence_retriever"]],
+               "forbidden_text": ["search results", "no specific guidelines were found"]},
+              question="what is the recommendation",
+              script=[{"answer": {"claims": [], "boundary": "The question asked for a recommendation, and the system cannot provide medical advice.",
+                                  "missing": "The question asked for a recommendation, and no specific guidelines were found in the search results."}},
+                      {"tool": "search_guidelines", "args": {"query": "hypertension screening recommendation"}},
+                      {"answer": {"claims": [], "evidence": [
+                          {"text": "The USPSTF recommends screening for hypertension in adults 18 years or older with office blood pressure measurement.",
+                           "source_ids": [HTN]}]}}]),
+    supervise("S12", "an evidence question that never searches is not complete and says no search ran", [], [], [],
+              {"phase": "done", "answer_state": "partial",
+               "answer_text_any": ["no guideline search ran"],
+               "forbidden_text": ["search results", "no specific guidelines were found"]},
+              question="what is the recommendation",
+              script=[{"answer": {"claims": [], "boundary": "The question asked for a recommendation, and the system cannot provide medical advice.",
+                                  "missing": "The question asked for a recommendation, and no specific guidelines were found in the search results."}},
+                      {"answer": {"claims": [], "boundary": "I cannot give medical advice; no guidelines were found in the search results.",
+                                  "missing": "No specific guidelines were found in the search results."}}]),
 ]
 
 # --- missing data ---------------------------------------------------------------------------

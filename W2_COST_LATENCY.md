@@ -68,7 +68,7 @@ development cost, not a production one, and it does not scale with seats.
 | Guideline search, first call | 23.2 s | one-time model download; the image now prefetches both models at build |
 | Guideline search, warm | **0.06 s** | BM25 + dense + cross-encoder over 20 chunks |
 | Page render with quote boxes | under 1 s | pypdfium2, no model |
-| Eval gate, 74 cases | ~10 s unjudged | no model, no network; the judged run is bounded by the judge |
+| Eval gate, 76 cases | ~10 s unjudged | no model, no network; the judged run is bounded by the judge |
 | Week 1 brief and answer | p50 6.1 s, p95 19.8 s | unchanged, from `KEY_METRICS.md` |
 
 The supervise row is a real percentile over 41 runs; extraction over 4; the rest are one or two

@@ -131,9 +131,9 @@ now met.
 |---|---|---|---|---|
 | 6 | Invented citations caught: an extracted value whose quote is not on its page, not in the document, or from another document is demoted to unsupported, never shown as a fact | 100 % | 9 of 9 gate cases (E02–E05, E15, E17, I02, I03, I06) | **Met** |
 | 6b | A document that does not belong is never filed: it names another patient, or nothing could be read from it | 100 % | Refused on both write paths, recorded beside the document, marked NOT FILED on screen; two live cases assert the refusal and that nothing reaches the chart | **Met** |
-| 7 | Citation resolution: every claim, evidence entry and "what changed" line shown resolves to a record, a document page or a guideline chunk | 100 % | 69 of 69 gate cases carrying the rubric, and every one of the five contract fields is populated, not merely present | **Met** |
+| 7 | Citation resolution: every claim, evidence entry and "what changed" line shown resolves to a record, a document page or a guideline chunk | 100 % | 71 of 71 gate cases carrying the rubric, and every one of the five contract fields is populated, not merely present | **Met** |
 | 8 | Retrieval precision at 1 on the three probe questions (high potassium with an ACE inhibitor, hypertension screening, A1C ranges) | 3 of 3 | 3 of 3 offline (BM25 only); 2 of 2 checked in full mode with the cross-encoder | **Met** |
-| 9 | Gate rubric pass rate: schema_valid, citation_present, factually_consistent, safe_refusal, no_phi_in_logs | 100 % each; a drop over 5 points blocks the push | 100 % each over **74 cases**; four injected regressions each failed the gate (`test_gate.py`), and each new routing decision is covered by a case that fails when the decision is deleted | **Met** |
+| 9 | Gate rubric pass rate: schema_valid, citation_present, factually_consistent, safe_refusal, no_phi_in_logs | 100 % each; a drop over 5 points blocks the push | 100 % each over **76 cases**; four injected regressions each failed the gate (`test_gate.py`), and each new routing decision is covered by a case that fails when the decision is deleted | **Met** |
 | 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | p50 **4.4 s**, p95 **30.5 s**, p99 47.0 s over 41 runs (`/metrics`, `supervise_ms`). A chart with nothing unread is the p50; the tail is the runs that read two new documents and then regenerate the brief | **Met on p50, missed on p95** |
 | 11 | Live extraction success | one lab report read end to end | **Achieved.** A two-page report read by `google/gemini-2.5-flash-lite`: five results, correct values, correct pages, nothing demoted. Repeated across the walkthrough: **38 documents read, 2 failed** (`/metrics`), and a failure is reported as unread rather than guessed | **Met** |
 | 12 | Cost per document read | under $0.05 | **~$0.0009**, from the request shape at gemini-2.5-flash-lite's $0.10/$0.40 per Mtok. Not instrumented per call; checked against the credit-balance delta of a whole 30-check walkthrough, **$0.011** for about 15 model calls including two document reads (`W2_COST_LATENCY.md`) | **Met** |
@@ -190,7 +190,7 @@ That split is deliberate, and it is worth stating rather than blurring.
 
 | What the product claims | What the evidence says | Verdict |
 |---|---|---|
-| It will not state something untrue about a patient | Supported-claim precision 1.00; every unsupported claim deleted before display; 9 of 9 invented-citation cases demoted; 74 of 74 gate cases across five rubrics | **Supported** |
+| It will not state something untrue about a patient | Supported-claim precision 1.00; every unsupported claim deleted before display; 9 of 9 invented-citation cases demoted; 76 of 76 gate cases across five rubrics | **Supported** |
 | It will not show the wrong patient's data | Zero wrong-patient citations and zero unauthorized disclosures across golden, behavioural, unit and live gateway tests; four independent enforcement layers; a misfiled document refused on the write path | **Supported** |
 | It says when it does not know | Zero incorrect completeness; an unreadable document reported unread rather than guessed; a refused document marked NOT FILED on screen | **Supported** |
 | It is fast enough to use in a round | p50 4.4 s, but p95 33.8 s against a 30 s target | **Partly** |
@@ -236,7 +236,7 @@ except time, and both are named in [W2_COST_LATENCY.md](W2_COST_LATENCY.md).
 | Brief and answer latency in live use | agent service event log, `brief_generated` and `followup_answered` | `GET /metrics` on the service |
 | Authorization evidence | `copilot/tests/`, `usecases/test_uc_copilot.py` | `pytest`, and the gateway suite against a running stack |
 | Chart read cost | `chart_read_ms` in the module's open response | open the tab as `doctor1` |
-| Week 2 gate, 74 cases, five rubrics | `copilot/evals/stage2/results/` | `cd copilot; python -m evals.stage2.gate` |
+| Week 2 gate, 76 cases, five rubrics | `copilot/evals/stage2/results/` | `cd copilot; python -m evals.stage2.gate` |
 | Week 2 end-to-end behaviour, 30 checks | printed per check, exit 1 on failure | `cd usecases; python journey.py` |
 | Week 2 latency and spend | `/metrics` (`supervise_ms`, `extract_ms`); OpenRouter credit balance | [W2_COST_LATENCY.md](W2_COST_LATENCY.md) |
 | Per-control security evidence | [SECURITY_TESTS.md](SECURITY_TESTS.md) | listed per row |

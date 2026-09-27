@@ -317,14 +317,14 @@ click-to-source, the refusals, purge -- and prints what it observed for each. Ab
 roughly fifteen live model calls, exit 1 on any failure. `--patient N` to use another chart,
 `--keep` to leave the documents in place.
 
-**The gate:** `cd copilot; python -m evals.stage2.gate` runs 74 recorded cases through the real
+**The gate:** `cd copilot; python -m evals.stage2.gate` runs 76 recorded cases through the real
 code with no model, in about ten seconds. Five boolean rubrics — `schema_valid`,
 `citation_present`, `factually_consistent`, `safe_refusal`, `no_phi_in_logs` — and it fails if any
 of them drops below its threshold or falls more than 5 points below the committed baseline.
 `hooks/install-hooks.ps1` installs the pre-push hook, so a regression blocks the push. That hook
 is what gates the build; `test_gate.py` injects four regressions and each one fails the gate.
 
-**CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) runs the unit tests, the 74-case eval gate, the UI guard
+**CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) runs the unit tests, the 76-case eval gate, the UI guard
 and a PHP syntax check on every push and every merge request, so a regression fails the pipeline
 before it reaches the demo. Live status is on the
 [merge request](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/1) and under

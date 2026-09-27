@@ -118,3 +118,27 @@ def test_index_entries_are_keyed_by_citable_id(settings):
     index = GuidelineIndex(dataclasses.replace(settings, embed_model="none", rerank="none"))
     entries = index_entries(index.search("hypertension screening office blood pressure", top_k=2))
     assert all(k.startswith("guideline:") and v["kind"] == "guideline" for k, v in entries.items())
+
+
+# --- an evidence turn must search (grounding rule 13) ------------------------------------
+
+def test_an_evidence_turn_forces_its_first_round_to_call_a_tool(chart101, settings, today):
+    final = AnswerDraft(claims=[], evidence=[Claim(text="The USPSTF recommends screening for hypertension in adults 18 years or older with office blood pressure measurement.",
+                                                    source_ids=["guideline:uspstf-htn-2021#recommendation"])])
+    llm = ScriptedLLM([tool_call("search_guidelines", {"query": "hypertension screening"}), final])
+    response, _ = answer_followup(chart101, "what is the recommendation", [], llm, settings, "cid-g7", today, require_evidence=True)
+    assert llm.calls[0] == "tools-required"          # not left to the model's choice
+    assert "search_guidelines" in response.tool_calls and response.evidence
+
+
+def test_an_evidence_turn_with_no_search_never_says_what_a_search_found(chart101, settings, today):
+    # Seen live: no tool call, then "no specific guidelines were found in the search results", marked Complete.
+    refusal = lambda: AnswerDraft(claims=[], boundary="I cannot give medical advice; no guidelines were found in the search results.",
+                                  missing="No specific guidelines were found in the search results.")
+    llm = ScriptedLLM([refusal(), refusal()])
+    response, _ = answer_followup(chart101, "what is the recommendation", [], llm, settings, "cid-g8", today, require_evidence=True)
+    assert "search_guidelines" not in response.tool_calls
+    assert response.state == ResponseState.PARTIAL and "no guideline search ran" in response.state_reason
+    said = " ".join([response.missing or "", response.boundary or ""]).lower()
+    assert "search results" not in said and "were found" not in said
+    assert "no guideline search ran" in said

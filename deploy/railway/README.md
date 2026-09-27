@@ -611,7 +611,7 @@ different host for the same two commands.
 ## CI/CD (GitLab) -- tests live, deploy parked
 
 > **The test half runs.** `.gitlab-ci.yml` at the repository root runs the unit tests, the
-> 74-case eval gate, the UI guard and a PHP syntax check on every push and every merge request.
+> 76-case eval gate, the UI guard and a PHP syntax check on every push and every merge request.
 > It holds no secrets, needs no API key and cannot reach Railway. A regression fails the
 > pipeline, which is what stops it reaching the demo.
 >
@@ -638,7 +638,7 @@ different host for the same two commands.
 The pipeline runs the checks on every push and merge request, and would put deployment behind a
 button rather than behind a merge.
 
-**Tests** need no key, no network and no model: unit tests, the 74-case eval gate, the UI guard
+**Tests** need no key, no network and no model: unit tests, the 76-case eval gate, the UI guard
 and `php -l` over the module. They run in `python:3.13-slim` against `copilot/requirements-ci.txt`,
 which is `requirements.txt` without torch and sentence-transformers -- the gate forces
 `embed_model=none`, and those imports are lazy, so CI installs neither. Verified in a clean

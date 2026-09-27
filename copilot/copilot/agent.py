@@ -37,6 +37,12 @@ _MAX_TOOLS_PER_ROUND = 12
 SCOPE_STATEMENT = ("This co-pilot only answers questions about the selected patient's chart. "
                    "Ask about a specific part of it, for example labs, medications, problems or allergies.")
 
+# Shown when a question needed the guideline corpus and no search ran (grounding rule 13).
+NO_SEARCH_STATEMENT = ("No guideline search ran for this question, so no guidance is shown. "
+                       "Ask again, for example what the guidelines say about a specific condition.")
+# A boundary that talks about searching or finding is a claim about a search; with none run, it is dropped.
+_SEARCH_WORDS = ("search", "found", "result", "guideline", "guidance", "evidence")
+
 
 def comparison_window(today: date, hours: int) -> str:
     return f"previous {hours} hours ending {today.isoformat()} (initial brief default; older detail via follow-up questions)"
@@ -393,7 +399,9 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             ctx.evidence_kept = evidence_kept
             return draft, failure, off_topic, kept, removed
 
-        iterations, loop_exhausted, model_failure = run_rounds(settings.max_iterations)
+        # An evidence question's first round must call a tool: the prompt asked for the search and
+        # the model skipped it, live, then wrote about search results that never existed (S11, S12).
+        iterations, loop_exhausted, model_failure = run_rounds(settings.max_iterations, force_first=require_evidence)
         draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
 
         # The model answered from memory (every claim removed, no tool called, not off-topic).
@@ -410,6 +418,21 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             more, loop_exhausted, model_failure = run_rounds(settings.max_iterations - iterations, force_first=True)
             iterations += more
             draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
+
+        # The supervisor routed this question to the guideline corpus and no search ran. A boundary
+        # statement does not excuse it: the boundary flag is what switched the other passes off, and
+        # the answer then described a search that never happened. One bounded pass that must search.
+        searched = "search_guidelines" in ctx.calls
+        if (require_evidence and not searched and not off_topic and failure is None
+                and not loop_exhausted and iterations < settings.max_iterations):
+            emit("followup_forced_evidence_search", correlation_id, pid=chart.patient.pid)
+            messages.append(HumanMessage(content=(
+                "This question needs the guideline corpus and no search has run. Call search_guidelines now, "
+                "then answer again: put what it returns in 'evidence', citing its guideline: ids.")))
+            more, loop_exhausted, model_failure = run_rounds(settings.max_iterations - iterations, force_first=True)
+            iterations += more
+            draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
+            searched = "search_guidelines" in ctx.calls
 
         # Nothing looked up and nothing produced. Before calling that off-topic, make it look.
         # A terse question -- "what changed", "what should I pay attention to" -- often draws a
@@ -460,6 +483,14 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             # A boundary statement or an honest "not found" is a valid complete answer with no claims,
             # but only when nothing else went wrong on the way.
             state, reason = ResponseState.COMPLETE, "no chart facts were requested or found; statement only"
+        if require_evidence and not searched and not off_topic and failure is None and draft is not None:
+            # Grounding rule 13: the answer may say what a search found only when one ran this turn.
+            # Nothing the model wrote about guidance can be true, so its wording is replaced, and a
+            # question that needed the corpus and never reached it is not complete.
+            state, reason = ResponseState.PARTIAL, "the question needs guideline evidence and no guideline search ran, so none is shown"
+            draft.missing = NO_SEARCH_STATEMENT
+            if draft.boundary and any(word in draft.boundary.lower() for word in _SEARCH_WORDS):
+                draft.boundary = None
         evidence = getattr(ctx, "evidence_kept", [])
         cited = [sid for c in kept for sid in c.source_ids] + [sid for c in evidence for sid in c.source_ids]
         response = AgentResponse(

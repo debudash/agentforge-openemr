@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "count": 74,
+  "count": 76,
   "cases": [
     {
       "id": "E01",
@@ -11775,6 +11775,124 @@
             "supervisor",
             "intake_extractor"
           ]
+        ]
+      }
+    },
+    {
+      "id": "S11",
+      "name": "an evidence question answered without searching is made to search",
+      "category": "supervisor",
+      "kind": "supervise",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "documents": [],
+        "brief": [
+          {
+            "answer": {
+              "claims": [],
+              "boundary": "The question asked for a recommendation, and the system cannot provide medical advice.",
+              "missing": "The question asked for a recommendation, and no specific guidelines were found in the search results."
+            }
+          },
+          {
+            "tool": "search_guidelines",
+            "args": {
+              "query": "hypertension screening recommendation"
+            }
+          },
+          {
+            "answer": {
+              "claims": [],
+              "evidence": [
+                {
+                  "text": "The USPSTF recommends screening for hypertension in adults 18 years or older with office blood pressure measurement.",
+                  "source_ids": [
+                    "guideline:uspstf-htn-2021#recommendation"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "vision": [],
+        "persisted": [],
+        "question": "what is the recommendation"
+      },
+      "expect": {
+        "phase": "done",
+        "answer_tools_include": [
+          "search_guidelines"
+        ],
+        "answer_state": "partial",
+        "edges_include": [
+          [
+            "supervisor",
+            "evidence_retriever"
+          ]
+        ],
+        "forbidden_text": [
+          "search results",
+          "no specific guidelines were found"
+        ]
+      }
+    },
+    {
+      "id": "S12",
+      "name": "an evidence question that never searches is not complete and says no search ran",
+      "category": "supervisor",
+      "kind": "supervise",
+      "rubric": [
+        "schema_valid",
+        "citation_present",
+        "factually_consistent",
+        "no_phi_in_logs"
+      ],
+      "phi_terms": [
+        "Jane Doe",
+        "1962-04-03"
+      ],
+      "input": {
+        "chart": "pid101_hypertension_diabetes",
+        "documents": [],
+        "brief": [
+          {
+            "answer": {
+              "claims": [],
+              "boundary": "The question asked for a recommendation, and the system cannot provide medical advice.",
+              "missing": "The question asked for a recommendation, and no specific guidelines were found in the search results."
+            }
+          },
+          {
+            "answer": {
+              "claims": [],
+              "boundary": "I cannot give medical advice; no guidelines were found in the search results.",
+              "missing": "No specific guidelines were found in the search results."
+            }
+          }
+        ],
+        "vision": [],
+        "persisted": [],
+        "question": "what is the recommendation"
+      },
+      "expect": {
+        "phase": "done",
+        "answer_state": "partial",
+        "answer_text_any": [
+          "no guideline search ran"
+        ],
+        "forbidden_text": [
+          "search results",
+          "no specific guidelines were found"
         ]
       }
     },

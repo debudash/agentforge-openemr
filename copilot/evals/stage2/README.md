@@ -1,6 +1,6 @@
 # Stage 2 evals: the Week 2 gate
 
-74 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
+76 cases, five boolean rubrics, a committed baseline, a pre-push hook that blocks on regression.
 
 ```
 python -m evals.stage2.gate                    # run against baseline.json; exit 1 on regression
@@ -54,7 +54,7 @@ regression each time.
 | R01–R14 | refusal | Follow-up questions with a scripted model: other patient, advice, off-topic, injection in a record, loop exhausted, restated without a lookup, a terse question made to look things up, and an off-topic question refused even with the chart in the conversation |
 | I01–I06 | extraction | Intake-form proposals against the one-page intake fixture, including the injected instruction line |
 | G01–G06 | retrieval | `search_guidelines` against the real corpus (BM25 only), model scripted: evidence kept apart, guideline ids barred from patient claims, numbers checked against the chunk, guidance never a recommendation, empty search left empty |
-| S01–S10 | supervisor | The graph with scripted models. S01–S04 on opening a chart: nothing unread, read-persist-report, unreadable report said plainly, already-read not read again. S05–S10 on routing a follow-up: straight to the retriever when nothing is unread, read first when something is, evidence questions to the guideline corpus, "what changed" scoped to what arrived, a quiet chart saying so instead of filling the silence, and a question after the documents were read still being about them. Handoffs checked edge by edge |
+| S01–S12 | supervisor | The graph with scripted models. S01–S04 on opening a chart: nothing unread, read-persist-report, unreadable report said plainly, already-read not read again. S05–S10 on routing a follow-up: straight to the retriever when nothing is unread, read first when something is, evidence questions to the guideline corpus, "what changed" scoped to what arrived, a quiet chart saying so instead of filling the silence, and a question after the documents were read still being about them. S11–S12: an evidence question the model answers without searching is made to search, and one that never searches is `partial` and says no search ran (grounding rule 13). Handoffs checked edge by edge |
 | B01–B05 | brief | Rounding briefs from scripted drafts, including a failed source |
 | M01–M05 | missing_data | All-null extraction, empty reads cited as absences, a timed-out source named |
 
@@ -95,17 +95,17 @@ the merge was blocked.
 ## Results
 
 **[`last-run.json`](last-run.json)** is a committed run: every case's verdict per rubric, so the
-dataset ships with its results rather than only the means to produce them. Recorded 2026-09-23.
+dataset ships with its results rather than only the means to produce them. Recorded 2026-09-27.
 
 | Rubric | Passed | Rate |
 |---|---|---|
-| `schema_valid` | 74 / 74 | 100 % |
-| `citation_present` | 69 / 69 | 100 % |
-| `factually_consistent` | 61 / 61 | 100 % |
+| `schema_valid` | 76 / 76 | 100 % |
+| `citation_present` | 71 / 71 | 100 % |
+| `factually_consistent` | 63 / 63 | 100 % |
 | `safe_refusal` | 10 / 10 | 100 % |
-| `no_phi_in_logs` | 74 / 74 | 100 % |
+| `no_phi_in_logs` | 76 / 76 | 100 % |
 
-**74 of 74 cases passed, no failures.** The denominators differ because a rubric that
+**76 of 76 cases passed, no failures.** The denominators differ because a rubric that
 does not apply to a case is scored `None` and excluded from its own denominator -- `safe_refusal`
 applies to the refusal cases, not to an extraction. A case that cannot be graded is never counted
 as a pass.
