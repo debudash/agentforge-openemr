@@ -123,8 +123,8 @@ A note on how failures are counted, because it changes the honesty of every rate
 
 Week 1's five metrics and verdicts above stand as submitted. Week 2 adds document reading, guideline
 evidence and a supervisor graph, and these are the measures that say whether that works. Figures are
-from the local stack on 2026-09-23, on `google/gemini-2.5-flash-lite`; where a figure could not be
-measured, the row says so. Rows 11 and 12 were gaps until the model switch on 2026-09-23 and are
+from the local stack on 2026-09-23, on `google/gemini-2.5-flash-lite`, with row 13 added on
+2026-09-27; where a figure could not be measured, the row says so. Rows 11 and 12 were gaps until the model switch on 2026-09-23 and are
 now met.
 
 | # | Metric | Target | Measured | Verdict |
@@ -137,6 +137,7 @@ now met.
 | 10 | Supervise latency: open the tab to the brief with "what changed" | p95 under 30 s | p50 **4.4 s**, p95 **30.5 s**, p99 47.0 s over 41 runs (`/metrics`, `supervise_ms`). A chart with nothing unread is the p50; the tail is the runs that read two new documents and then regenerate the brief | **Met on p50, missed on p95** |
 | 11 | Live extraction success | one lab report read end to end | **Achieved.** A two-page report read by `google/gemini-2.5-flash-lite`: five results, correct values, correct pages, nothing demoted. Repeated across the walkthrough: **38 documents read, 2 failed** (`/metrics`), and a failure is reported as unread rather than guessed | **Met** |
 | 12 | Cost per document read | under $0.05 | **~$0.0009**, from the request shape at gemini-2.5-flash-lite's $0.10/$0.40 per Mtok. Not instrumented per call; checked against the credit-balance delta of a whole 30-check walkthrough, **$0.011** for about 15 model calls including two document reads (`W2_COST_LATENCY.md`) | **Met** |
+| 13 | An evidence question is answered from a search that ran: no guidance shown, and nothing said about search results, unless `search_guidelines` ran that turn | 100 % | **12 of 12** live runs searched, two rounds each, p50 3.7 s / p95 4.7 s (`W2_COST_LATENCY.md`). Gate cases S11 and S12 fail on the code before the fix. Two identical live questions on 2026-09-27 had given one search and one "Complete" answer describing a search that never ran | **Met** since 2026-09-27 |
 
 **The p95 miss, and what it is.** The supervise path is one request that can do three model calls:
 read document one, read document two, then a new brief over the changed chart. When it does all
@@ -148,7 +149,8 @@ recorded as missed rather than rescoped.
 **Why these.** 6 and 7 are the Week 2 form of Week 1's precision: the point of citing a page and a
 quote is that a program can check it, so the measure is whether the check catches what it should.
 8 is the smallest honest retrieval measure for a 20-chunk corpus; a recall figure on 20 chunks would
-be theatre. 9 is the hard gate. 10 is what the clinician feels. 11 and 12 were open gaps for most of
+be theatre. 9 is the hard gate. 10 is what the clinician feels. 13 is the refusal path's version
+of 7: an answer that says what guidance found is itself a claim, and it must trace to a search. 11 and 12 were open gaps for most of
 Week 2 and closed when the models changed; they are kept on the scorecard because a metric that is
 removed once it passes cannot catch a regression.
 
@@ -192,8 +194,8 @@ That split is deliberate, and it is worth stating rather than blurring.
 |---|---|---|
 | It will not state something untrue about a patient | Supported-claim precision 1.00; every unsupported claim deleted before display; 9 of 9 invented-citation cases demoted; 76 of 76 gate cases across five rubrics | **Supported** |
 | It will not show the wrong patient's data | Zero wrong-patient citations and zero unauthorized disclosures across golden, behavioural, unit and live gateway tests; four independent enforcement layers; a misfiled document refused on the write path | **Supported** |
-| It says when it does not know | Zero incorrect completeness; an unreadable document reported unread rather than guessed; a refused document marked NOT FILED on screen | **Supported** |
-| It is fast enough to use in a round | p50 4.4 s, but p95 33.8 s against a 30 s target | **Partly** |
+| It says when it does not know | Zero incorrect completeness; an unreadable document reported unread rather than guessed; a refused document marked NOT FILED on screen; an evidence question with no search is partial and says no search ran (metric 13) | **Supported** |
+| It is fast enough to use in a round | p50 4.4 s, but p95 30.5 s against a 30 s target | **Partly** |
 | It saves the clinician time | No baseline exists. Nobody has performed the scripted task | **Unproven** |
 
 **Why that ordering is the right one.** The unproven row is the product's reason to exist, which
@@ -218,8 +220,12 @@ can fail, so each of these has been made to fail on purpose:
   degraded to a smaller honest one rather than a wrong one.
 - **A metric that could not fail was found and fixed.** `no_phi_in_logs` was scoring 74/74 against an
   *empty* log for days, passing vacuously everywhere except under pytest. It was caught, the cause
-  removed, and a test added that asserts the gate reads a non-empty log. A scorecard is only as
-  honest as its willingness to find that in itself.
+  removed, and a test added that asserts the gate reads a non-empty log. On 2026-09-27 the same
+  rubric failed on nothing: a random run id containing "112" matched a lab value. Identifiers are no
+  longer scanned, and a test pins both sides. A scorecard is only as honest as its willingness to
+  find that in itself.
+- **A refusal that reported the wrong outcome was caught live, then pinned.** Metric 13's cases were
+  written first and failed on the unfixed code; the gate now blocks that regression.
 
 **What would change the verdict.** One hospitalist, five scripted patients, timed both ways closes
 metric 1. Returning "what changed" before the brief closes metric 10. Neither is blocked on anything
