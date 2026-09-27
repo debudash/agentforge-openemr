@@ -596,7 +596,10 @@ event was dropped before it was written. The rubric had never run outside pytest
 module imports telemetry first -- and in CI, in a fresh clone and on every direct run it was
 passing vacuously. It surfaced only because under pytest it was *flaky*: a run whose `duration_ms`
 happened to be 112 collided with an extracted value of 112, because the check substring-matched
-against the whole JSON line rather than the fields that carry content.
+against the whole JSON line rather than the fields that carry content. A second collision of the
+same kind surfaced on 2026-09-27: every event carries a random `langsmith_run_id`, and about one
+run in 140 it contained "112", which failed a docs-only push. Identifiers are now skipped as well:
+values under keys ending in `_id`, and UUID-shaped strings.
 
 Three things follow, and they generalise past this rubric:
 

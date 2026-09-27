@@ -140,9 +140,9 @@ the laptop service. When you are satisfied:
 
 ```powershell
 cd copilot
-.venv\Scripts\python -m pytest                                        # 52 unit tests, no key, ~2 s
-.venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden # the every-run gate (8 cases)
-.venv\Scripts\python -m evals.run_evals --stage stage1                # golden + behavioural (6 scenarios)
+.venv\Scripts\python -m pytest                                        # ~200 unit tests, no key, a few seconds
+.venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden # the every-run gate (9 cases)
+.venv\Scripts\python -m evals.run_evals --stage stage1                # golden + behavioural (7 scenarios)
 .venv\Scripts\python -m evals.run_evals --stage stage1 --judge --langsmith --pace 12   # + judge, upload
 .venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden --freeze         # record snapshots
 ```

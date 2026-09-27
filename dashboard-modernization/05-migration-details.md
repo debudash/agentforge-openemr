@@ -78,7 +78,7 @@ Other gains:
   1,950 lines of source in six directories (auth, fhir, format, cards, header, app). Its only
   input is API responses.
 - **A published contract.** The data layer is FHIR R4 / US Core, not OpenEMR's table layout.
-- **Testability.** Every card is a function of parsed resources. 73 unit tests run in about 5
+- **Testability.** Every card is a function of parsed resources. 77 unit tests run in about 5
   seconds with no database and no browser, over responses recorded from the dev stack.
 
 ## Tradeoffs

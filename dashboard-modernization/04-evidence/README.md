@@ -21,6 +21,8 @@ Everything was run against the local `docker/development-easy` stack; nothing to
 | `reviews.md` | Security review and code review findings and what happened to each |
 | `stack-changes.md` | Everything created on the local stack, and how to remove it |
 | `spike-ehr/` | The EHR-launch spike: a SMART app launched from the chart for its patient, no login or consent when the client is trusted |
+| `prescription-history/` | Prescriptions restored to the legacy card's history (active and completed): the change, and parity on the 10 patients with the most prescriptions, 140 / 140 |
+| `in-chart/railway-in-chart.png` | Production after the deploy: `doctor1` opens a patient and the chart shows the new dashboard, with no login, consent or picker screen |
 | `in-chart/` | ADR 0009 and 0010: the new dashboard in the chart, behind a setting, guarded by `patients/med` (below) |
 
 ### `in-chart/`
@@ -38,4 +40,3 @@ Everything was run against the local `docker/development-easy` stack; nothing to
 | `unit-test-mutations.txt` | Five rule lines broken on purpose (wrong patient, iss, Sign out, the guard, one issue ACL); each fails its test |
 | `phpstan-phpcs.txt` | PHPStan level 10 (full codebase) and PHPCS on the changed PHP files |
 | `reviews.md` | Security review and code review of this change, and what happened to each finding |
-| `commit-split/` | Patches and steps to stage the Phase 4 commits and this change separately |

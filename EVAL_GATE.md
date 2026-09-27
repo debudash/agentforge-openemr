@@ -166,6 +166,12 @@ pytest: telemetry configured its logger's level only when that logger had no han
 gate attaches its capture handler first, so every event was dropped before it was written. A
 rubric that cannot fail is worse than no rubric, and nothing else in the suite could see it.
 
+A seventh test pins the opposite mistake, a rubric that fails on nothing. Every event carries a
+random `langsmith_run_id`; about one run in 140 it contained "112", case E15's extracted value, and
+the rubric reported a leak that was only an identifier. It blocked a docs-only push on 2026-09-27.
+Values under keys ending in `_id`, and UUID-shaped strings, are no longer scanned; a value in a
+content field still is.
+
 ## 4. API keys and environment variables
 
 **None.** The gate needs no key, no network and no running service.
