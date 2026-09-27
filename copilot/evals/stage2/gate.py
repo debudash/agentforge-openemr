@@ -28,6 +28,7 @@ import argparse
 import dataclasses
 import io
 import json
+import re
 import logging
 import sys
 import time
@@ -373,6 +374,9 @@ def grade(case: dict[str, Any], run: dict[str, Any], log_lines: list[str]) -> tu
     return verdict, why
 
 
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+
+
 def _log_text(line: str) -> list[str]:
     """The parts of one event line that could carry content, as text.
 
@@ -381,6 +385,11 @@ def _log_text(line: str) -> list[str]:
     matches `"duration_ms": 112`, so the rubric passes or fails on how long the run took. Scanning
     only the string values keeps the check on content and makes it deterministic. A line that is
     not JSON is scanned whole, because nothing is known about its shape.
+
+    Identifiers are not content either. Every event carries a `langsmith_run_id`, a random UUID, and
+    about one run in 140 it contains "112" -- E15's extracted value -- which failed the rubric and
+    blocked a docs-only push on 2026-09-27. Values under a key ending in `_id`, and any string shaped
+    like a UUID, are skipped.
     """
     brace = line.find("{")
     if brace == -1:
@@ -394,11 +403,13 @@ def _log_text(line: str) -> list[str]:
 
     def walk(node: Any) -> None:
         if isinstance(node, str):
-            out.append(node)
+            if not _UUID.fullmatch(node):
+                out.append(node)
         elif isinstance(node, dict):
             for key, value in node.items():
                 out.append(key)
-                walk(value)
+                if not str(key).endswith("_id"):
+                    walk(value)
         elif isinstance(node, list):
             for value in node:
                 walk(value)

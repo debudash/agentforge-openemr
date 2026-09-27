@@ -97,3 +97,14 @@ def test_the_gate_fails_when_the_event_log_starts_carrying_values(baseline):
         logger.removeFilter(leak)
     failures = gate.compare(summary, baseline)
     assert failures and any(f.startswith("no_phi_in_logs") for f in failures)
+
+
+def test_an_identifier_that_happens_to_contain_a_value_is_not_a_leak():
+    """Every event carries a random langsmith_run_id. About one run in 140 it contained "112", E15's
+    extracted value, and no_phi_in_logs failed a docs-only push on 2026-09-27. Ids are not content;
+    a value in a content field still is."""
+    line = ('{"ts": "2026-09-27T02:48:56Z", "event": "document_extracted", "correlation_id": "E15", '
+            '"langsmith_run_id": "01a0e0c6-2be5-7be0-b112-1c6670557683", "duration_ms": 112}')
+    assert not any("112" in t for t in gate._log_text(line))
+    leaked = line[:-1] + ', "note": "glucose 112"}'
+    assert any("112" in t for t in gate._log_text(leaked))
