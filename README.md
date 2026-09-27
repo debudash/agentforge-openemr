@@ -27,9 +27,9 @@ is signed with, so it is kept out of the repository for the same reason the pass
 
 **Expect `doctor1` to see all 50 patients**, not just their 25. OpenEMR's permissions are role-based, so an assigned provider is a data attribute, not an access restriction — see [AUDIT.md](AUDIT.md) S3. Restricting a clinician to their own panel is the agent's job, specified as REQ-SCOPE-1 in [USER.md](USER.md).
 
-**A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters.
+**A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters. As `admin`, **Admin → Users** shows the two provider accounts.
 
-**The chart opens the new patient dashboard**, a React app reading the FHIR API that replaces the old PHP cards (Week 2 add-on; the defense is [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md)). Its own URL, `/public/dashboard/`, shows the full OAuth2 / OpenID Connect sign-in. As `admin`, **Admin → Globals → Appearance → Patient Dashboard Cards** switches the chart back to the old cards. As `admin`, **Admin → Users** shows the two provider accounts.
+**The chart opens the new patient dashboard**, a React app reading the FHIR API that replaces the old PHP cards (Week 2 add-on; the defense is [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md)). Its own URL, `/public/dashboard/`, shows the full OAuth2 / OpenID Connect sign-in. As `admin`, **Admin → Globals → Appearance → Patient Dashboard Cards** switches the chart back to the old cards.
 
 **Trying the co-pilot on the deployment.** Both weeks are live, and they are different surfaces:
 
@@ -276,6 +276,7 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 Week 1 is the `main` branch and the **CopilotAgent** top-level tab: the rounding list, prefetched
 briefs and follow-up questions. It is unchanged and still works the same way on this branch. Week 2
 is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everything below is Week 2.
+What Week 1 left behind, and how Week 2 closed it, is in [WEEK1_DEBT.md](WEEK1_DEBT.md).
 
 **Branch:** `week2`. **Services:** the same two (OpenEMR and the agent); nothing new to run.
 
@@ -399,6 +400,7 @@ demo a second time produces a truthful "what changed" without anything having to
 | [deploy/digitalocean/](deploy/digitalocean/) | Reference VM deployment (droplet or Vultr): hardened production Compose, Let's Encrypt via `DOMAIN` |
 | [AUDIT.md](AUDIT.md) | Security, performance, architecture, data quality and compliance audit of this system |
 | [USER.md](USER.md) | Target user (hospitalist), workflow and the use cases the agent must serve |
+| [WEEK1_DEBT.md](WEEK1_DEBT.md) | **What carried over from Week 1**: each debt, how it showed up in Week 2, what closed it (with commits), and what is still open |
 | [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md) | **Patient dashboard port: the defense.** Why React + TypeScript + Vite, gains, tradeoffs, API constraints, parity evidence, legacy fixes, and the one deliberate OpenEMR change |
 | [dashboard/](dashboard/) | The new patient dashboard: a SMART on FHIR app served from `public/dashboard/`, with its unit, end-to-end, parity and legacy-security tests |
 | [dashboard-modernization/](dashboard-modernization/) | How the port was derived: dependency tree, per-file audit of the legacy dashboard, bug catalog, migration spec, and the run evidence (`04-evidence/`) |
