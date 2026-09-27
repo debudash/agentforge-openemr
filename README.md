@@ -400,7 +400,7 @@ demo a second time produces a truthful "what changed" without anything having to
 | [deploy/digitalocean/](deploy/digitalocean/) | Reference VM deployment (droplet or Vultr): hardened production Compose, Let's Encrypt via `DOMAIN` |
 | [AUDIT.md](AUDIT.md) | Security, performance, architecture, data quality and compliance audit of this system |
 | [USER.md](USER.md) | Target user (hospitalist), workflow and the use cases the agent must serve |
-| [WEEK1_DEBT.md](WEEK1_DEBT.md) | **What carried over from Week 1**: each debt, how it showed up in Week 2, what closed it (with commits), and what is still open |
+| [WEEK1_DEBT.md](WEEK1_DEBT.md) | **What carried over from Week 1**: each debt, how it showed up in Week 2, and what closed it (with commits) |
 | [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md) | **Patient dashboard port: the defense.** Why React + TypeScript + Vite, gains, tradeoffs, API constraints, parity evidence, legacy fixes, and the one deliberate OpenEMR change |
 | [dashboard/](dashboard/) | The new patient dashboard: a SMART on FHIR app served from `public/dashboard/`, with its unit, end-to-end, parity and legacy-security tests |
 | [dashboard-modernization/](dashboard-modernization/) | How the port was derived: dependency tree, per-file audit of the legacy dashboard, bug catalog, migration spec, and the run evidence (`04-evidence/`) |

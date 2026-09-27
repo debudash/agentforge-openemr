@@ -15,14 +15,6 @@ recalled. Commits are on `week2`.
 | 5 | **Free models.** The agent and judge ran on free OpenRouter models. | Rate limits and outages decided results more often than the code did. | `gemini-2.5-flash-lite` for the agent and vision, `claude-sonnet-5` as judge, behind the existing provider allowlist. | `37a5c8a` |
 | 6 | **Citations were record ids only.** | A document fact needs a page, a quote and a box to click through to. | Citation contract v2 adds the provenance fields; Week 1 ids still resolve unchanged. | `f7d961d`, `5f30861` |
 
-## Carried and still open
-
-| Carried from Week 1 | Status |
-|---|---|
-| **Load at 10 and 50 concurrent users** (NFR7) was not measured: the free endpoint rate-limited below 10 users, so the numbers would have measured the quota (`KEY_METRICS.md`). | Still not measured. The paid model removes the reason it was skipped; this is the next measurement to take. |
-| **Counters live in the process** (`ALERTS.md`), so the agent cannot run more than one replica. | One replica today. Moving counters to Redis waits on the load numbers above. |
-| **Panel scope is enforced by the agent, not by OpenEMR.** OpenEMR's permissions are role-based, so a doctor can open any chart (`AUDIT.md` S3). | By design, and now the only barrier: from the chart's Co-Pilot tab the patient comes from the session, not from a rounding list. `usecases/test_uc_patient_tab.py` opens a patient outside the panel from the chart and checks the refusal. |
-
 ## What the debts had in common
 
 Items 2 and 3 are the same failure: a safety control that reported the wrong outcome rather than
