@@ -235,11 +235,13 @@
   <header class="masthead">
     <div class="eyebrow">OpenEMR Clinical Co-Pilot</div>
     <h1>Co-Pilot Flow Atlas</h1>
-    <p class="standfirst">Seven sequences tracing a clinician's question from the browser tab to a verified,
-      cited answer — and the places the system deliberately refuses to continue.</p>
+    <p class="standfirst">Nine sequences tracing a clinician's question from the browser tab to a verified,
+      cited answer — and the places the system deliberately refuses to continue. Flows 1–7 are Week 1's
+      rounding co-pilot; flows 8 and 9 are Week 2's document reading and supervisor graph.</p>
     <div class="meta">
-      Drawn from the implementation, 2026-09-20 · agent loop capped at 5 iterations ·
-      answer deadline 60&nbsp;s · prefetch budget 90&nbsp;s, concurrency 12 · request signature skew window 300&nbsp;s
+      Drawn from the implementation, 2026-09-23 · agent loop capped at 5 iterations, 12 tool calls a round ·
+      answer deadline 60&nbsp;s · prefetch budget 90&nbsp;s, concurrency 12 · request signature skew window 300&nbsp;s ·
+      agent and vision <code>google/gemini-2.5-flash-lite</code>
     </div>
   </header>
 
@@ -271,6 +273,8 @@
       <li><a href="#f5">Claim verification</a></li>
       <li><a href="#f6">Choosing a state</a></li>
       <li><a href="#f7">Switching patients</a></li>
+      <li><a href="#f8">Reading a new document</a></li>
+      <li><a href="#f9">Where a follow-up goes</a></li>
     </ol>
   </nav>
 
@@ -952,6 +956,167 @@
           <li><strong>Two mechanisms, same failure.</strong> Clearing history removes A's text from memory; turn-scoped citations mean that even if remembered text resurfaced it could not cite anything and would be deleted.</li>
           <li><strong>Asking about a panel patient who is not active is refused</strong>, which collapses the reachable surface to one chart at a time.</li>
           <li><strong>The cost is real:</strong> a clinician cannot keep two threads alive and flip between them. The demo chose the obviously-correct version over the more useful one.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ READING A NEW DOCUMENT ============ -->
+    <section class="flow" id="f8">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Reading a new document</h2>
+        <p class="asks">What happens between a lab report landing in the chart and the clinician seeing what it said?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 868 770" width="868" height="770" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="764"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="764"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="764"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="764"/>
+<line class="sq-life" x1="770" y1="44" x2="770" y2="764"/>
+<rect class="sq-actor" x="42" y="8" width="112" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">Co-Pilot tab</text>
+<rect class="sq-actor" x="227" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">api.php</text>
+<rect class="sq-actor" x="370" y="8" width="128" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">DocumentWriter</text>
+<rect class="sq-actor" x="563" y="8" width="78" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">agent</text>
+<rect class="sq-actor" x="714" y="8" width="112" height="36" rx="3"/>
+<text class="sq-actor-text" x="770" y="31" text-anchor="middle">vision model</text>
+<text class="sq-msg-text" x="182" y="68" text-anchor="middle">open, pid from the session</text>
+<line class="sq-arrow" x1="98" y1="80" x2="259" y2="80"/>
+<path class="sq-head" d="M 266 80 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="102" text-anchor="middle">list this chart&#8217;s documents</text>
+<line class="sq-arrow" x1="266" y1="114" x2="427" y2="114"/>
+<path class="sq-head" d="M 434 114 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="254" y="124" width="360" height="44" rx="3"/>
+<text class="sq-note-text" x="434" y="142" text-anchor="middle">already read, or already refused &#8594; skipped;</text>
+<text class="sq-note-text" x="434" y="156" text-anchor="middle">a refusal is recorded beside the document</text>
+<text class="sq-msg-text" x="350" y="194" text-anchor="middle">unread bytes + doc ids</text>
+<line class="sq-arrow" x1="434" y1="206" x2="273" y2="206" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 206 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="434" y="228" text-anchor="middle">chart + documents, signed hop</text>
+<line class="sq-arrow" x1="266" y1="240" x2="595" y2="240"/>
+<path class="sq-head" d="M 602 240 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="686" y="262" text-anchor="middle">page images, one structured call</text>
+<line class="sq-arrow" x1="602" y1="274" x2="763" y2="274"/>
+<path class="sq-head" d="M 770 274 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="686" y="296" text-anchor="middle">values, each with page and quote</text>
+<line class="sq-arrow" x1="770" y1="308" x2="609" y2="308" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 602 308 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="318" width="832" height="74" rx="3"/><path class="sq-band-tab" d="M 18 318 h 260 l -9 18 h -251 Z"/><text class="sq-band-text" x="26" y="331">alt  the quote is not on that page</text>
+<rect class="sq-note" x="437" y="340" width="330" height="30" rx="3"/>
+<text class="sq-note-text" x="602" y="358" text-anchor="middle">demoted to unsupported, never shown as a fact</text>
+<text class="sq-msg-text" x="434" y="412" text-anchor="middle">extraction + what changed</text>
+<line class="sq-arrow" x1="602" y1="424" x2="273" y2="424" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 424 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="434" width="832" height="122" rx="3"/><path class="sq-band-tab" d="M 18 434 h 358 l -9 18 h -349 Z"/><text class="sq-band-text" x="26" y="447">alt  another patient&#8217;s name, or nothing readable</text>
+<text class="sq-msg-text" x="350" y="468" text-anchor="middle">recordRefusal()</text>
+<line class="sq-arrow" x1="266" y1="480" x2="427" y2="480"/>
+<path class="sq-head" d="M 434 480 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="239" y="490" width="390" height="44" rx="3"/>
+<text class="sq-note-text" x="434" y="508" text-anchor="middle">nothing reaches the chart; the tab says NOT FILED;</text>
+<text class="sq-note-text" x="434" y="522" text-anchor="middle">later opens skip it, so it is never read twice</text>
+<rect class="sq-band" x="18" y="564" width="832" height="122" rx="3"/><path class="sq-band-tab" d="M 18 564 h 176 l -9 18 h -167 Z"/><text class="sq-band-text" x="26" y="577">else  the name matches</text>
+<text class="sq-msg-text" x="350" y="598" text-anchor="middle">file results through the service layer</text>
+<line class="sq-arrow" x1="266" y1="610" x2="427" y2="610"/>
+<path class="sq-head" d="M 434 610 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="269" y="620" width="330" height="44" rx="3"/>
+<text class="sq-note-text" x="434" y="638" text-anchor="middle">order &#8594; order_code &#8594; report &#8594; result,</text>
+<text class="sq-note-text" x="434" y="652" text-anchor="middle">the same chain an in-house lab writes</text>
+<text class="sq-msg-text" x="434" y="706" text-anchor="middle">re-read chart, new brief</text>
+<line class="sq-arrow" x1="266" y1="718" x2="595" y2="718"/>
+<path class="sq-head" d="M 602 718 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="740" text-anchor="middle">brief, what changed, citations to page and quote</text>
+<line class="sq-arrow" x1="602" y1="752" x2="105" y2="752" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 752 l 7 -4.2 l 0 8.4 Z"/>
+</svg>
+        </div>
+        <figcaption>The document is read once, filed through the same service layer an in-house result goes through, and a document that does not belong stops here.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>The cross-check is on the write path, not the read path.</strong> <code>patientRefMismatch()</code> compares the name the model read against the chart it is being filed into. A mismatch is refused in <code>DocumentWriter</code>, so no caller can skip it &mdash; the Demo Data tab and an ordinary upload hit the same gate.</li>
+          <li><strong>A refusal is a recorded fact, not a silent skip.</strong> It is stored beside the document, returned to the page as <code>refused</code>, and coloured on screen. Before that field existed the response said &ldquo;0 result(s) added&rdquo; and the tab described the document as read &mdash; the most expensive bug of Week 2, caused by Pydantic dropping an unknown field without complaint.</li>
+          <li><strong>Two briefs, by design.</strong> A chart that gained a document is a new chart, so the brief is regenerated after filing. A chart that did not change costs nothing: the cached brief is returned.</li>
+          <li><strong>Every value carries all five citation fields</strong> &mdash; source type, source id, page, field id and the quote &mdash; so the tab can box the quote on the rendered page rather than just name the document.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ WHERE A FOLLOW-UP GOES ============ -->
+    <section class="flow" id="f9">
+      <div class="flow-head">
+        <div class="flow-num"></div>
+        <h2>Where a follow-up goes</h2>
+        <p class="asks">One supervisor, two workers &mdash; which one answers, and who decides?</p>
+      </div>
+      <figure>
+        <div class="plate">
+<svg class="seq" viewBox="0 0 868 614" width="868" height="614" role="img" xmlns="http://www.w3.org/2000/svg">
+<line class="sq-life" x1="98" y1="44" x2="98" y2="608"/>
+<line class="sq-life" x1="266" y1="44" x2="266" y2="608"/>
+<line class="sq-life" x1="434" y1="44" x2="434" y2="608"/>
+<line class="sq-life" x1="602" y1="44" x2="602" y2="608"/>
+<line class="sq-life" x1="770" y1="44" x2="770" y2="608"/>
+<rect class="sq-actor" x="42" y="8" width="112" height="36" rx="3"/>
+<text class="sq-actor-text" x="98" y="31" text-anchor="middle">Co-Pilot tab</text>
+<rect class="sq-actor" x="218" y="8" width="96" height="36" rx="3"/>
+<text class="sq-actor-text" x="266" y="31" text-anchor="middle">supervisor</text>
+<rect class="sq-actor" x="382" y="8" width="104" height="36" rx="3"/>
+<text class="sq-actor-text" x="434" y="31" text-anchor="middle">topic check</text>
+<rect class="sq-actor" x="522" y="8" width="160" height="36" rx="3"/>
+<text class="sq-actor-text" x="602" y="31" text-anchor="middle">evidence retriever</text>
+<rect class="sq-actor" x="718" y="8" width="104" height="36" rx="3"/>
+<text class="sq-actor-text" x="770" y="31" text-anchor="middle">chart tools</text>
+<text class="sq-msg-text" x="182" y="68" text-anchor="middle">a follow-up question</text>
+<line class="sq-arrow" x1="98" y1="80" x2="259" y2="80"/>
+<path class="sq-head" d="M 266 80 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="350" y="102" text-anchor="middle">the question alone</text>
+<line class="sq-arrow" x1="266" y1="114" x2="427" y2="114"/>
+<path class="sq-head" d="M 434 114 l -7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="124" width="832" height="98" rx="3"/><path class="sq-band-tab" d="M 18 124 h 204 l -9 18 h -195 Z"/><text class="sq-band-text" x="26" y="137">alt  not about this record</text>
+<text class="sq-msg-text" x="350" y="158" text-anchor="middle">false</text>
+<line class="sq-arrow" x1="434" y1="170" x2="273" y2="170" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 170 l 7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="182" y="192" text-anchor="middle">scope statement, no tools, no claims</text>
+<line class="sq-arrow" x1="266" y1="204" x2="105" y2="204" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 204 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="230" width="832" height="146" rx="3"/><path class="sq-band-tab" d="M 18 230 h 393 l -9 18 h -384 Z"/><text class="sq-band-text" x="26" y="243">else  what changed / what&#8217;s new / tell me the changes</text>
+<rect class="sq-note" x="96" y="252" width="340" height="30" rx="3"/>
+<text class="sq-note-text" x="266" y="270" text-anchor="middle">answered from what was filed since the last visit</text>
+<rect class="sq-band" x="28" y="296" width="812" height="64" rx="3"/><path class="sq-band-tab" d="M 28 296 h 162 l -9 18 h -153 Z"/><text class="sq-band-text" x="36" y="309">alt  nothing arrived</text>
+<text class="sq-msg-text" x="182" y="330" text-anchor="middle">says so, and stops</text>
+<line class="sq-arrow" x1="266" y1="342" x2="105" y2="342" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 98 342 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-band" x="18" y="384" width="832" height="142" rx="3"/><path class="sq-band-tab" d="M 18 384 h 225 l -9 18 h -216 Z"/><text class="sq-band-text" x="26" y="397">else  asks what guidance says</text>
+<text class="sq-msg-text" x="434" y="418" text-anchor="middle">BM25 + dense + cross-encoder, 20 chunks</text>
+<line class="sq-arrow" x1="266" y1="430" x2="595" y2="430"/>
+<path class="sq-head" d="M 602 430 l -7 -4.2 l 0 8.4 Z"/>
+<text class="sq-msg-text" x="434" y="452" text-anchor="middle">chunks, cited, in their own block</text>
+<line class="sq-arrow" x1="602" y1="464" x2="273" y2="464" stroke-dasharray="5 4"/>
+<path class="sq-head" d="M 266 464 l 7 -4.2 l 0 8.4 Z"/>
+<rect class="sq-note" x="452" y="474" width="300" height="30" rx="3"/>
+<text class="sq-note-text" x="602" y="492" text-anchor="middle">evidence, never advice for this patient</text>
+<rect class="sq-band" x="18" y="534" width="832" height="64" rx="3"/><path class="sq-band-tab" d="M 18 534 h 267 l -9 18 h -258 Z"/><text class="sq-band-text" x="26" y="547">else  anything else about the chart</text>
+<text class="sq-msg-text" x="518" y="568" text-anchor="middle">one forced lookup, then the answer</text>
+<line class="sq-arrow" x1="266" y1="580" x2="763" y2="580"/>
+<path class="sq-head" d="M 770 580 l -7 -4.2 l 0 8.4 Z"/>
+</svg>
+        </div>
+        <figcaption>The supervisor routes; the workers answer. The topic check is the gate in front of all of it.</figcaption>
+      </figure>
+      <div class="readout">
+        <h3>What to read off it</h3>
+        <ul>
+          <li><strong>The topic check decides, and it is not advisory.</strong> Making it a hint the model could overrule returned chart content to &ldquo;how is the weather&rdquo;. It is a gate again.</li>
+          <li><strong>&ldquo;What changed&rdquo; is scoped to what actually arrived.</strong> The pattern matches change, new, updated and differ; <em>recent</em> and <em>latest</em> were removed because they pulled ordinary lab questions into the change path. With nothing new, the answer says so instead of re-reading the chart.</li>
+          <li><strong>Guideline evidence never becomes a recommendation.</strong> It is returned in its own block, cited to the corpus chunk, and the verifier will not let it be restated as a fact about the patient.</li>
+          <li><strong>An evidence question always searches.</strong> Its first round must call a tool, and if no search ran the answer shows no guidance, says so, and is partial. Added 2026-09-27 after an answer described search results from a search that never ran and was marked complete.</li>
+          <li><strong>Twelve tool calls a round, then stop.</strong> The cap exists because an unscoped &ldquo;what changed&rdquo; used to walk the whole chart and hit the limit before answering.</li>
         </ul>
       </div>
     </section>

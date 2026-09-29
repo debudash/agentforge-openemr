@@ -46,7 +46,7 @@ docker compose exec -T openemr su -s /bin/sh apache -c "php /var/www/localhost/h
 
 # railway — no bind mount, so send the file over ssh
 $php = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes((Get-Content scripts\fix_acl.php -Raw)))
-railway ssh --service openemr sh -c "echo $php | base64 -d > /tmp/fix_acl.php && php /tmp/fix_acl.php && rm -f /tmp/fix_acl.php"
+railway ssh --service openemr-v82 sh -c "echo $php | base64 -d > /tmp/fix_acl.php && php /tmp/fix_acl.php && rm -f /tmp/fix_acl.php"
 ```
 
 Verify: `SELECT a.value, g.name FROM gacl_aro a JOIN gacl_groups_aro_map m ON m.aro_id=a.id JOIN gacl_aro_groups g ON g.id=m.group_id WHERE a.value LIKE 'doctor%';`
@@ -93,11 +93,12 @@ $env:OE_DB_VIA="railway"; $env:OE_DB_PASS="<db pw>"
 Re-run it after a fresh install, a database rebuild or a snapshot restore. It is
 idempotent: an existing row is re-enabled rather than duplicated.
 
-### Writing module code that runs on both images
+### Writing module code that runs on older OpenEMRs
 
-The local stack runs `openemr/openemr:flex` (master) and Railway runs
-`openemr/openemr:latest` (stable). Several `OEGlobalsBag` methods exist **only on
-master**, and a fatal inside a module bootstrap takes down *every* page, because
+Since 2026-09-25 the local stack and Railway run the same OpenEMR (8.2.0-dev, built from this
+repository). The module still declares `openemr >= 7.0.0`, and until then Railway ran the stock
+`openemr/openemr:latest` (8.0.0), so it keeps these guards. Several `OEGlobalsBag` methods exist
+**only on master**, and a fatal inside a module bootstrap takes down *every* page, because
 bootstraps are included by `globals.php`:
 
 | Master-only call | Use instead |
@@ -110,24 +111,12 @@ bootstraps are included by `globals.php`:
 Wrap the whole bootstrap in `try/catch (\Throwable)` and `error_log()` the
 failure, so a broken tab degrades to a missing tab instead of an unusable site.
 
-### Keeping it alive on Railway
+### On Railway
 
-The Railway service runs the stock image with no bind mount, so module files
-copied into the container are lost on redeploy — and OpenEMR then force-disables
-the module after three failed bootstrap reads. The module therefore lives on the
-persistent volume and is symlinked into place:
-
-```
-sites/default/copilot-module                                   <- real files (on the volume)
-interface/modules/custom_modules/oe-module-copilot-agent       -> symlink
-```
-
-To restore it after a redeploy, recreate the symlink and re-run
-`register_module.py`:
-
-```powershell
-railway ssh --service openemr sh -c "ln -sfn /var/www/localhost/htdocs/openemr/sites/default/copilot-module /var/www/localhost/htdocs/openemr/interface/modules/custom_modules/oe-module-copilot-agent"
-```
+The module is built into the OpenEMR image, so it survives every redeploy with no copying
+(`deploy/railway/README.md`, "Building from this checkout"). Until 2026-09-25 Railway ran the
+stock image, the module lived on the sites volume at `sites/default/copilot-module`, and a
+redeploy dropped the symlink that put it in place.
 
 ## Today's rounding list (co-pilot)
 

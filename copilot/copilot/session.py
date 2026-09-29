@@ -205,6 +205,35 @@ class SessionStore:
             emit("patient_selected", correlation_id, session=sid[:8], pid=pid)
         return state.status, state.brief, state.error
 
+    async def ask_supervised(self, sid: str, pid: int, question: str, documents: list[dict[str, Any]],
+                             vision_factory: Callable[[], Any], correlation_id: str) -> dict[str, Any] | None:
+        """A follow-up through the graph: the supervisor decides whether the question needs a
+        document read first, then hands it to the retriever.
+
+        This is what makes the supervisor's three decisions true of every interaction rather than
+        only of the first. It also means a question asked while a document is still unread is
+        answered from the chart that document produced, instead of from the chart as it was before
+        anyone uploaded anything.
+        """
+        session = self.get(sid)
+        if session is None or pid not in session.patients:
+            return None
+        self.select(sid, pid, correlation_id)
+        state = session.patients[pid]
+        summary = await asyncio.to_thread(self.supervisor(vision_factory).start, sid, pid, documents,
+                                          correlation_id, question, list(state.history))
+        self._absorb_answer(sid, pid, summary)
+        return summary
+
+    def _absorb_answer(self, sid: str, pid: int, summary: dict[str, Any]) -> None:
+        """Keep the turn the graph produced, so memory works the same through either path."""
+        turn = summary.get("turn") or []
+        if summary.get("phase") != "done" or not turn:
+            return
+        state = self.sessions[sid].patients[pid]
+        state.history.extend(turn)
+        state.history[:] = state.history[-12:]
+
     async def ask(self, sid: str, pid: int, question: str, correlation_id: str) -> AgentResponse:
         session = self.get(sid)
         if session is None:
@@ -232,6 +261,76 @@ class SessionStore:
         state.history.extend(turn)
         state.history[:] = state.history[-12:]   # six exchanges of memory is enough for bedside follow-ups
         return response
+
+    # -- Week 2: the supervisor graph ------------------------------------------------------
+    def supervisor(self, vision_factory: Callable[[], Any]) -> Any:
+        """Built once per store. The graph reads charts and briefs through the store, never directly."""
+        if getattr(self, "_supervisor", None) is None:
+            from .supervisor import Supervisor
+
+            def chart_provider(sid: str, pid: int) -> Chart:
+                session = self.sessions.get(sid)
+                if session is None or pid not in session.patients:
+                    raise KeyError("no such session or patient")
+                return session.patients[pid].chart
+
+            def brief_provider(sid: str, pid: int, chart: Chart) -> AgentResponse | None:
+                state = self.sessions[sid].patients[pid]
+                fingerprint = chart_fingerprint(chart)
+                if state.status == "ready" and state.brief is not None and state.fingerprint == fingerprint:
+                    return state.brief
+                return self._briefs.get((pid, fingerprint, self.settings.model))
+
+            self._supervisor = Supervisor(self.settings, self.llm, vision_factory, chart_provider, brief_provider)
+        return self._supervisor
+
+    def _absorb_supervised(self, sid: str, pid: int, summary: dict[str, Any]) -> None:
+        """A finished run's brief becomes the patient's brief, cached like a prefetched one."""
+        if summary.get("phase") != "done" or not summary.get("brief"):
+            return
+        state = self.sessions[sid].patients[pid]
+        state.brief = AgentResponse.model_validate(summary["brief"])
+        state.status, state.ready_at, state.error = "ready", time.perf_counter(), None
+        state.fingerprint = state.fingerprint or chart_fingerprint(state.chart)
+        self._remember_brief(state)
+
+    async def supervise(self, sid: str, pid: int, documents: list[dict[str, Any]], vision_factory: Callable[[], Any],
+                        correlation_id: str) -> dict[str, Any] | None:
+        session = self.get(sid)
+        if session is None or pid not in session.patients:
+            return None
+        # Supervising a patient is opening that patient: the follow-up box on the same page asks
+        # about this pid, and ask() answers only for the active one. select() is the single place
+        # that switches the active patient and drops every other patient's memory (FR5).
+        self.select(sid, pid, correlation_id)
+        summary = await asyncio.to_thread(self.supervisor(vision_factory).start, sid, pid, documents, correlation_id)
+        self._absorb_supervised(sid, pid, summary)
+        return summary
+
+    async def ask_supervised_resume(self, sid: str, pid: int, persisted: list[dict[str, Any]], chart: Chart | None,
+                                    vision_factory: Callable[[], Any], correlation_id: str) -> dict[str, Any] | None:
+        """The module has persisted what the extractor read; the question is answered from the
+        chart as it now stands."""
+        summary = await self.supervise_resume(sid, pid, persisted, chart, vision_factory, correlation_id)
+        if summary is not None:
+            self._absorb_answer(sid, pid, summary)
+        return summary
+
+    async def supervise_resume(self, sid: str, pid: int, persisted: list[dict[str, Any]], chart: Chart | None,
+                               vision_factory: Callable[[], Any], correlation_id: str) -> dict[str, Any] | None:
+        session = self.get(sid)
+        if session is None or pid not in session.patients:
+            return None
+        state = session.patients[pid]
+        if chart is not None:
+            if chart.patient.pid != pid or chart.patient.provider_id != int(session.user["id"]):
+                return {"phase": "denied", "reason": "the re-read chart is not this patient's or not assigned to this user"}
+            state.chart = chart                      # the chart as the module re-read it after persisting
+            state.fingerprint = chart_fingerprint(chart)
+            state.status, state.brief = "generating", None
+        summary = await asyncio.to_thread(self.supervisor(vision_factory).resume, sid, pid, persisted, correlation_id)
+        self._absorb_supervised(sid, pid, summary)
+        return summary
 
     def close(self, sid: str) -> bool:
         return self.sessions.pop(sid, None) is not None

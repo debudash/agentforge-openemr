@@ -396,3 +396,18 @@ The only built-in restrictions are facility-based (`restrict_user_facility`, fac
 4. Whether bedside questions happen on the phone often enough to make REQ-FMT-1's phone layout a P0.
 5. Where the rounding list actually comes from in a real deployment (census or assignment system), since OpenEMR has none (§5).
 6. **Token model for agent reads** (for `ARCHITECTURE.md`): user-level tokens plus agent-layer filtering, or SMART EHR-launch tokens scoped to one patient (`patient/*.read`), which OpenEMR enforces itself. Patient-scoped tokens are stronger — a leaked token reads one chart rather than all 50 — but need a launch context and a different authentication flow, and they don't cover the panel-wide UC-1 brief.
+
+## Week 2: the follow-up visit with new documents
+
+The same hospitalist, one more situation: a patient on the list has a new lab report and an
+intake form from another physician's visit, uploaded to the chart by the front desk. The questions
+are the same three, sharpened: what changed since I last looked, what should I pay attention to,
+and what evidence supports it.
+
+| Use case | What the co-pilot does | What it does not do |
+|---|---|---|
+| UC-W2-1 New documents on open | Lists the chart's lab reports and intake forms, reads the unread ones, files the results, and says what changed with a citation to each document | Never reads a document filed under another patient; never reads one twice |
+| UC-W2-2 Lab values from a report | Each value becomes a lab row marked machine-read and pending review; the brief cites the row; one click opens the page with the value boxed | Never lets the report's own abnormal flag stand as a judgement; the rule engine still decides |
+| UC-W2-3 Intake form | Keeps the extraction beside the form; the brief says medications, allergies and history are reported on intake, not reconciled | Never writes a form's allergies or medications into the clinical lists |
+| UC-W2-4 Evidence | Answers "what does guidance say" with quoted guidance in its own block, cited to a public-domain corpus | Never turns guidance into a recommendation for this patient (NG-2 holds) |
+| UC-W2-5 An unreadable document | Says the document could not be read and still gives the brief | Never guesses a value it could not read |

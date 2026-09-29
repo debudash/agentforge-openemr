@@ -1,0 +1,106 @@
+{
+  "pid": 47,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Trenton748 Connelly992",
+        "47",
+        "2022-02-21",
+        "4"
+      ],
+      "port": [
+        "Trenton748 Connelly992",
+        "47",
+        "2022-02-21",
+        "4",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Otitis media (disorder)"
+      ],
+      "port": [
+        "Otitis media (disorder)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Amoxicillin 500 MG Oral Tablet",
+        "Ibuprofen 100 MG Oral Tablet",
+        "Acetaminophen 160 MG Chewable Tablet"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: Amoxicillin 500 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Ibuprofen 100 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 160 MG Chewable Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "match",
+      "legacy": [
+        "Height: 54.3 in (137.90 cm)",
+        "Pulse: 62 per min",
+        "Respiration: 14 per min",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 54.3 in",
+        "pulse: 62 /min",
+        "respiration: 14 /min"
+      ],
+      "differences": []
+    }
+  ]
+}

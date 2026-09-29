@@ -36,6 +36,10 @@ class ChartContext:
     # Every source_id a tool returned in this turn. A follow-up claim may cite only these:
     # a fact restated from memory without a fresh lookup is not grounded in this turn.
     returned_ids: set[str] = field(default_factory=set)
+    # Week 2: the guideline index for this turn (None means the tool reports itself unavailable), and
+    # every chunk it returned, keyed by citable id, so the verifier can resolve guideline citations.
+    guidelines: Any = None
+    evidence: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def note(self, payload: Any) -> Any:
         """Record the source_ids in a tool result before it is returned to the model."""
@@ -105,6 +109,30 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
     """Build the tool set bound to one ChartContext."""
 
     @tool
+    def search_guidelines(query: str) -> str:
+        """Short excerpts from public clinical guidance (USPSTF, MedlinePlus) matching the query. Use only when asked what guidance or evidence says. Results are guideline: source_ids for the "evidence" list; never cite them on a claim about the patient."""
+        ctx.calls.append("search_guidelines")
+        if ctx.on_call:
+            ctx.on_call("search_guidelines", {"pid_requested_matches_scope": True})
+        if ctx.guidelines is None:
+            return _dump({"result": "error", "reason": "guideline search is not available in this deployment", "records": []})
+        from .guidelines.retrieve import conditions_from_problems
+
+        conditions = conditions_from_problems([p.title for p in ctx.chart.problems])
+        hits = ctx.guidelines.search(query, conditions=conditions)
+        records = []
+        for hit in hits:
+            record = hit.chunk.record()
+            ctx.evidence[hit.chunk.source_id] = record
+            records.append({"source_id": hit.chunk.source_id, "title": hit.chunk.title, "section": hit.chunk.section,
+                            "text": hit.chunk.text, "publisher": hit.chunk.publisher, "published": hit.chunk.published,
+                            "url": hit.chunk.url, "score": round(hit.score, 4)})
+        note = ("Quote these as evidence, citing their source_ids in the evidence list. They are general guidance, "
+                "not statements about this patient, and must not be turned into a recommendation.")
+        return _dump({"result": "ok" if records else "empty", "records": records, "note": note,
+                      **({} if records else {"source_id": "empty:guidelines"})}, ctx)
+
+    @tool
     def get_patient_context(pid: int) -> str:
         """Identity, appointment and which data sources were retrieved for the active patient. Call this first if unsure what is available."""
         denied = ctx.check("get_patient_context", pid)
@@ -170,7 +198,7 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
 
     @tool
     def get_labs(pid: int, test: str = "", since_days: int = 365, limit: int = 30) -> str:
-        """Laboratory results, newest first. Filter by test name or LOINC substring (e.g. 'potassium', '2823-3'). Each result carries the demo reference range check; the record itself has no ranges."""
+        """Laboratory results, newest first. Filter by test name or LOINC substring (e.g. 'potassium', '2823-3'), or narrow to recent results with since_days (use a small window for questions about what is new or what changed). Each result carries the demo reference range check; the record itself has no ranges. A result read from a stored document names that document."""
         denied = ctx.check("get_labs", pid)
         if denied:
             return denied
@@ -186,6 +214,10 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
                 "source_id": lab.source_id, "test": lab.test, "code": lab.code, "value": lab.value, "units": lab.units,
                 "date": lab.date, "recorded_range": lab.range or None, "recorded_abnormal_flag": lab.abnormal or None,
                 "demo_reference": flag.reference, "demo_reference_check": flag.outcome, "direction": flag.direction,
+                # Week 2: a result read from a stored document says so, so an answer about what
+                # changed can tell a machine-read value from one a human entered.
+                "read_from_document": f"doc:{lab.document_id}" if lab.document_id else None,
+                "document_page": lab.page,
             })
         last = normalize.latest_lab_date(ctx.chart)
         note = None
@@ -232,6 +264,33 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         return _result(ctx, "vitals", records, None if records else "no vital signs recorded")
 
     @tool
+    def get_documents(pid: int) -> str:
+        """Lab reports and intake forms on file for this patient, newest first: type, name, date, whether the co-pilot has read it, and how many results it produced. An intake form also carries what it reported -- medications, allergies, family history, chief concern -- which is reported by the patient on a form and not reconciled into the chart, so say so when citing it."""
+        denied = ctx.check("get_documents", pid)
+        if denied:
+            return denied
+        records = []
+        for document in ctx.chart.documents:
+            record = {
+                "source_id": document.source_id, "doc_type": document.doc_type, "name": document.name,
+                "date": document.date, "read_by_copilot": document.processed, "results_written": document.results,
+            }
+            if document.reported:
+                # Named for what it is at every level, and each value says it too. A model copying
+                # a value into a claim then carries the attribution with it, instead of writing
+                # "the patient is taking lisinopril" about a form the patient filled in -- seen
+                # live, and exactly the conflation an intake form must never cause (NG-2).
+                reported = {}
+                for key, value in document.reported.items():
+                    if isinstance(value, list):
+                        reported[key] = [f"reported on intake, not reconciled: {item}" for item in value]
+                    else:
+                        reported[key] = f"reported on intake, not reconciled: {value}"
+                record["reported_on_intake_not_reconciled"] = reported
+            records.append(record)
+        return _result(ctx, "documents", records)
+
+    @tool
     def get_compliance_signals(pid: int) -> str:
         """Care-plan adherence signals: open 'review due' items, medications past their end date still flagged active, follow-up gaps, immunization gaps. Each is cited."""
         denied = ctx.check("get_compliance_signals", pid)
@@ -253,4 +312,5 @@ def make_tools(ctx: ChartContext) -> list[BaseTool]:
         return _dump({"result": "ok", "records": [{"source_id": f"rule:{o.rule_id}", **o.model_dump()} for o in outcomes]}, ctx)
 
     return [get_patient_context, get_problems, get_medications, get_allergies, get_labs,
-            get_encounters, get_immunizations, get_vitals, get_compliance_signals, run_constraint_checks]
+            get_encounters, get_immunizations, get_vitals, get_documents, get_compliance_signals,
+            run_constraint_checks, search_guidelines]

@@ -1,0 +1,37 @@
+# Finding: a user without patients/med reads clinical data through any patient/-scoped token
+
+Run 2026-09-26 on the local stack. User dash-demoview (ACL: patients/demo view only; ADR 0005).
+Patient pid 1 (Adan632 Dicki44).
+
+## In the chart (ADR 0009, setting on smart_app)
+
+e2e/in-chart.spec.ts "a user without patients/med sees the cards' error states and no clinical data":
+FAILED. The app rendered pid 1's problem list ("Essential hypertension (disorder)" and 13 more),
+care team, vitals. See test-results/in-chart-no-med.png on the run that produced it.
+
+## Standalone (Phase 4 app, no ADR 0009 code involved)
+
+Temporary probe: signInToDashboard(page, <pid 1 uuid>, "dash-demoview", <password>)
+(login, patient picker, consent), then the dashboard loaded:
+
+  FHIR MedicationRequest 200, Condition 200, MedicationRequest 200, Observation 200, AllergyIntolerance 200
+  SHOWS_ESSENTIAL_HYPERTENSION true
+  1 passed (24.5s)
+
+The probe file was deleted after the run.
+
+## Cause (OpenEMR API core, not the port)
+
+- src/Common/Http/HttpRestRouteHandler.php L62-67: when the token carries a patient/<Resource>
+  scope for the route's resource, the request is marked a patient request, whatever the user's
+  role.
+- src/RestControllers/FHIR/FhirGenericRestController.php L93-102: for a patient request the
+  gacl checks added by the route (addAclRestrictions("patients", "med")) are skipped; only the
+  patient binding is applied.
+- A public client cannot get user/ scopes (API-06), so the port has no scope that keeps the
+  gacl check.
+
+So the FHIR API authorizes a practitioner's patient/-scoped token by scope and patient binding
+only. The legacy dashboard hides these cards from dash-demoview (aclCheckIssue per card).
+PATIENT_DASHBOARD_MIGRATION.md "Tradeoffs" says "The API checks patients/med": that is not true
+for the tokens this app holds.

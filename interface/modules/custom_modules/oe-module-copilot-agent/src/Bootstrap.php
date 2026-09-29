@@ -20,6 +20,7 @@ namespace OpenEMR\Modules\CopilotAgent;
 
 use OpenEMR\Common\Acl\AclMain;
 use OpenEMR\Menu\MenuEvent;
+use OpenEMR\Menu\PatientMenuEvent;
 use stdClass;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -34,6 +35,17 @@ class Bootstrap
 
     /** Second tab: the admin-only service health view. Its own target so it opens beside the co-pilot. */
     private const HEALTH_TARGET = "cph";
+
+    /** Menu id of the Co-Pilot entry in the patient record's own navbar (Week 2). */
+    private const PATIENT_TAB_ID = "copilot";
+
+    /** Its own tab in the main screen, so opening the co-pilot does not replace the chart view. */
+    private const PATIENT_TAB_TARGET = "cpapat";
+
+    /** Validation tooling, off unless COPILOT_DEMO_TOOLS says otherwise. See DemoDocuments. */
+    private const DEMO_TAB_ID = "copilotdemo";
+
+    private const DEMO_TAB_TARGET = "cpademo";
 
     public function __construct(
         private readonly EventDispatcherInterface $eventDispatcher
@@ -51,6 +63,93 @@ class Bootstrap
     public function registerMenuItems(): void
     {
         $this->eventDispatcher->addListener(MenuEvent::MENU_UPDATE, $this->addCopilotMenuItem(...));
+        $this->eventDispatcher->addListener(PatientMenuEvent::MENU_UPDATE, $this->addPatientTab(...));
+    }
+
+    /**
+     * Append a Co-Pilot tab to the patient record's navbar, beside Dashboard, History and Documents.
+     *
+     * This is the Week 2 entry point: the page reads the active patient from the session, so the
+     * panel check happens server-side against whatever chart OpenEMR has open. `pid` is 'false'
+     * because the renderer would otherwise append the pid to the URL, and a pid in the URL is
+     * exactly what the page must not trust. PatientMenuRole has already made the standard URLs
+     * absolute by the time this fires, so the URL here is given ready to use.
+     *
+     * Clicking it opens a tab of its own rather than replacing the chart view, so the clinician
+     * can read the brief and the chart side by side.
+     */
+    public function addPatientTab(PatientMenuEvent $event): PatientMenuEvent
+    {
+        $menu = $event->getMenu();
+        if (!is_array($menu)) {
+            return $event;
+        }
+        foreach ($menu as $item) {
+            if (($item->menu_id ?? '') === self::PATIENT_TAB_ID) {
+                return $event;
+            }
+        }
+
+        [$isHospitalist] = $this->currentRoles();
+        if (!$isHospitalist) {
+            return $event;
+        }
+
+        // The navbar renderer ignores `target` and emits `on_click` verbatim into the anchor, so
+        // opening a tab of our own is the click handler's job. navigateTab reuses the tab when it
+        // already exists, which is what makes a second click re-read the chart now in view.
+        // Falls back to the plain href wherever the main screen's tab API is absent.
+        $page = self::MODULE_INSTALLATION_PATH . "/public/patient.php";
+        $openInOwnTab = "if (top.navigateTab) { top.navigateTab(top.webroot_url + '" . $page . "', '"
+            . self::PATIENT_TAB_TARGET . "', function () { top.activateTabByName('"
+            . self::PATIENT_TAB_TARGET . "', true); }); return false; } top.restoreSession();";
+
+        $tab = new stdClass();
+        $tab->requirement = 0;
+        $tab->target = self::PATIENT_TAB_TARGET;
+        $tab->menu_id = self::PATIENT_TAB_ID;
+        $tab->label = xlt("Co-Pilot");
+        $tab->url = $page;
+        $tab->on_click = $openInOwnTab;
+        $tab->pid = 'false';
+        $tab->children = [];
+        $tab->acl_req = ["patients", "demo"];
+        $tab->global_req = [];
+
+        // After Documents when it is there, so the tab sits with the chart's own record views.
+        $position = count($menu);
+        foreach ($menu as $index => $item) {
+            if (($item->menu_id ?? '') === 'documents') {
+                $position = $index + 1;
+                break;
+            }
+        }
+        array_splice($menu, $position, 0, [$tab]);
+
+        // Validation tooling, and the only place it is registered. Off unless the environment
+        // turns it on, so a deployment that sets nothing never shows it. Deleting this block and
+        // the file it points at removes the feature. See DemoDocuments.
+        if (Config::load((string) ($GLOBALS['OE_SITE_DIR'] ?? ''))->demoTools) {
+            $demoPage = self::MODULE_INSTALLATION_PATH . "/public/demo.php";
+            $demo = new stdClass();
+            $demo->requirement = 0;
+            $demo->target = self::DEMO_TAB_TARGET;
+            $demo->menu_id = self::DEMO_TAB_ID;
+            $demo->label = xlt("Demo Data");
+            $demo->url = $demoPage;
+            $demo->on_click = "if (top.navigateTab) { top.navigateTab(top.webroot_url + '" . $demoPage . "', '"
+                . self::DEMO_TAB_TARGET . "', function () { top.activateTabByName('"
+                . self::DEMO_TAB_TARGET . "', true); }); return false; } top.restoreSession();";
+            $demo->pid = 'false';
+            $demo->children = [];
+            $demo->acl_req = ["patients", "demo"];
+            $demo->global_req = [];
+            array_splice($menu, $position + 1, 0, [$demo]);
+        }
+
+        $event->setMenu($menu);
+
+        return $event;
     }
 
     /**

@@ -29,6 +29,40 @@ is signed with, so it is kept out of the repository for the same reason the pass
 
 **A quick look around:** sign in, then **Patient → Patients** to search (names carry Synthea's numeric suffixes, e.g. `Blair400 Wiegand701`). Open a chart for problems, medications, labs and encounters. As `admin`, **Admin → Users** shows the two provider accounts.
 
+**The chart opens the new patient dashboard**, a React app reading the FHIR API that replaces the old PHP cards (Week 2 add-on; the defense is [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md)). Its own URL, `/public/dashboard/`, shows the full OAuth2 / OpenID Connect sign-in. As `admin`, **Admin → Globals → Appearance → Patient Dashboard Cards** switches the chart back to the old cards.
+
+**Trying the co-pilot on the deployment.** Both weeks are live, and they are different surfaces:
+
+| | Where | What it does |
+|---|---|---|
+| **Week 1** | **CopilotAgent** in the top menu | The rounding list: today's patients for the signed-in physician, each with a prefetched brief, plus follow-up questions |
+| **Week 2** | **Co-Pilot** in a patient record's navbar | Reads lab reports and intake forms filed in that chart, shows what changed, and cites each value to the page and quote it came from |
+
+Week 2 needs a chart with a document in it, so **Demo Data** (the tab beside it) writes one:
+
+1. Sign in as **`doctor1`** and open one of their patients — pids 1–25. Week 2 is scoped to the
+   signed-in physician's panel, so `admin` is the wrong account for this.
+2. Open **Demo Data**, leave the selector on *Abnormal (potassium 5.4, eGFR 58, A1c 7.4)*, and press
+   **Generate New Docs**. It writes a lab report and an intake form naming that patient and files
+   both in the chart, unread, through the same code an upload goes through.
+3. Open **Co-Pilot** (it opens in its own tab, titled *Clinical Co-Pilot*). It finds the unread documents, reads them, has the results filed, and
+   shows **What changed** above the brief. Occasionally the provider returns nothing -- 2 of 38 reads
+   measured -- and the co-pilot says the document could not be read rather than guessing.
+4. Click a citation chip on a value that came from the report: the page opens with the quote boxed
+   on it. **Run details** shows which worker the supervisor handed to, and why.
+5. Ask a follow-up — *"what changed?"*, or *"what does guidance say about high potassium with an
+   ACE inhibitor?"*, which answers from the guideline corpus in a separate block and never turns it
+   into advice for the patient.
+
+**Worth doing deliberately:** generate with the selector on **Another patient's report**. It is
+refused, the refusal is recorded beside the document where a human can read it, the tab marks it
+NOT FILED, and nothing from it reaches the chart. The same happens to an unreadable scan. That
+refusal path is the point of the feature, not an edge case — [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md)
+§12b explains why it is built as a result rather than a silent skip.
+
+Demo Data is validation tooling, not a product feature: it is off unless an instance sets
+`COPILOT_DEMO_TOOLS`, and it is on here so the ingestion flow can be exercised without a real PDF.
+
 **The API is open too** (OAuth2 + FHIR R4, US Core 3.1.0):
 
 ```bash
@@ -96,6 +130,26 @@ Don't rely on `/meta/health/readyz`. It reports `setup_required` even on a worki
 ### 4. Local overrides
 
 Machine-specific settings go in `docker/development-easy/docker-compose.override.yml`. Git ignores it, and Compose merges it in automatically. Here it sets `XDEBUG_PROFILER_ON: 0`, which turns off the profiler that otherwise writes a file on every request.
+
+### 5. Start the agent service
+
+OpenEMR is now running but the co-pilot is not: it is a separate Python service the module calls.
+Full steps, including pointing the module at it and booking a rounding list, are in
+[copilot/README.md](copilot/README.md#running-locally). The short version:
+
+```powershell
+cd D:\Dev\OpenEMRAgent\copilot
+py -3.13 -m venv .venv; .venv\Scripts\python -m pip install -r requirements.txt
+copy .env.example .env      # then fill in the provider key and the shared secret
+.venv\Scripts\python -m uvicorn copilot.service.app:app --host 127.0.0.1 --port 8600 --env-file .env
+```
+
+Then create `sites/default/copilot-config.php` with `COPILOT_AGENT_URL` and the *same*
+`COPILOT_SHARED_SECRET`, and copy it into the container -- the dev stack keeps `sites/` in a named
+volume, not a bind mount. Both files are gitignored.
+
+**Every variable, what it does and its default, is in [ENVIRONMENT.md](ENVIRONMENT.md).**
+Nothing needs to be set to run the eval gate; it takes no key and no network.
 
 ## Daily use
 
@@ -217,6 +271,123 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 
 **Last runs: 18/18 local and 18/18 against Railway (2026-09-15).**
 
+## Week 2: documents, evidence and the supervisor
+
+Week 1 is the `main` branch and the **CopilotAgent** top-level tab: the rounding list, prefetched
+briefs and follow-up questions. It is unchanged and still works the same way on this branch. Week 2
+is the `week2` branch and the **Co-Pilot** tab inside a patient record. Everything below is Week 2.
+What Week 1 left behind, and how Week 2 closed it, is in [WEEK1_DEBT.md](WEEK1_DEBT.md).
+
+**Branch:** `week2`. **Services:** the same two (OpenEMR and the agent); nothing new to run.
+
+**Variables** (agent `.env`, all optional; `copilot/.env.example` lists them):
+
+| Variable | This build | What it does |
+|---|---|---|
+| `COPILOT_MODEL` | `google/gemini-2.5-flash-lite` | The agent. Chosen after ten candidates were benchmarked through the agent's own prompts; it answered 6 of 6 real follow-ups where the runner-up answered 2 |
+| `COPILOT_VISION_MODEL` | `google/gemini-2.5-flash-lite` | Reads lab PDFs and intake forms. Must be on `COPILOT_ALLOWED_MODELS`. About $0.0009 a document |
+| `COPILOT_JUDGE_MODEL` | `anthropic/claude-sonnet-5` | Grades the eval rubrics. A different family from the agent on purpose, and it never runs on a request |
+| `COPILOT_VISION_RATE_LIMIT_RETRIES` | `1` | Retries on a 429 before the document is reported as "could not be read" |
+| `COPILOT_TOPIC_CHECK` | `true` | Decides whether a follow-up is about this patient's record. Off sends every question, including "how is the weather", to the tools |
+| `COPILOT_EMBED_MODEL` | `all-MiniLM-L6-v2` | Dense retrieval over the guideline corpus; `none` keeps BM25 only and downloads nothing |
+| `COPILOT_RERANK` | `local` | `local` cross-encoder, `cohere` (needs `COHERE_API_KEY`), or `none` |
+
+The `:free` slugs Week 1 ran on are still on the allowlist and are no longer used: they could not
+complete a document read, which is what kept metrics 11 and 12 open until the switch. See
+[W2_COST_LATENCY.md](W2_COST_LATENCY.md) for what the change cost and saved.
+
+**The flow**
+
+1. Sign in as `doctor1` and open one of their patients (pids 1–25). The patient record's navbar
+   has a **Co-Pilot** tab.
+2. The tab runs the supervisor: it lists the patient's lab reports and intake forms, reads the
+   unread ones, has the module file the results, and shows **What changed** above the brief.
+   With nothing to read it shows the brief straight away. Routing is under **Run details**.
+3. To add a document: the API collection's Week 2 requests (11–13) read the fixture report, run
+   the supervisor and render a page; or POST the module's `attach` action with the session cookie
+   (`api/README.md`).
+4. Click a citation chip on a lab value that came from a report, or on a "What changed" line: the
+   page opens inline with the quote boxed, with a link to OpenEMR's own document viewer.
+5. Ask a follow-up that asks for guidance ("what does guidance say about high potassium with an
+   ACE inhibitor?"): the guideline evidence appears in its own block, cited to the corpus, and is
+   never turned into advice for the patient.
+
+**The walkthrough:** `cd usecases; python journey.py` runs the whole Week 2 journey against the
+running stack the way a clinician clicks it -- quiet chart, generate, read, the follow-ups,
+click-to-source, the refusals, purge -- and prints what it observed for each. About four minutes,
+roughly fifteen live model calls, exit 1 on any failure. `--patient N` to use another chart,
+`--keep` to leave the documents in place.
+
+**The gate:** `cd copilot; python -m evals.stage2.gate` runs 76 recorded cases through the real
+code with no model, in about ten seconds. Five boolean rubrics — `schema_valid`,
+`citation_present`, `factually_consistent`, `safe_refusal`, `no_phi_in_logs` — and it fails if any
+of them drops below its threshold or falls more than 5 points below the committed baseline.
+`hooks/install-hooks.ps1` installs the pre-push hook, so a regression blocks the push. That hook
+is what gates the build; `test_gate.py` injects four regressions and each one fails the gate.
+
+**CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) runs the unit tests, the 76-case eval gate, the UI guard
+and a PHP syntax check on every push and every merge request, so a regression fails the pipeline
+before it reaches the demo. Live status is on the
+[merge request](https://labs.gauntletai.com/debudash/openemragent/-/merge_requests/1) and under
+[Build -> Pipelines](https://labs.gauntletai.com/debudash/openemragent/-/pipelines); there is no
+status badge here on purpose, because the pipeline runs against the merge request rather than the
+branch, and a branch badge would sit on `unknown` while the real pipeline was green. Measured on the
+first green run: 56 s, 110 s, 104 s and 61 s, four jobs in parallel. Each job's evidence -- per-case verdicts and the rubric summary --
+downloads from the `eval gate` job as an artifact. The pipeline holds no secrets and needs no API
+key: the gate replays recorded cases through the real code, verified green with every model key
+unset. The *deploy* half is **parked** at
+[deploy/railway/gitlab-ci.yml](deploy/railway/gitlab-ci.yml), out of the root where GitLab never
+reads it, because nothing here publishes without a person approving that specific change.
+
+**Documents:** [EVAL_GATE.md](EVAL_GATE.md) (**where the prompts, schemas and golden set live, how to
+run the gate, and the merge request it blocked**), [ENVIRONMENT.md](ENVIRONMENT.md) (every environment
+variable, both processes, with defaults), [W2_ARCHITECTURE.md](W2_ARCHITECTURE.md) (design and as-built, by stage),
+[W2_COST_LATENCY.md](W2_COST_LATENCY.md), [KEY_METRICS.md](KEY_METRICS.md) (Week 2 section),
+[copilot/evals/stage2/README.md](copilot/evals/stage2/README.md) (the eval dataset),
+[GROUNDING_RULES.md](copilot/evals/stage1/GROUNDING_RULES.md) (rules 11 and 12).
+
+## Demo Data tab: generating documents to ingest
+
+Week 2's ingestion flow needs a document to ingest, and a grader opening the deployed app has no
+PDF to hand. The **Demo Data** tab writes synthetic ones.
+
+It is **validation tooling, not a product feature**, and it is removed before production. It is off
+unless an instance turns it on: `COPILOT_DEMO_TOOLS` in the environment or in
+`sites/<site>/copilot-config.php`. Off means the tab does not render *and* the actions behind it
+refuse, so hiding the tab is never the only control.
+
+**It takes the real path.** It writes the PDFs to `demo/generated/`, exactly as a lab dropping off a
+report would, and then files them in the open chart through `\Document::createDocument()` -- the same
+call OpenEMR's own Documents tab makes on an upload. Nothing about the ingestion flow being
+demonstrated is a shortcut; the co-pilot cannot tell a generated report from an uploaded one, and
+the patient-name cross-check refuses a misfiled document on this path exactly as on any other.
+
+1. Open a patient, then the **Demo Data** tab. Choose a lab report: abnormal (potassium 5.4, eGFR
+   58, A1c 7.4), normal, unreadable (a page with no text), or another patient's. Press
+   **Generate New Docs**. It writes one lab report and one intake form naming the patient whose
+   chart you have open, and files both in that chart **unread**, through the same code an upload
+   goes through.
+2. Open the **Co-Pilot** tab. It finds the unread documents, reads them, has the results filed,
+   and shows what changed with a citation into the page it read. If the tab is already open when
+   you generate, it re-reads there and then rather than waiting to be reopened.
+3. The files also stay in `demo/generated/`, downloadable from the tab, so the by-hand path can
+   still be shown: **Documents**, click a category (the uploader only appears once a category is
+   selected), then upload. Both routes end in the same ingestion flow.
+The lab-report choice includes **another patient's report**, which generates a document naming
+someone else. Upload it and the co-pilot reads it, refuses to file it, and says why: the name on a
+document is checked against the chart before any of it becomes chart data, and a mismatch is
+refused rather than reconciled. Nothing reaches the record and the document stays stored for a
+human to look at.
+
+4. **Purge Docs** removes the generated files, the documents uploaded from them, and the lab rows
+   those documents produced. All three, because deleting only the document would leave results
+   whose citations open a page that no longer exists. It never touches anything it did not
+   generate -- it matches its own `copilot-demo-` filenames and nothing else, so do not rename a
+   file before uploading it.
+
+Every generation is a genuinely new document, with a new accession and report date, so running the
+demo a second time produces a truthful "what changed" without anything having to be reset first.
+
 ## What this fork adds
 
 | Path | Purpose |
@@ -229,6 +400,10 @@ It also runs against the Railway deployment: set `OE_DB_VIA=railway` and `OE_DB_
 | [deploy/digitalocean/](deploy/digitalocean/) | Reference VM deployment (droplet or Vultr): hardened production Compose, Let's Encrypt via `DOMAIN` |
 | [AUDIT.md](AUDIT.md) | Security, performance, architecture, data quality and compliance audit of this system |
 | [USER.md](USER.md) | Target user (hospitalist), workflow and the use cases the agent must serve |
+| [WEEK1_DEBT.md](WEEK1_DEBT.md) | **What carried over from Week 1**: each debt, how it showed up in Week 2, and what closed it (with commits) |
+| [PATIENT_DASHBOARD_MIGRATION.md](PATIENT_DASHBOARD_MIGRATION.md) | **Patient dashboard port: the defense.** Why React + TypeScript + Vite, gains, tradeoffs, API constraints, parity evidence, legacy fixes, and the one deliberate OpenEMR change |
+| [dashboard/](dashboard/) | The new patient dashboard: a SMART on FHIR app served from `public/dashboard/`, with its unit, end-to-end, parity and legacy-security tests |
+| [dashboard-modernization/](dashboard-modernization/) | How the port was derived: dependency tree, per-file audit of the legacy dashboard, bug catalog, migration spec, and the run evidence (`04-evidence/`) |
 | [copilot/](copilot/) | **The agent**: LangChain tool-calling loop (max 5 rounds), rule engine, claim verifier, FastAPI gateway, evals and grounding rules, LangSmith tracing |
 | [interface/modules/custom_modules/oe-module-copilot-agent/](interface/modules/custom_modules/oe-module-copilot-agent/) | OpenEMR module: CopilotAgent tab, role and patient-scope enforcement, chart reader, signed proxy to the agent |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | PHI data flow, trust boundaries, authorization, model gateway, states, logging, retention, incident path |

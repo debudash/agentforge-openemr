@@ -1,0 +1,189 @@
+{
+  "pid": 35,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Nu535 Aurore252 Jakubowski832",
+        "35",
+        "1926-03-13",
+        "100"
+      ],
+      "port": [
+        "Nu535 Aurore252 Jakubowski832",
+        "35",
+        "1926-03-13",
+        "100",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Risk activity involvement (finding)",
+        "Received higher education (finding)",
+        "Transport problem (finding)",
+        "Asthma (disorder)",
+        "Lack of access to transportation (finding)",
+        "Prediabetes (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "History of tubal ligation (situation)",
+        "Idiopathic atrophic hypothyroidism (disorder)",
+        "Has a criminal record (finding)",
+        "Impacted molars (disorder)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)",
+        "Aortic valve stenosis (disorder)",
+        "History of aortic valve replacement (situation)",
+        "Osteoporosis (disorder)",
+        "Medication review due (situation)",
+        "Victim of intimate partner abuse (finding)",
+        "Not in labor force (finding)",
+        "Stress (finding)"
+      ],
+      "port": [
+        "Risk activity involvement (finding)",
+        "Received higher education (finding)",
+        "Transport problem (finding)",
+        "Asthma (disorder)",
+        "Lack of access to transportation (finding)",
+        "Prediabetes (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "History of tubal ligation (situation)",
+        "Idiopathic atrophic hypothyroidism (disorder)",
+        "Has a criminal record (finding)",
+        "Impacted molars (disorder)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)",
+        "Aortic valve stenosis (disorder)",
+        "History of aortic valve replacement (situation)",
+        "Osteoporosis (disorder)",
+        "Medication review due (situation)",
+        "Victim of intimate partner abuse (finding)",
+        "Not in labor force (finding)",
+        "Stress (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Levothyroxine Sodium 0.075 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "port": [
+        "Levothyroxine Sodium 0.075 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Naproxen sodium 220 MG Oral Tablet",
+        "Amoxicillin 250 MG / Clavulanate 125 MG Oral Tablet",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "Alendronic acid 10 MG Oral Tablet",
+        "aspirin 81 MG Oral Capsule [Vazalore]",
+        "budesonide 0.125 MG/ML Inhalation Suspension [Pulmicort]",
+        "NDA020983 200 ACTUAT albuterol 0.09 MG/ACTUAT Metered Dose Inhaler [Ventolin]",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Levothyroxine Sodium 0.075 MG Oral Tablet"
+      ],
+      "port": [
+        "Levothyroxine Sodium 0.075 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: Naproxen sodium 220 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Amoxicillin 250 MG / Clavulanate 125 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Alendronic acid 10 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: aspirin 81 MG Oral Capsule [Vazalore]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: budesonide 0.125 MG/ML Inhalation Suspension [Pulmicort]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: NDA020983 200 ACTUAT albuterol 0.09 MG/ACTUAT Metered Dose Inhaler [Ventolin]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 169.5 in (430.50 cm)",
+        "Pulse: 75 per min",
+        "Respiration: 16 per min",
+        "BMI: 28 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 169.5 in",
+        "pulse: 75 /min",
+        "respiration: 16 /min",
+        "bmi: 27.6 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 28 kg/m^2 vs 27.6 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

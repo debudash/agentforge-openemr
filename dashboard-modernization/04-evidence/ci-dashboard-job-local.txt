@@ -1,0 +1,29 @@
+v22.23.3
+npm notice To update run: npm install -g npm@12.1.0
+npm notice
+
+> openemr-patient-dashboard@0.1.0 lint
+> eslint . --max-warnings 0
+
+
+> openemr-patient-dashboard@0.1.0 typecheck
+> tsc -b
+
+
+> openemr-patient-dashboard@0.1.0 test
+> vitest run
+
+
+ RUN  v5.0.2 /work/dashboard
+
+ ✓ tests/format.test.ts (10 tests) 15ms
+ ✓ tests/http.test.ts (10 tests) 57ms
+ ✓ tests/fhir.test.ts (19 tests) 523ms
+ ✓ tests/app.test.tsx (16 tests) 2587ms
+
+ Test Files  4 passed (4)
+      Tests  55 passed (55)
+   Start at  05:10:33
+   Duration  49.49s (environment 49%, import 27%, setup 20%, tests 2%, transform 2%)
+
+exit=0

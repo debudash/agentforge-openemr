@@ -6,6 +6,7 @@
  * with a signed request. The browser never talks to the agent or the model (PHI4).
  *
  * Actions: open, status, select, ask, feedback, close.
+ * Week 2 adds document actions; demo_* are validation tooling, refused unless COPILOT_DEMO_TOOLS is set.
  * Every request: signed-in user, hospitalist role, CSRF token on POST, patient in scope.
  * Every outcome is audited with the correlation ID so a request can be reconstructed
  * across OpenEMR's log, the agent's event stream and the LangSmith trace (FR14, NFR6).
@@ -26,10 +27,13 @@ while (!is_file($openemrRoot . "/interface/globals.php") && dirname($openemrRoot
 require_once $openemrRoot . "/interface/globals.php";
 
 use OpenEMR\Common\Logging\EventAuditLogger;
+use OpenEMR\Modules\CopilotAgent\ActivePatient;
 use OpenEMR\Modules\CopilotAgent\AgentClient;
 use OpenEMR\Modules\CopilotAgent\AgentUnavailableException;
 use OpenEMR\Modules\CopilotAgent\ChartReader;
+use OpenEMR\Modules\CopilotAgent\DemoDocuments;
 use OpenEMR\Modules\CopilotAgent\Config;
+use OpenEMR\Modules\CopilotAgent\DocumentWriter;
 use OpenEMR\Modules\CopilotAgent\PanelScope;
 use OpenEMR\Modules\CopilotAgent\ScopeDeniedException;
 
@@ -38,6 +42,10 @@ header('Cache-Control: no-store');
 
 // Superglobals are read only here, at the entry point, and parsed immediately.
 $action = is_string($_GET['action'] ?? null) ? $_GET['action'] : '';
+// Week 2: the patient-record tab runs its own agent session, so it never replaces the
+// rounding-list session a clinician may have open in the other tab. Anything else is the
+// Week 1 rounding context, whose session id is unchanged.
+$context = (($_GET['context'] ?? '') === 'patient') ? 'patient' : 'rounds';
 $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $csrfHeader = (string) ($_SERVER['HTTP_X_COPILOT_CSRF'] ?? '');
 // Same derivation as index.php (the session is read-only past globals.php).
@@ -53,10 +61,22 @@ $correlationId = sprintf(
 );
 $input = [];
 if ($method === 'POST') {
-    $raw = file_get_contents('php://input');
-    $decoded = is_string($raw) ? json_decode($raw, true) : null;
-    $input = is_array($decoded) ? $decoded : [];
+    if (!empty($_FILES)) {
+        $input = $_POST;    // a multipart upload (attach): the fields beside the file
+    } else {
+        $raw = file_get_contents('php://input');
+        $decoded = is_string($raw) ? json_decode($raw, true) : null;
+        $input = is_array($decoded) ? $decoded : [];
+    }
 }
+// The encounter in the session belongs to the session's patient; it is only attached to a write
+// for that same patient, never to a request that names a different pid.
+//
+// Read through ActivePatient, as patient.php does. The raw superglobal was empty here --
+// OpenEMR keeps the active patient behind the session wrapper -- so this read as 0 on every
+// request, which quietly meant no write ever had an encounter attached.
+$sessionPid = ActivePatient::pid();
+$sessionEncounter = (int) ($_SESSION['encounter'] ?? 0);
 
 /**
  * @param array<string, mixed> $payload
@@ -79,6 +99,175 @@ function audit(string $event, string $username, string $group, bool $success, st
     }
 }
 
+/**
+ * Week 2: read a stored document with the agent, then persist what it read. The document stays in
+ * the chart whatever happens here; a failed extraction leaves it stored and unprocessed.
+ *
+ * @return array<string, mixed>
+ */
+function extractAndPersist(AgentClient $client, DocumentWriter $writer, int $pid, int $docId, string $docType,
+                           string $bytes, string $mime, string $filename, int $eid, string $correlationId): array
+{
+    $result = $client->post('/documents/extract', [
+        'pid' => $pid, 'doc_id' => $docId, 'doc_type' => $docType, 'filename' => $filename, 'mime' => $mime,
+        'content_base64' => base64_encode($bytes),
+    ], $correlationId);
+    if ($result['status'] !== 200 || !is_array($result['json'])) {
+        return ['processed' => false, 'reason' => 'extraction failed (agent status ' . $result['status'] . ')',
+                'detail' => $result['json']['detail'] ?? null];
+    }
+    $extraction = $result['json'];
+    // The document's own claim about whose results these are, checked before any of them become
+    // chart data. A misfiled report is refused outright: it stays stored for a human to look at,
+    // and nothing it says reaches the patient's record or the brief.
+    $document = (array) ($extraction['document'] ?? []);
+    $printedName = $docType === 'intake_form'
+        ? ($document['demographics']['name']['value'] ?? null)
+        : ($document['patient_ref']['value'] ?? null);
+    $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+    if ($mismatch !== null && DocumentWriter::nothingWasRead($docType, $document)) {
+        $mismatch = 'nothing could be read from this document, so it cannot be confirmed to belong to this chart';
+    }
+    if ($mismatch !== null) {
+        $writer->recordRefusal($pid, $docId, $mismatch, $eid);
+        return ['processed' => false, 'reason' => $mismatch, 'patient_ref_mismatch' => true,
+                'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
+                'extraction_ms' => $extraction['duration_ms'] ?? null,
+                'model' => $extraction['model'] ?? null,
+                'agent_correlation_id' => $extraction['correlation_id'] ?? null];
+    }
+    if ($docType === 'intake_form') {
+        // An intake form is someone else's report about the patient: stored beside the form,
+        // never merged into the clinical lists.
+        $sidecar = $writer->persistIntakeSidecar($pid, $docId, $extraction, $eid);
+        return [
+            'processed' => true, 'sidecar_doc_id' => $sidecar, 'source_ids' => ['doc:' . $docId], 'skipped' => [],
+            'attributed_to' => null,
+            'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
+            'extraction_ms' => $extraction['duration_ms'] ?? null,
+            'model' => $extraction['model'] ?? null,
+            'agent_correlation_id' => $extraction['correlation_id'] ?? null,
+        ];
+    }
+    $written = $writer->persistLabDocument($pid, $docId, (array) ($extraction['document'] ?? []), $eid, (string) ($extraction['model'] ?? 'unknown'));
+    return $written + [
+        'processed' => true,
+        'unsupported_fields' => $extraction['unsupported_fields'] ?? [],
+        'extraction_ms' => $extraction['duration_ms'] ?? null,
+        'model' => $extraction['model'] ?? null,
+        'agent_correlation_id' => $extraction['correlation_id'] ?? null,
+    ];
+}
+
+/**
+ * Week 2: run the supervisor graph for one patient, optionally with a question.
+ *
+ * Both entry points -- opening the co-pilot and asking a follow-up -- go through here, because
+ * the requirement is that the *supervisor* decides when extraction is needed, not the caller. A
+ * question asked while a document is still unread therefore gets that document read first and is
+ * answered from the chart it produced.
+ *
+ * The agent cannot read OpenEMR documents and must not write to OpenEMR, so this side lists the
+ * documents, hands over their bytes, persists what was read, re-reads the chart and resumes. Every
+ * write happens here, under this session, audited.
+ *
+ * @return array{0: array<string, mixed>, 1: list<array<string, mixed>>} the summary and the manifest
+ */
+function runSupervisorGraph(AgentClient $client, DocumentWriter $writer, PanelScope $scope, Config $config,
+                            string $sessionId, int $pid, ?string $question, int $sessionPid, int $sessionEncounter,
+                            string $username, string $authGroup, string $correlationId): array
+{
+    $documents = $writer->documents($pid);
+    foreach ($documents as &$document) {
+        if ($document['processed']) {
+            continue;
+        }
+        $bytes = (new \Document((int) $document['doc_id']))->get_data();
+        if (is_string($bytes) && $bytes !== '') {
+            $document['content_base64'] = base64_encode($bytes);
+        }
+    }
+    unset($document);
+    $eid = $sessionPid === $pid ? $sessionEncounter : 0;
+
+    $payload = ['pid' => $pid, 'documents' => $documents];
+    if ($question !== null) {
+        $payload['question'] = $question;
+    }
+    // Several documents may each wait through a rate-limit retry; give the graph room.
+    $result = $client->post('/session/' . $sessionId . '/supervise', $payload, $correlationId, 300);
+    if ($result['status'] !== 200 || !is_array($result['json'])) {
+        audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' agent status=' . $result['status'], $pid);
+        respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not run the supervisor (status ' . $result['status'] . ')',
+                      'detail' => $result['json']['detail'] ?? null], $correlationId);
+    }
+    $summary = $result['json'];
+
+    if (($summary['phase'] ?? '') === 'extracted') {
+        $persisted = [];
+        foreach ((array) ($summary['extractions'] ?? []) as $extraction) {
+            $docId = (int) ($extraction['doc_id'] ?? 0);
+            $docType = (string) ($extraction['doc_type'] ?? 'lab_pdf');
+            $extracted = is_array($extraction['result'] ?? null) ? $extraction['result'] : [];
+            // The document's own claim about whose results these are, checked before any of it
+            // becomes chart data. A misfiled report is refused: stored for a human, never filed.
+            $read = (array) ($extracted['document'] ?? []);
+            $printedName = $docType === 'intake_form'
+                ? ($read['demographics']['name']['value'] ?? null)
+                : ($read['patient_ref']['value'] ?? null);
+            $mismatch = $writer->patientRefMismatch($pid, is_string($printedName) ? $printedName : null);
+            if ($mismatch !== null && DocumentWriter::nothingWasRead($docType, $read)) {
+                $mismatch = 'nothing could be read from this document, so it cannot be confirmed to belong to this chart';
+            }
+            if ($mismatch !== null) {
+                // Recorded beside the document, so it is not offered back to the extractor on every
+                // open: refused is handled, not pending. Six documents on a chart otherwise meant
+                // six vision calls per visit, and six lines in "what changed", for ever.
+                $writer->recordRefusal($pid, $docId, $mismatch, $eid);
+                $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => [], 'skipped' => [], 'refused' => $mismatch];
+                audit('copilot-document-refused', $username, $authGroup, false,
+                    'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' reason=patient_ref_mismatch', $pid);
+                continue;
+            }
+            if ($docType === 'lab_pdf') {
+                $written = $writer->persistLabDocument($pid, $docId, (array) ($extracted['document'] ?? []), $eid, (string) ($extracted['model'] ?? 'unknown'));
+                $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => $written['source_ids'],
+                                'order_id' => $written['order_id'], 'skipped' => $written['skipped']];
+                $note = 'results=' . count($written['source_ids']) . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'];
+            } else {
+                $sidecar = $writer->persistIntakeSidecar($pid, $docId, $extracted, $eid);
+                $persisted[] = ['doc_id' => $docId, 'doc_type' => $docType, 'source_ids' => ['doc:' . $docId], 'sidecar_doc_id' => $sidecar, 'skipped' => []];
+                $note = 'sidecar=' . $sidecar;
+            }
+            audit('copilot-document-extracted', $username, $authGroup, true,
+                'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=1 ' . $note
+                . ' unsupported=' . count($extracted['unsupported_fields'] ?? []), $pid);
+        }
+        // The chart as it is now, with the new rows, is what the answer or brief comes from.
+        $appointment = null;
+        foreach ($scope->roundingList(date('Y-m-d')) as $booked) {
+            if ($booked['pid'] === $pid) {
+                $appointment = $booked;
+                break;
+            }
+        }
+        $chart = (new ChartReader($scope, $config))->read($pid, $appointment);
+        $result = $client->post('/session/' . $sessionId . '/supervise/resume',
+            ['pid' => $pid, 'persisted' => $persisted, 'chart' => $chart], $correlationId, 300);
+        if ($result['status'] !== 200 || !is_array($result['json'])) {
+            audit('copilot-supervise', $username, $authGroup, false, 'cid=' . $correlationId . ' resume agent status=' . $result['status'], $pid);
+            respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent could not finish after persistence (status ' . $result['status'] . ')',
+                          'detail' => $result['json']['detail'] ?? null, 'persisted' => $persisted], $correlationId);
+        }
+        $summary = $result['json'] + ['persisted' => $persisted];
+    }
+
+    return [$summary, array_map(static function (array $d): array {
+        unset($d['content_base64']);
+        return $d;
+    }, $documents)];
+}
+
 $username = '';
 try {
     $scope = PanelScope::forCurrentUser();
@@ -96,7 +285,7 @@ try {
 
     // Patient scope is checked before anything else can answer, so an out-of-panel request is
     // always refused as such, whatever the state of the agent service.
-    if (in_array($action, ['select', 'ask'], true)) {
+    if (in_array($action, ['select', 'ask', 'open_patient', 'attach', 'persist_extraction', 'extract', 'documents', 'supervise', 'page', 'demo_generate', 'demo_purge'], true)) {
         $scope->assertInScope((int) ($input['pid'] ?? 0));
     }
 
@@ -105,9 +294,278 @@ try {
         respond(503, ['state' => 'unable_to_answer', 'reason' => 'the co-pilot agent service is not configured for this site'], $correlationId);
     }
     $client = new AgentClient($config);
-    $sessionId = hash('sha256', session_id() . '|' . $scope->userId());
+    $sessionId = hash('sha256', session_id() . '|' . $scope->userId() . ($context === 'patient' ? '|patient' : ''));
 
     switch ($action) {
+        case 'attach':
+            // Week 2: store a document in the patient's chart. Extracting it is a separate step, so
+            // a stored document with nothing extracted yet is a normal state, not a failure.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docType = (string) ($input['doc_type'] ?? '');
+            if (!in_array($docType, ['lab_pdf', 'intake_form'], true)) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_type must be lab_pdf or intake_form'], $correlationId);
+            }
+            $file = $_FILES['file'] ?? null;
+            if (!is_array($file) || (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) $file['tmp_name'])) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'no file was uploaded'], $correlationId);
+            }
+            $writer = new DocumentWriter($scope);
+            $docId = $writer->storeDocument(
+                $pid,
+                (string) $file['tmp_name'],
+                basename((string) ($file['name'] ?? 'document')),
+                (string) mime_content_type((string) $file['tmp_name']),   // sniffed, never the client's claim
+                $docType === 'lab_pdf' ? DocumentWriter::CATEGORY_LAB : DocumentWriter::CATEGORY_RECORD,
+                $sessionPid === $pid ? $sessionEncounter : 0
+            );
+            // Document id, type and size: enough to trace it, nothing that describes its content.
+            audit('copilot-document-attached', $username, $authGroup, true,
+                'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' bytes=' . (int) ($file['size'] ?? 0), $pid);
+            $outcome = ['processed' => false, 'reason' => 'stored only'];
+            if (($input['extract'] ?? '1') !== '0') {
+                $outcome = extractAndPersist($client, $writer, $pid, $docId, $docType, (string) file_get_contents((string) $file['tmp_name']),
+                    (string) mime_content_type((string) $file['tmp_name']), basename((string) ($file['name'] ?? 'document')),
+                    $sessionPid === $pid ? $sessionEncounter : 0, $correlationId);
+                audit('copilot-document-extracted', $username, $authGroup, (bool) $outcome['processed'],
+                    'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=' . (int) $outcome['processed']
+                    . ' results=' . count($outcome['source_ids'] ?? []) . ' skipped=' . count($outcome['skipped'] ?? [])
+                    . ' unsupported=' . count($outcome['unsupported_fields'] ?? []) . ' ms=' . ($outcome['extraction_ms'] ?? '-'), $pid);
+            }
+            respond(200, ['doc_id' => $docId, 'doc_type' => $docType] + $outcome, $correlationId);
+
+        case 'extract':
+            // Week 2: (re)read a document already in the chart. Idempotent: an extracted document is returned as is.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docId = (int) ($input['doc_id'] ?? 0);
+            $docType = (string) ($input['doc_type'] ?? 'lab_pdf');
+            $writer = new DocumentWriter($scope);
+            if (!$writer->documentBelongsTo($docId, $pid)) {
+                throw new ScopeDeniedException($pid);
+            }
+            if ($docType === 'intake_form' && ($sidecar = $writer->sidecarFor($docId, $pid)) !== null) {
+                respond(200, ['doc_id' => $docId, 'processed' => true, 'already_persisted' => true, 'sidecar_doc_id' => $sidecar], $correlationId);
+            }
+            $existing = $docType === 'lab_pdf' ? $writer->orderFor($docId) : null;
+            if ($existing !== null) {
+                respond(200, ['doc_id' => $docId, 'processed' => true, 'already_persisted' => true, 'order_id' => $existing,
+                              'source_ids' => $writer->sourceIdsFor($docId)], $correlationId);
+            }
+            $stored = new \Document($docId);
+            $bytes = $stored->get_data();
+            if (!is_string($bytes) || $bytes === '') {
+                respond(404, ['state' => 'unable_to_answer', 'reason' => 'the stored document could not be read'], $correlationId);
+            }
+            $outcome = extractAndPersist($client, $writer, $pid, $docId, $docType, $bytes, (string) $stored->get_mimetype(),
+                (string) $stored->get_name(), $sessionPid === $pid ? $sessionEncounter : 0, $correlationId);
+            audit('copilot-document-extracted', $username, $authGroup, (bool) $outcome['processed'],
+                'cid=' . $correlationId . ' doc=' . $docId . ' type=' . $docType . ' processed=' . (int) $outcome['processed']
+                . ' results=' . count($outcome['source_ids'] ?? []) . ' skipped=' . count($outcome['skipped'] ?? [])
+                . ' unsupported=' . count($outcome['unsupported_fields'] ?? []) . ' ms=' . ($outcome['extraction_ms'] ?? '-'), $pid);
+            respond(200, ['doc_id' => $docId, 'doc_type' => $docType, 'already_persisted' => false] + $outcome, $correlationId);
+
+        case 'persist_extraction':
+            // Week 2: the module writes what the agent extracted. Idempotent per document.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docId = (int) ($input['doc_id'] ?? 0);
+            $docType = (string) ($input['doc_type'] ?? 'lab_pdf');
+            $extraction = is_array($input['extraction'] ?? null) ? $input['extraction'] : null;
+            if ($docId <= 0 || $extraction === null) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_id and extraction are required'], $correlationId);
+            }
+            if (!in_array($docType, ['lab_pdf', 'intake_form'], true)) {
+                respond(400, ['state' => 'unable_to_answer', 'reason' => 'doc_type must be lab_pdf or intake_form'], $correlationId);
+            }
+            $writer = new DocumentWriter($scope);
+            if ($docType === 'intake_form') {
+                $existingSidecar = $writer->sidecarFor($docId, $pid);
+                if ($existingSidecar !== null) {
+                    respond(200, ['already_persisted' => true, 'sidecar_doc_id' => $existingSidecar, 'source_ids' => ['doc:' . $docId]], $correlationId);
+                }
+                $sidecar = $writer->persistIntakeSidecar($pid, $docId,
+                    ['document' => $extraction, 'unsupported_fields' => $input['unsupported_fields'] ?? [], 'model' => (string) ($input['model'] ?? 'unknown')],
+                    $sessionPid === $pid ? $sessionEncounter : 0);
+                audit('copilot-extraction-persisted', $username, $authGroup, true,
+                    'cid=' . $correlationId . ' doc=' . $docId . ' type=intake_form sidecar=' . $sidecar, $pid);
+                respond(200, ['already_persisted' => false, 'sidecar_doc_id' => $sidecar, 'source_ids' => ['doc:' . $docId]], $correlationId);
+            }
+            $existing = $writer->orderFor($docId);
+            if ($existing !== null) {
+                respond(200, ['already_persisted' => true, 'order_id' => $existing, 'source_ids' => $writer->sourceIdsFor($docId),
+                              'skipped' => [], 'attributed_to' => null], $correlationId);
+            }
+            $written = $writer->persistLabDocument($pid, $docId, $extraction, $sessionPid === $pid ? $sessionEncounter : 0,
+                (string) ($input['model'] ?? 'unknown'));
+            // Counts and ids only: no value extracted from the document reaches the log.
+            audit('copilot-extraction-persisted', $username, $authGroup, true,
+                'cid=' . $correlationId . ' doc=' . $docId . ' order=' . $written['order_id'] . ' results=' . count($written['source_ids'])
+                . ' skipped=' . count($written['skipped']) . ' attributed=' . $written['attributed_to'], $pid);
+            respond(200, $written + ['already_persisted' => false], $correlationId);
+
+        case 'supervise':
+            // Week 2 stage 7: the supervisor graph for one patient, opening the co-pilot.
+            $pid = (int) ($input['pid'] ?? 0);
+            $writer = new DocumentWriter($scope);
+            [$summary, $documents] = runSupervisorGraph($client, $writer, $scope, $config, $sessionId, $pid, null,
+                $sessionPid, $sessionEncounter, $username, $authGroup, $correlationId);
+            $brief = $summary['brief'] ?? null;
+            audit('copilot-supervise', $username, $authGroup, ($summary['phase'] ?? '') === 'done',
+                'cid=' . $correlationId . ' documents=' . count($documents) . ' unread=' . count(array_filter($documents, static fn(array $d): bool => !$d['processed']))
+                . ' read=' . count($summary['extractions'] ?? []) . ' failed=' . count($summary['failed'] ?? []) . ' changes=' . count($summary['changes'] ?? [])
+                . ' handoffs=' . count($summary['handoffs'] ?? []) . ' state=' . ($brief['state'] ?? '-') . ' brief_ms=' . ($brief['duration_ms'] ?? '-'), $pid);
+            respond(200, ['documents' => $documents] + $summary, $correlationId);
+
+        case 'page':
+            // Week 2 stage 9: click-to-source. The page a citation points at, as an image, with the
+            // quoted text boxed where the PDF's own text layer places it. Viewing is audited: it is
+            // a read of the patient's document.
+            $pid = (int) ($input['pid'] ?? 0);
+            $docId = (int) ($input['doc_id'] ?? 0);
+            $pageNumber = max(1, (int) ($input['page'] ?? 1));
+            $quotes = array_values(array_filter(array_map('strval', (array) ($input['quotes'] ?? [])), static fn(string $q): bool => $q !== ''));
+            $writer = new DocumentWriter($scope);
+            if (!$writer->documentBelongsTo($docId, $pid)) {
+                throw new ScopeDeniedException($pid);
+            }
+            $stored = new \Document($docId);
+            $bytes = $stored->get_data();
+            if (!is_string($bytes) || $bytes === '') {
+                respond(404, ['state' => 'unable_to_answer', 'reason' => 'the stored document could not be read'], $correlationId);
+            }
+            $result = $client->post('/documents/page', ['pid' => $pid, 'doc_id' => $docId, 'page' => $pageNumber,
+                'quotes' => array_slice($quotes, 0, 20), 'content_base64' => base64_encode($bytes)], $correlationId);
+            audit('copilot-document-viewed', $username, $authGroup, $result['status'] === 200,
+                'cid=' . $correlationId . ' doc=' . $docId . ' page=' . $pageNumber . ' quotes=' . count($quotes), $pid);
+            if ($result['status'] !== 200 || !is_array($result['json'])) {
+                respond($result['status'] >= 400 && $result['status'] < 500 ? 400 : 503,
+                    ['state' => 'unable_to_answer', 'reason' => 'the page could not be rendered', 'detail' => $result['json']['detail'] ?? null], $correlationId);
+            }
+            respond(200, ['doc_id' => $docId, 'original_url' => '/controller.php?document&retrieve&patient_id=' . $pid . '&document_id=' . $docId . '&as_file=false']
+                + $result['json'], $correlationId);
+
+        case 'documents':
+            // Week 2: the patient's lab reports and intake forms and whether each has been read.
+            $pid = (int) ($input['pid'] ?? 0);
+            $documents = (new DocumentWriter($scope))->documents($pid);
+            respond(200, ['pid' => $pid, 'documents' => $documents,
+                          'unprocessed' => count(array_filter($documents, static fn(array $d): bool => !$d['processed']))], $correlationId);
+
+        // -- Validation tooling. Removing this block and src/DemoDocuments.php removes the
+        // feature. Refuses outright unless the environment turned it on, so the UI being hidden
+        // is never the only thing standing between a caller and these actions.
+        case 'demo_generate':
+        case 'demo_purge':
+        case 'demo_files':
+        case 'demo_file':
+            if (!$config->demoTools) {
+                respond(403, ['state' => 'access_denied', 'reason' => 'demo tooling is not enabled on this instance'], $correlationId);
+            }
+            $demo = new DemoDocuments($scope, $openemrRoot);
+            $pid = (int) ($input['pid'] ?? $_GET['pid'] ?? 0);
+
+            // The tab renders with the open chart's patient baked in, and nothing tells it when the
+            // clinician opens another one. Generating then writes documents into a chart nobody is
+            // looking at, and purging deletes from one -- both demonstrated before this check
+            // existed. Panel scope does not catch it: the stale patient is usually in the panel
+            // too. So these two actions require the patient still to be the one in view, and the
+            // page carries a banner saying so; the refusal is the part that cannot be missed.
+            if (in_array($action, ['demo_generate', 'demo_purge'], true) && $pid !== $sessionPid) {
+                audit('copilot-demo-stale', $username, $authGroup, false,
+                    'cid=' . $correlationId . ' action=' . $action . ' requested=' . $pid . ' open=' . $sessionPid, $pid);
+                respond(409, ['state' => 'unable_to_answer', 'stale_patient' => true,
+                              'open_pid' => $sessionPid,
+                              'reason' => 'the chart in view has changed; reopen Demo Data for the patient you have open'], $correlationId);
+            }
+
+            if ($action === 'demo_files') {
+                respond(200, ['files' => $demo->files(), 'directory' => $demo->directory()], $correlationId);
+            }
+            if ($action === 'demo_file') {
+                $name = (string) ($_GET['name'] ?? '');
+                $bytes = $demo->read($name);        // matched against the listing, never used as a path
+                audit('copilot-demo-downloaded', $username, $authGroup, true, 'cid=' . $correlationId . ' file=' . $name, $pid);
+                header('Content-Type: application/pdf');
+                header('Content-Disposition: attachment; filename="' . $name . '"');
+                header('Content-Length: ' . strlen($bytes));
+                echo $bytes;
+                exit;
+            }
+            if ($action === 'demo_generate') {
+                $written = $demo->generate($pid, (string) ($input['variant'] ?? 'abnormal'), $scope->displayName());
+                // Generating a document a clinician then has to upload by hand is a step that
+                // exists only for the demo. The file is written either way -- it is what a lab
+                // would have sent, and it stays downloadable -- but it is also filed in the chart
+                // here, unread, through the same storeDocument an upload goes through. The
+                // co-pilot then finds it the way it finds any other document: on its next run.
+                $writer = new DocumentWriter($scope);
+                $eid = $sessionPid === $pid ? $sessionEncounter : 0;
+                foreach ($written as $index => $file) {
+                    $path = $demo->directory() . '/' . $file['name'];
+                    $written[$index]['doc_id'] = $writer->storeDocument(
+                        $pid,
+                        $path,
+                        $file['name'],
+                        (string) mime_content_type($path),
+                        $file['doc_type'] === 'lab_pdf' ? DocumentWriter::CATEGORY_LAB : DocumentWriter::CATEGORY_RECORD,
+                        $eid
+                    );
+                }
+                audit('copilot-demo-generated', $username, $authGroup, true,
+                    'cid=' . $correlationId . ' variant=' . (string) ($input['variant'] ?? 'abnormal')
+                    . ' files=' . count($written) . ' docs=' . implode(',', array_column($written, 'doc_id')), $pid);
+                respond(200, ['generated' => $written, 'files' => $demo->files(), 'directory' => $demo->directory(),
+                              'unread' => count($written)], $correlationId);
+            }
+            $purged = $demo->purge($pid);
+            audit('copilot-demo-purged', $username, $authGroup, true,
+                'cid=' . $correlationId . ' files=' . $purged['files'] . ' documents=' . $purged['documents']
+                . ' results=' . $purged['results'], $pid);
+            respond(200, $purged + ['files_remaining' => $demo->files(), 'directory' => $demo->directory()], $correlationId);
+
+        case 'open_patient':
+            // One patient, reached from its own record. Scope was asserted above. The chart read
+            // and the agent call are the same as 'open' with a list of one.
+            $pid = (int) ($input['pid'] ?? 0);
+            $date = date('Y-m-d');
+            $appointment = null;
+            foreach ($scope->roundingList($date) as $booked) {
+                if ($booked['pid'] === $pid) {
+                    $appointment = $booked;
+                    break;
+                }
+            }
+            $readStarted = microtime(true);
+            $chart = (new ChartReader($scope, $config))->read($pid, $appointment);
+            $readMs = (int) round((microtime(true) - $readStarted) * 1000);
+            $result = $client->post('/session/open', [
+                'session_id' => $sessionId,
+                'user' => ['id' => $scope->userId(), 'username' => $username, 'name' => $scope->displayName(), 'groups' => $scope->groups()],
+                'charts' => [$chart],
+            ], $correlationId);
+            if ($result['status'] !== 200 || $result['json'] === null) {
+                audit('copilot-open', $username, $authGroup, false, 'cid=' . $correlationId . ' entry=patient agent status=' . $result['status'], $pid);
+                respond(503, ['state' => 'unable_to_answer', 'reason' => 'the agent service refused the session (status ' . $result['status'] . ')',
+                              'detail' => $result['json']['detail'] ?? null], $correlationId);
+            }
+            audit('copilot-open', $username, $authGroup, true, 'cid=' . $correlationId . ' entry=patient chart_read_ms=' . $readMs, $pid);
+            respond(200, [
+                'date' => $date,
+                'user' => ['name' => $scope->displayName(), 'username' => $username, 'panel_size' => $scope->panelSize()],
+                'patient' => [
+                    'pid' => $pid,
+                    'name' => preg_replace('/\d+/', '', (string) $chart['patient']['name']),
+                    'dob' => $chart['patient']['dob'],
+                    'age' => $chart['patient']['age'],
+                    'sex' => $chart['patient']['sex'],
+                    'time' => $appointment['time'] ?? '',
+                    'title' => $appointment['title'] ?? '',
+                    'sources' => $chart['sources'],
+                ],
+                'chart_read_ms' => $readMs,
+                'prefetch_budget_s' => $result['json']['prefetch_budget_s'] ?? 90,
+                'disclaimer' => $result['json']['disclaimer'] ?? 'Demo data only. Not clinically validated for patient care.',
+                'rejected' => $result['json']['rejected'] ?? [],
+            ], $correlationId);
+
         case 'open':
             $date = date('Y-m-d');
             $list = $scope->roundingList($date);
@@ -172,8 +630,21 @@ try {
                 respond(400, ['state' => 'unable_to_answer', 'reason' => 'question must be 1-2000 characters'], $correlationId);
             }
             $scope->assertInScope($pid);
-            $result = $client->post('/session/' . $sessionId . '/ask', ['pid' => $pid, 'question' => $question], $correlationId);
-            $answer = $result['json'] ?? [];
+            // Week 2 stage 3: a follow-up goes through the supervisor graph, not straight to the
+            // retriever. That is what makes the supervisor's decisions true of every interaction,
+            // and it means a question asked while a document is still unread is answered from the
+            // chart that document produced.
+            $writer = new DocumentWriter($scope);
+            [$summary, $documents] = runSupervisorGraph($client, $writer, $scope, $config, $sessionId, $pid, $question,
+                $sessionPid, $sessionEncounter, $username, $authGroup, $correlationId);
+            $answer = is_array($summary['answer'] ?? null) ? $summary['answer'] : [];
+            $answer['handoffs'] = $summary['handoffs'] ?? [];
+            $answer['changes'] = $summary['changes'] ?? [];
+            $answer['documents'] = $documents;
+            foreach (($summary['citations'] ?? []) as $citation) {
+                $answer['citations'][] = $citation;      // what-changed citations for any document read this turn
+            }
+            $result = ['status' => $answer ? 200 : 503, 'json' => $answer];
             // FR14: decision, tool sequence, verification outcome and latency; the question text itself stays out of the log.
             audit('copilot-ask', $username, $authGroup, $result['status'] === 200,
                 'cid=' . $correlationId . ' state=' . ($answer['state'] ?? '-') . ' iterations=' . ($answer['iterations'] ?? '-')
@@ -198,8 +669,12 @@ try {
             respond(400, ['state' => 'unable_to_answer', 'reason' => 'unknown action'], $correlationId);
     }
 } catch (ScopeDeniedException $e) {
-    audit('copilot-scope-denied', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action, $e->pid);
-    respond(403, ['state' => 'access_denied', 'reason' => 'that patient is not on your rounding list'], $correlationId);
+    audit('copilot-scope-denied', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action . ' entry=' . $context, $e->pid);
+    respond(403, ['state' => 'access_denied', 'reason' => $context === 'patient'
+        ? 'that patient is not assigned to you' : 'that patient is not on your rounding list'], $correlationId);
+} catch (\InvalidArgumentException $e) {
+    // A bad upload (wrong type, empty file): the caller's problem, said plainly.
+    respond(400, ['state' => 'unable_to_answer', 'reason' => 'the document was not accepted: ' . $e->getMessage()], $correlationId);
 } catch (AgentUnavailableException $e) {
     error_log('oe-module-copilot-agent: ' . $e->getMessage());
     audit('copilot-agent-unavailable', $username, $authGroup, false, 'cid=' . $correlationId . ' action=' . $action);

@@ -88,7 +88,6 @@ class TreatmentPreferenceViewCard extends CardModel
         $session = SessionWrapperFactory::getInstance()->getActiveSession();
         $templateVars = parent::getTemplateVariables();
         $dispatchResult = $this->getEventDispatcher()->dispatch(new RenderEvent(self::CARD_ID), RenderEvent::EVENT_HANDLE);
-        $this->handlePost();
 
          $loincCodes  = $this->service->getAvailableLoincCodes();
         $result = $this->service->getPreferencesByPatient($this->pid) ?? [];
@@ -132,8 +131,8 @@ class TreatmentPreferenceViewCard extends CardModel
             'title'            => xl('Treatment Intervention Preferences'),
             'type'             => 'treatment_intervention',
             'pid'              => $this->pid,
-            'auth'             => true,  // TODO ACL
-            'can_write'        => true,  // TODO ACL
+            'auth'             => true,
+            'can_write'        => AclMain::aclCheckCore('patients', 'demo', '', 'write'),
             'webroot'          => OEGlobalsBag::getInstance()->getKernel()->getWebRoot(),
             'csrf_token'       => CsrfUtils::collectCsrfToken(session: $session),
             'preferences'      => $preferences,
@@ -187,17 +186,27 @@ class TreatmentPreferenceViewCard extends CardModel
     {
         return ''; }
 
-    private function handlePost(): void
+    /**
+     * Saves or voids a preference, if the request carries this card's form. The page calls this
+     * before it renders anything; it used to run while the template variables were built, with
+     * no permission check, and update/delete matched the row id alone (BUG-002, BUG-004).
+     * Writing needs patients/demo write, and every write is scoped to this card's patient.
+     */
+    public function handlePost(): CardPostOutcome
     {
         $request = HttpRestRequest::createFromGlobals();
 
         if ($request->getMethod() !== 'POST') {
-            return;
+            return CardPostOutcome::NotSubmitted;
         }
         if ($request->request->getString('pref_type') !== 'treatment_intervention') {
-            return;
+            return CardPostOutcome::NotSubmitted;
         }
         CsrfUtils::checkCsrfInput(INPUT_POST, key: 'csrf_token', dieOnFail: true);
+        $patientId = $this->pid;
+        if (!AclMain::aclCheckCore('patients', 'demo', '', 'write')) {
+            return CardPostOutcome::Denied;
+        }
 
         switch ($request->request->getString('action')) {
             case 'save':
@@ -207,7 +216,7 @@ class TreatmentPreferenceViewCard extends CardModel
                     : null;
                 $data = $this->collectPost($request->request->all());
                 if ($id) {
-                    $this->service->update($id, $data);
+                    $this->service->update($id, $patientId, $data);
                     $this->flashMessage = xl('Preference updated');
                 } else {
                     $this->service->insert($data);
@@ -217,13 +226,18 @@ class TreatmentPreferenceViewCard extends CardModel
             case 'delete':
                 $id = $request->request->getInt('id');
                 if ($id) {
-                    $this->service->delete($id);
+                    $this->service->delete($id, $patientId);
                     $this->flashMessage = xl('Preference deleted');
                 }
                 break;
         }
+        return CardPostOutcome::Handled;
     }
 
+    /**
+     * @param array<mixed> $post
+     * @return array<string, mixed>
+     */
     private function collectPost(array $post): array
     {
         $session = SessionWrapperFactory::getInstance()->getActiveSession();

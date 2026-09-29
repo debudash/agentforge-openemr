@@ -1,0 +1,28 @@
+CONSOLE debug [vite] connecting...
+CONSOLE debug [vite] connected.
+CONSOLE warning Error parsing a meta element's content: ';' is not a valid key-value pair separator. Please use ',' instead.
+AT https://localhost:9300/oauth2/default/provider/login
+CONSOLE warning Error parsing a meta element's content: ';' is not a valid key-value pair separator. Please use ',' instead.
+AFTER LOGIN https://localhost:9300/oauth2/default/smart/patient-select
+CONSOLE warning Error parsing a meta element's content: ';' is not a valid key-value pair separator. Please use ',' instead.
+AT https://localhost:9300/oauth2/default/scope-authorize-confirm
+CONSOLE debug [vite] connecting...
+CONSOLE debug [vite] connected.
+CONSOLE error Access to fetch at 'https://localhost:9300/apis/default/fhir/Patient/a2bf78a3-cba7-4956-bc38-27323998b7be' from origin 'http://localhost:5173' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+REQFAILED GET https://localhost:9300/apis/default/fhir/Patient/a2bf78a3-cba7-4956-bc38-27323998b7be net::ERR_FAILED
+CONSOLE error Failed to load resource: net::ERR_FAILED
+starting
+TOKEN_OK scopes=fhirUser launch/patient openid patient/AllergyIntolerance.rs patient/CareTeam.rs patient/Condition.rs patient/MedicationRequest.rs patient/Observation.rs patient/Patient.rs patient/Practitioner.rs
+patient=a2bf78a3-cba7-4956-bc38-27323998b7be
+FAIL TypeError: Failed to fetch
+REQUESTS
+GET https://localhost:9300/apis/default/fhir/.well-known/smart-configuration
+GET https://localhost:9300/oauth2/default/authorize
+GET https://localhost:9300/oauth2/default/provider/login
+POST https://localhost:9300/oauth2/default/login
+POST https://localhost:9300/oauth2/default/smart/patient-select
+POST https://localhost:9300/oauth2/default/smart/patient-select-confirm
+POST https://localhost:9300/oauth2/default/scope-authorize-confirm
+POST https://localhost:9300/oauth2/default/device/code
+POST https://localhost:9300/oauth2/default/token
+GET https://localhost:9300/apis/default/fhir/Patient/a2bf78a3-cba7-4956-bc38-27323998b7be

@@ -1,0 +1,139 @@
+{
+  "pid": 26,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Kathern391 Conroy74",
+        "26",
+        "1977-04-18",
+        "49"
+      ],
+      "port": [
+        "Kathern391 Conroy74",
+        "26",
+        "1977-04-18",
+        "49",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Received higher education (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Chronic pain (finding)",
+        "Chronic low back pain (finding)",
+        "Chronic neck pain (finding)",
+        "Loss of teeth (disorder)",
+        "Social isolation (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Chronic sinusitis (disorder)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Part-time employment (finding)"
+      ],
+      "port": [
+        "Received higher education (finding)",
+        "Body mass index 30+ - obesity (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Chronic pain (finding)",
+        "Chronic low back pain (finding)",
+        "Chronic neck pain (finding)",
+        "Loss of teeth (disorder)",
+        "Social isolation (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Chronic sinusitis (disorder)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Part-time employment (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Vitamin B12 5 MG/ML Injectable Solution"
+      ],
+      "port": [
+        "Vitamin B12 5 MG/ML Injectable Solution"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "match",
+      "legacy": [
+        "levonorgestrel 0.000833 MG/HR Intrauterine System [Mirena]",
+        "Etonogestrel 68 MG Drug Implant",
+        "Vitamin B12 5 MG/ML Injectable Solution",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Camila 28 Day]",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Errin 28 Day]",
+        "1 ML medroxyPROGESTERone acetate 150 MG/ML Injection",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Jolivette 28 Day]",
+        "Acetaminophen 325 MG / Oxycodone Hydrochloride 10 MG Oral Tablet [Percocet]"
+      ],
+      "port": [
+        "Vitamin B12 5 MG/ML Injectable Solution",
+        "Acetaminophen 325 MG / Oxycodone Hydrochloride 10 MG Oral Tablet [Percocet]",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Jolivette 28 Day]",
+        "1 ML medroxyPROGESTERone acetate 150 MG/ML Injection",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Errin 28 Day]",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Camila 28 Day]",
+        "Etonogestrel 68 MG Drug Implant",
+        "levonorgestrel 0.000833 MG/HR Intrauterine System [Mirena]"
+      ],
+      "differences": []
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 160.5 in (407.70 cm)",
+        "Pulse: 82 per min",
+        "Respiration: 14 per min",
+        "BMI: 31 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 160.5 in",
+        "pulse: 82 /min",
+        "respiration: 14 /min",
+        "bmi: 30.55 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 31 kg/m^2 vs 30.55 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

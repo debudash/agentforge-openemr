@@ -1,0 +1,39 @@
+# PHPStan level 10, full codebase (phpstan.neon.dist; parallel.processTimeout raised locally to 3600 s)
+
+Run in the openemr container on the final tree. Total reported: 461 errors, all in the Co-Pilot module (interface/modules/custom_modules/oe-module-copilot-agent), which has no baseline and was never under PHPStan in CI (its CI job is php -l).
+Outside the module: 0 errors, and no unmatched or over-count baseline entries.
+
+Baseline: entries only removed or lowered (fixed by this change), none added:
+     .phpstan/baseline/argument.type.php                |  7 +---
+     .phpstan/baseline/if.alwaysTrue.php                |  2 +-
+     .phpstan/baseline/missingType.iterableValue.php    | 20 ----------
+     .phpstan/baseline/missingType.parameter.php        | 30 ---------------
+     .phpstan/baseline/missingType.return.php           |  5 ---
+     .../baseline/offsetAccess.nonOffsetAccessible.php  | 44 +++++++++++-----------
+     6 files changed, 24 insertions(+), 84 deletions(-)
+
+Errors in files this change touches, classified by whether the flagged line exists verbatim at HEAD (dashboard/.tmp/phpstan_new.py):
+
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 43 | Direct access to $GLOBALS is forbidden. Use OEGlobalsBag::getInstance()->get() instead.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 43 | Parameter #2 $kernel of class OpenEMR\Common\Twig\TwigContainer constructor expects OpenEMR\Core\Kernel|null, mixed given.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 50 | Cannot cast mixed to string.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 51 | Cannot cast mixed to string.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 67 | Cannot cast mixed to string.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 67 | Direct access to $GLOBALS is forbidden. Use OEGlobalsBag::getInstance()->get() instead.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 75 | Binary operation "." between non-falsy-string and mixed results in an error.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 87 | Binary operation "." between mixed and ' ' results in an error.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 87 | Binary operation "." between non-falsy-string and mixed results in an error.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/demo.php | 117 | Parameter #1 $text of function text expects string, mixed given.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 42 | Direct access to $GLOBALS is forbidden. Use OEGlobalsBag::getInstance()->get() instead.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 42 | Parameter #2 $kernel of class OpenEMR\Common\Twig\TwigContainer constructor expects OpenEMR\Core\Kernel|null, mixed given.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 50 | Cannot cast mixed to string.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 51 | Cannot cast mixed to string.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 73 | Function auditPage may not be defined in the global namespace.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 80 | Cannot cast mixed to string.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 80 | Direct access to $GLOBALS is forbidden. Use OEGlobalsBag::getInstance()->get() instead.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 86 | Binary operation "." between non-falsy-string and mixed results in an error.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 99 | Binary operation "." between mixed and ' ' results in an error.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 99 | Binary operation "." between non-falsy-string and mixed results in an error.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 99 | Parameter #1 $string of function trim expects string, string|null given.
+    pre-existing | interface/modules/custom_modules/oe-module-copilot-agent/public/patient.php | 178 | Parameter #1 $text of function text expects string, mixed given.
+    NEW: 0 pre-existing: 22 baseline notes: 0

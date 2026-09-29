@@ -22,7 +22,7 @@ from . import constraints, normalize
 from .config import Settings
 from .llm import classify_model_error, error_excerpt
 from .prompts import BRIEF_SYSTEM, FINALIZE_INSTRUCTION, FOLLOWUP_SYSTEM, TOPIC_CHECK_SYSTEM
-from .schemas import AgentResponse, AnswerDraft, BriefDraft, Chart, RemovedClaim, ResponseState, RuleOutcome, TopicCheck, VerifiedClaim
+from .schemas import AgentResponse, AnswerDraft, BriefDraft, Chart, RemovedClaim, ResponseState, RuleOutcome, TopicCheck, VerifiedClaim, source_type_for
 from .telemetry import emit, traced
 from .tools import ChartContext, make_tools
 from .verify import citations_for, verify_brief, verify_claims
@@ -31,8 +31,17 @@ from .verify import citations_for, verify_brief, verify_claims
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+# One round may ask for several tools at once, but not for the whole toolbox repeatedly.
+_MAX_TOOLS_PER_ROUND = 12
+
 SCOPE_STATEMENT = ("This co-pilot only answers questions about the selected patient's chart. "
                    "Ask about a specific part of it, for example labs, medications, problems or allergies.")
+
+# Shown when a question needed the guideline corpus and no search ran (grounding rule 13).
+NO_SEARCH_STATEMENT = ("No guideline search ran for this question, so no guidance is shown. "
+                       "Ask again, for example what the guidelines say about a specific condition.")
+# A boundary that talks about searching or finding is a claim about a search; with none run, it is dropped.
+_SEARCH_WORDS = ("search", "found", "result", "guideline", "guidance", "evidence")
 
 
 def comparison_window(today: date, hours: int) -> str:
@@ -217,14 +226,44 @@ def question_is_about_the_record(question: str, llm, correlation_id: str) -> boo
 
 
 def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm, settings: Settings,
-                    correlation_id: str, today: date | None = None) -> tuple[AgentResponse, list[BaseMessage]]:
-    """Answer one question. Returns the response and the two messages to append to memory."""
+                    correlation_id: str, today: date | None = None,
+                    require_evidence: bool = False, change_focused: bool = False,
+                    changes_arrived: bool = True) -> tuple[AgentResponse, list[BaseMessage]]:
+    """Answer one question. Returns the response and the two messages to append to memory.
+
+    `require_evidence` is the supervisor's decision that this question needs the guideline corpus
+    (stage 3: the supervisor decides when evidence retrieval is needed). Left to itself the model
+    chooses tools by feel, and asked "what evidence supports this" it reached for compliance
+    signals about half the time and never opened the corpus. The decision belongs to the router,
+    not to the model's mood, so it arrives here as an instruction rather than a hope.
+
+    `changes_arrived` says whether anything actually did. Asked what changed on a quiet chart, a
+    model will fill the silence with whatever it can find; the answer then reads as news and is
+    not. When nothing arrived the instruction is to say so in one sentence.
+
+    `change_focused` is the same decision for "what changed". A chart cannot answer it on its own:
+    every problem and prescription carries a recent-looking list date, so the model sweeps
+    everything and reports hypertension diagnosed in 2018 as news, spending a round per tool until
+    the limit stops it half way. What changed is what arrived -- the documents and the rows they
+    produced -- and saying so is what keeps the answer short and true.
+    """
     today = today or date.today()
     started = time.perf_counter()
 
     with traced("followup_answer", correlation_id, pid=chart.patient.pid, kind="answer") as run:
-        # Decide off-topic before the history and the tools are in play (see Settings.topic_check).
-        if settings.topic_check and not question_is_about_the_record(question, llm, correlation_id):
+        # The topic check decides, and it decides before the history and the tools are in play.
+        #
+        # It was briefly advisory -- the loop ran regardless and the refusal only stood if nothing
+        # was found -- on the theory that it was refusing terse clinical questions. The logs said
+        # otherwise: on every refused "what changed" it had answered *true*, and the refusal came
+        # from the no-lookup rule below. So the check is accurate in both directions, and making
+        # its verdict non-binding only cost something: asked "how is the weather" with an earlier
+        # answer in context, the model went and looked up the chart, set no off-topic flag of its
+        # own, and the turn returned a list of the patient's medications and labs. A classifier
+        # that reads the question alone is exactly what cannot be talked round by the conversation
+        # so far, which is the reason it reads the question alone.
+        pre_check_disagrees = settings.topic_check and not question_is_about_the_record(question, llm, correlation_id)
+        if pre_check_disagrees:
             response = AgentResponse(
                 correlation_id=correlation_id, state=ResponseState.COMPLETE, state_reason="not a question about this patient's record",
                 pid=chart.patient.pid, kind="answer", comparison_window=comparison_window(today, settings.comparison_hours),
@@ -235,6 +274,11 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             return response, [HumanMessage(content=question), AIMessage(content=SCOPE_STATEMENT)]
 
         ctx = ChartContext(chart, today, settings.recent_lab_days)
+        try:
+            from .guidelines.retrieve import guideline_index
+            ctx.guidelines = guideline_index(settings)
+        except Exception as exc:  # noqa: BLE001 - retrieval missing is a degraded tool, not a dead turn
+            emit("guideline_index_unavailable", correlation_id, error_type=type(exc).__name__)
         tools = make_tools(ctx)
         tool_by_name = {t.name: t for t in tools}
         index = verification_index(chart, ctx)
@@ -242,6 +286,27 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
         system = FOLLOWUP_SYSTEM.format(max_iterations=settings.max_iterations, pid=chart.patient.pid,
                                         name=normalize.display_name(chart.patient.name), today=today.isoformat())
         messages: list[BaseMessage] = [SystemMessage(content=system), *history, HumanMessage(content=question)]
+        if change_focused and changes_arrived:
+            messages.append(HumanMessage(content=(
+                "This question asks what is new. Call get_documents and get_labs together in one round, "
+                f"with since_days={settings.comparison_hours // 24 + 7} on get_labs, and answer from what they return: "
+                "the documents on file, whether each has been read, and the results that came from them. "
+                "Do not list long-standing problems or medications unless the question asked about them; "
+                "a problem recorded years ago is not something that changed.")))
+        elif change_focused:
+            # Nothing arrived. The honest answer is one sentence, and the brief above it already
+            # says what the chart holds -- so the failure to avoid is filling the silence with
+            # whatever the chart can offer, which reads as news and is not.
+            messages.append(HumanMessage(content=(
+                "Nothing new has arrived for this patient since the brief: no document has been read this turn "
+                "and none is waiting. Call get_documents to confirm, then give no claims and reply in one "
+                "sentence in 'missing' that there is nothing new since the brief. Do not list existing "
+                "problems, medications or older results: none of them changed.")))
+        if require_evidence:
+            messages.append(HumanMessage(content=(
+                "This question asks what the evidence or guidance says. Call search_guidelines before answering, "
+                "and put what it returns in 'evidence', each entry citing the guideline: ids it came from. "
+                "Statements about this patient still go in 'claims' and still need a chart lookup of their own.")))
 
         def run_rounds(budget: int, force_first: bool = False) -> tuple[int, bool, str | None]:
             """Tool-calling rounds until the model stops calling tools or the budget is spent.
@@ -268,7 +333,17 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
                 messages.append(ai)
                 if not ai.tool_calls:
                     return used, False, None
-                for call in ai.tool_calls:
+                # The round cap bounds how many times the model may think, not how many tools it
+                # may ask for at once. Seen live: one round asking for the same ten tools over and
+                # over, hundreds of calls, an answer of 56 claims nobody would read. A round is
+                # allowed a sensible handful; the rest are dropped and the model is told, so the
+                # next round can ask for what it actually needs.
+                requested = list(ai.tool_calls)
+                if len(requested) > _MAX_TOOLS_PER_ROUND:
+                    emit("tool_calls_truncated", correlation_id, pid=chart.patient.pid, iteration=used,
+                         requested=len(requested), executed=_MAX_TOOLS_PER_ROUND)
+                    requested = requested[:_MAX_TOOLS_PER_ROUND]
+                for call in requested:
                     tool = tool_by_name.get(call["name"])
                     if tool is None:
                         # An invented tool name. Say which tools exist so the next round can recover,
@@ -298,6 +373,11 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             # A follow-up claim may cite only what a tool returned in this turn (plus the derived ids
             # those tools carry). Facts restated from memory without a fresh lookup are removed: the
             # model cannot re-emit an earlier answer to an unrelated question and have it verify.
+            # Chunks retrieved this turn become citable, under their own source type (rules 1 and 12).
+            index.update(ctx.evidence)
+            # The pre-check already returned for anything it judged off-topic, so reaching here
+            # means it said this is about the chart. The model may still say otherwise -- and it is
+            # the one that has now seen the records -- so its own flag stands.
             off_topic = bool(draft is not None and draft.off_topic)
             if off_topic and draft is not None and draft.claims:
                 # The flag wins: an off-topic question carries no chart facts, whatever else the model wrote.
@@ -306,9 +386,22 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             else:
                 kept, removed = ([], []) if draft is None else verify_claims(
                     draft.claims, index, allowed_numbers(chart, today, settings, question), turn_ids=ctx.returned_ids)
+            # Evidence is verified apart from claims: same rules, plus it must cite a guideline. An
+            # evidence entry with no guideline id is a patient claim in the wrong list, and is removed.
+            evidence_kept: list = []
+            if draft is not None and draft.evidence and not off_topic:
+                with_guideline = [c for c in draft.evidence if any(source_type_for(s) == "guideline" for s in c.source_ids)]
+                removed += [RemovedClaim(text=c.text, reason="evidence claim cites no guideline") for c in draft.evidence if c not in with_guideline]
+                evidence_kept, evidence_removed = verify_claims(
+                    with_guideline, index, allowed_numbers(chart, today, settings, question), turn_ids=ctx.returned_ids,
+                    allow_guideline_only=True)
+                removed += evidence_removed
+            ctx.evidence_kept = evidence_kept
             return draft, failure, off_topic, kept, removed
 
-        iterations, loop_exhausted, model_failure = run_rounds(settings.max_iterations)
+        # An evidence question's first round must call a tool: the prompt asked for the search and
+        # the model skipped it, live, then wrote about search results that never existed (S11, S12).
+        iterations, loop_exhausted, model_failure = run_rounds(settings.max_iterations, force_first=require_evidence)
         draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
 
         # The model answered from memory (every claim removed, no tool called, not off-topic).
@@ -326,10 +419,41 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             iterations += more
             draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
 
-        # No lookup, no claims, no boundary: the model never looked at the chart, so whatever it
-        # wrote cannot be about this patient. Impose the scope statement rather than trust its
-        # wording; keep its text only when it is itself a scope statement about the active patient.
+        # The supervisor routed this question to the guideline corpus and no search ran. A boundary
+        # statement does not excuse it: the boundary flag is what switched the other passes off, and
+        # the answer then described a search that never happened. One bounded pass that must search.
+        searched = "search_guidelines" in ctx.calls
+        if (require_evidence and not searched and not off_topic and failure is None
+                and not loop_exhausted and iterations < settings.max_iterations):
+            emit("followup_forced_evidence_search", correlation_id, pid=chart.patient.pid)
+            messages.append(HumanMessage(content=(
+                "This question needs the guideline corpus and no search has run. Call search_guidelines now, "
+                "then answer again: put what it returns in 'evidence', citing its guideline: ids.")))
+            more, loop_exhausted, model_failure = run_rounds(settings.max_iterations - iterations, force_first=True)
+            iterations += more
+            draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
+            searched = "search_guidelines" in ctx.calls
+
+        # Nothing looked up and nothing produced. Before calling that off-topic, make it look.
+        # A terse question -- "what changed", "what should I pay attention to" -- often draws a
+        # first round with no tool call at all, and the doctor then gets the scope sentence for a
+        # question plainly about the chart: measured at eight refusals in nine on exactly those.
+        # The memory path already earns a forced second pass; this is the same remedy for the same
+        # failure, and it is skipped when the pre-check thought the question was off-topic anyway.
         no_lookup = not ctx.calls and not kept and not removed and failure is None and not loop_exhausted
+        if no_lookup and draft is not None and not draft.boundary and iterations < settings.max_iterations:
+            emit("followup_forced_lookup", correlation_id, pid=chart.patient.pid)
+            messages.append(HumanMessage(content=(
+                "You answered without looking anything up. Use the tools now to retrieve what the question "
+                "needs from this patient's chart, then answer again citing only those results.")))
+            more, loop_exhausted, model_failure = run_rounds(settings.max_iterations - iterations, force_first=True)
+            iterations += more
+            draft, failure, off_topic, kept, removed = finalise_and_verify(loop_exhausted, model_failure)
+            no_lookup = not ctx.calls and not kept and not removed and failure is None and not loop_exhausted
+
+        # Still nothing after being told to look: whatever it wrote cannot be about this patient.
+        # Impose the scope statement rather than trust its wording; keep its text only when it is
+        # itself a scope statement about the active patient.
         if no_lookup and draft is not None and not draft.boundary and not off_topic:
             off_topic = True
             emit("followup_no_lookup_treated_as_off_topic", correlation_id, pid=chart.patient.pid)
@@ -342,7 +466,14 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
                 draft.missing = SCOPE_STATEMENT
 
         state, reason = decide_state(chart, len(kept), removed, model_failed=failure, loop_exhausted=loop_exhausted)
-        if off_topic and not loop_exhausted and failure is None:
+        if not kept and ctx.evidence_kept and failure is None and not loop_exhausted and not off_topic:
+            # Guidance was found, quoted and verified; only the patient claims were rejected. Asked
+            # "what does guidance say", that is the answer, and reporting it as unable to answer
+            # while showing the evidence underneath says two opposite things at once. Partial, not
+            # complete: the question was answered about the guidance and not about the patient.
+            state, reason = ResponseState.PARTIAL, ("guideline evidence was found and verified; no statement about this "
+                                                    "patient survived verification, so none is shown")
+        elif off_topic and not loop_exhausted and failure is None:
             # Not a question about this patient: nothing was retrieved and nothing failed.
             state, reason = ResponseState.COMPLETE, "not a question about this patient's record"
         elif not kept and removed and not ctx.calls and failure is None:
@@ -352,11 +483,20 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
             # A boundary statement or an honest "not found" is a valid complete answer with no claims,
             # but only when nothing else went wrong on the way.
             state, reason = ResponseState.COMPLETE, "no chart facts were requested or found; statement only"
-        cited = [sid for c in kept for sid in c.source_ids]
+        if require_evidence and not searched and not off_topic and failure is None and draft is not None:
+            # Grounding rule 13: the answer may say what a search found only when one ran this turn.
+            # Nothing the model wrote about guidance can be true, so its wording is replaced, and a
+            # question that needed the corpus and never reached it is not complete.
+            state, reason = ResponseState.PARTIAL, "the question needs guideline evidence and no guideline search ran, so none is shown"
+            draft.missing = NO_SEARCH_STATEMENT
+            if draft.boundary and any(word in draft.boundary.lower() for word in _SEARCH_WORDS):
+                draft.boundary = None
+        evidence = getattr(ctx, "evidence_kept", [])
+        cited = [sid for c in kept for sid in c.source_ids] + [sid for c in evidence for sid in c.source_ids]
         response = AgentResponse(
             correlation_id=correlation_id, state=state, state_reason=reason, pid=chart.patient.pid, kind="answer",
             comparison_window=comparison_window(today, settings.comparison_hours), generated_at=chart.generated_at,
-            claims=kept, missing=draft.missing if draft else None, boundary=draft.boundary if draft else None,
+            claims=kept, evidence=evidence, missing=draft.missing if draft else None, boundary=draft.boundary if draft else None,
             off_topic=off_topic, citations=citations_for(cited, index), removed_claims=removed, sources=chart.sources,
             tool_calls=ctx.calls, iterations=iterations, duration_ms=int((time.perf_counter() - started) * 1000),
             langsmith_run_id=run["run_id"],
@@ -364,7 +504,7 @@ def answer_followup(chart: Chart, question: str, history: list[BaseMessage], llm
 
         emit("followup_answered", correlation_id, pid=chart.patient.pid, state=state.value, iterations=iterations,
              loop_exhausted=loop_exhausted, off_topic=off_topic, tool_calls=ctx.calls, scope_denials=len(ctx.denials),
-             claims_kept=len(kept), claims_removed=len(removed), duration_ms=response.duration_ms)
+             claims_kept=len(kept), claims_removed=len(removed), evidence_kept=len(evidence), duration_ms=response.duration_ms)
 
         # Memory holds only the question and the verified answer text: no tool payloads, no drafts and
         # no citation ids. A later turn that needs one of these facts has to look it up again, which

@@ -83,7 +83,34 @@ Sign in as `doctor1` or `doctor2` and open the **CopilotAgent** tab. `admin` is 
 co-pilot by design (PRD RBAC matrix) and gets a **CopilotHealth** tab instead, showing the
 service's counters since it last started.
 
+**Week 2 entry point.** Open any patient record: a **Co-Pilot** tab sits beside Dashboard and
+Documents. It reads the patient from the chart you have open and refuses, with an audit entry,
+any patient not assigned to you. The Week 1 tab is unchanged.
+
 Health: `GET /health` (process alive; checks nothing else, so a dependency outage never gets a working service killed) and `GET /ready` (probes the model provider endpoint, the LangSmith API and OpenEMR, plus the provider allowlist and shared secret; 503 naming whichever failed). `/healthz` and `/readyz` remain as aliases. Set `COPILOT_OPENEMR_URL` for the OpenEMR probe: the agent never calls OpenEMR in normal operation, so it cannot infer the address. The service refuses to open sessions while not ready.
+
+**Week 2 documents.** `COPILOT_VISION_MODEL` names the model that reads lab PDFs (it must be on
+`COPILOT_ALLOWED_MODELS`; empty means the agent model). `/ready` reports it. Free OpenRouter slugs
+share one per-account quota, so a `rate_limit` reason on an upload means the quota, not the file.
+
+**Week 2 guideline evidence.** `copilot/guidelines/corpus/` holds 20 public-domain chunks (USPSTF,
+MedlinePlus). `search_guidelines` retrieves with BM25 plus local embeddings and a local
+cross-encoder rerank; `COPILOT_EMBED_MODEL=none` runs BM25 only with no model download. Evidence
+is returned in its own `evidence` list, cited to `guideline:` ids, never on a claim about the patient.
+
+**Week 2 supervisor.** Opening the Co-Pilot tab in a patient record runs the graph: unread lab
+reports and intake forms are read, persisted by the module, and the brief is regenerated from the
+re-read chart with a "What changed" section above it. The routing (every handoff and its reason)
+is shown under Run details and logged as `supervisor_handoff` events.
+
+**Week 2 click-to-source.** A citation into a stored document, or a lab value that came from one,
+opens the page inline with the quoted text boxed where the PDF's text layer places it, plus a link
+to OpenEMR's own viewer. A quote that cannot be located is said so; no box is ever guessed.
+
+**Week 2 gate.** `python -m evals.stage2.gate` replays 50 recorded cases through the real code
+(no model, ~10 s) and fails on regression against `evals/stage2/baseline.json`. Install the
+pre-push hook once per clone with `.\hooks\install-hooks.ps1`. See
+[evals/stage2/README.md](evals/stage2/README.md).
 
 A runnable API collection covering the whole workflow is in [api/](../api/).
 
@@ -113,9 +140,9 @@ the laptop service. When you are satisfied:
 
 ```powershell
 cd copilot
-.venv\Scripts\python -m pytest                                        # 52 unit tests, no key, ~2 s
-.venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden # the every-run gate (8 cases)
-.venv\Scripts\python -m evals.run_evals --stage stage1                # golden + behavioural (6 scenarios)
+.venv\Scripts\python -m pytest                                        # ~200 unit tests, no key, a few seconds
+.venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden # the every-run gate (9 cases)
+.venv\Scripts\python -m evals.run_evals --stage stage1                # golden + behavioural (7 scenarios)
 .venv\Scripts\python -m evals.run_evals --stage stage1 --judge --langsmith --pace 12   # + judge, upload
 .venv\Scripts\python -m evals.run_evals --stage stage1 --suite golden --freeze         # record snapshots
 ```
@@ -144,6 +171,9 @@ Set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY` to trace every brief, follo
 
 ## Configuration reference
 
+> The complete list -- every variable both processes read, with its default read out of the code --
+> is in [../ENVIRONMENT.md](../ENVIRONMENT.md). What follows is the agent's own view of it.
+
 See `.env.example`. The allowlist (`COPILOT_ALLOWED_PROVIDERS/MODELS/ENDPOINTS`) is the PRD PHI1 control: any other configuration fails `readyz` and every session open.
 
 Two providers are supported and selected with `COPILOT_PROVIDER`:
@@ -162,8 +192,8 @@ OpenRouter is OpenAI-compatible; the gateway uses `ChatOpenAI` against it. Any m
 - `COPILOT_JUDGE_MODEL` lets the evals grade with a different allowlisted model than the agent uses; the judge schema tolerates the spelling variants of yes/no/na that smaller models produce.
 - Free routes may log prompts on the provider side. Acceptable for synthetic data only; it is recorded as an accepted finding in `SECURITY_TESTS.md`.
 
-Current configuration: agent `nvidia/nemotron-3-super-120b-a12b:free`, judge `google/gemma-4-31b-it:free`, with `anthropic/claude-sonnet-5` kept on the allowlist so switching back is a one-line change.
+Current configuration (from 2026-09-23): agent and vision `google/gemini-2.5-flash-lite`, judge `anthropic/claude-sonnet-5`. The `:free` slugs above are still on the allowlist and are no longer used — they could not complete a document read. The notes about the free tier still apply if you switch back to one; on the paid slugs `COPILOT_PREFETCH_CONCURRENCY` can go back to the code default. See `../W2_COST_LATENCY.md` for what a call costs.
 
 ## Deploying on Railway
 
-See `deploy/railway/README.md`, "Agent service": the service is built from `Dockerfile.copilot` at the repository root and has no public domain, and the OpenEMR service gets `COPILOT_AGENT_URL=http://copilot-agent.railway.internal:8600` plus the shared secret.
+See `deploy/railway/README.md`, "Agent service": the service is built from `Dockerfile.copilot` at the repository root and has no public domain, and the OpenEMR service gets `COPILOT_AGENT_URL=http://copilot-agent-v82.railway.internal:8600` plus the shared secret.

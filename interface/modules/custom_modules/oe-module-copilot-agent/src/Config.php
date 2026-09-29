@@ -28,6 +28,7 @@ final readonly class Config
         public int $requestTimeoutSeconds,
         public int $labHistoryDays,
         public int $encounterHistoryDays,
+        public bool $demoTools = false,
     ) {
     }
 
@@ -48,6 +49,9 @@ final readonly class Config
             requestTimeoutSeconds: (int) self::pick('COPILOT_REQUEST_TIMEOUT_S', $file, '75'),
             labHistoryDays: (int) self::pick('COPILOT_LAB_HISTORY_DAYS', $file, '1095'),
             encounterHistoryDays: (int) self::pick('COPILOT_ENCOUNTER_HISTORY_DAYS', $file, '1825'),
+            // Validation tooling (the Demo Data tab). Off unless an environment deliberately
+            // turns it on, so a deployment that sets nothing never exposes it. See DemoDocuments.
+            demoTools: in_array(strtolower(self::pick('COPILOT_DEMO_TOOLS', $file, '0')), ['1', 'true', 'yes'], true),
         );
     }
 

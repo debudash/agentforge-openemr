@@ -10,16 +10,21 @@ Endpoints (all signed except the two health probes):
   GET  /healthz                 process is up
   GET  /readyz                  model provider approved, secret configured, tracing state
   GET  /metrics                 counters and latency percentiles, no clinical content
+  POST /documents/extract       Week 2: read one lab PDF or intake form into its schema (the module persists it)
+  POST /session/{sid}/supervise         Week 2: the supervisor graph; pauses when the module must persist
+  POST /session/{sid}/supervise/resume  Week 2: finish the graph after persistence with the re-read chart
+  POST /documents/page          Week 2: one page as an image with boxes around cited quotes (click-to-source)
 """
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import statistics
 import time
 from collections import Counter, defaultdict
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -27,7 +32,9 @@ from pydantic import BaseModel, Field
 
 from .. import __version__
 from ..config import Settings, get_settings
-from ..llm import build_llm
+from ..documents.extract import ExtractionFailed, extract_document
+from ..documents.pages import locate, render
+from ..llm import LLM, build_llm
 from ..schemas import Chart
 from ..session import SessionStore
 from ..telemetry import configure_tracing, emit, event_counts, new_correlation_id, submit_feedback
@@ -36,6 +43,15 @@ from .auth import verify
 
 settings: Settings = get_settings()
 store = SessionStore(settings, lambda: build_llm(settings))
+_vision: LLM | None = None
+
+
+def vision_llm() -> LLM:
+    """The document-reading model, built once. Raises ProviderNotApproved: fail closed."""
+    global _vision
+    if _vision is None:
+        _vision = build_llm(settings, settings.vision_model, rate_limit_retries=settings.vision_rate_limit_retries)
+    return _vision
 tracing_evidence: dict[str, Any] = {}
 started_at = time.time()
 
@@ -154,6 +170,8 @@ async def ready(response: Response) -> dict[str, Any]:
     the model provider, the observability backend, and OpenEMR itself.
     """
     approved, reason = settings.provider_approved()
+    # Week 2: reading documents is part of the job, so the vision model is checked like the agent model.
+    vision_approved, vision_reason = settings.provider_approved(settings.vision_model)
 
     openemr_url = settings.openemr_url
     langsmith_url = settings.langsmith_endpoint.rstrip("/") + "/info"
@@ -169,6 +187,7 @@ async def ready(response: Response) -> dict[str, Any]:
     checks = {
         "model_provider": {"ok": approved and provider_reach["ok"], "allowlist": reason,
                            "model": settings.model, "endpoint": settings.endpoint(), **provider_reach},
+        "vision_model": {"ok": vision_approved, "allowlist": vision_reason, "model": settings.vision_model},
         "shared_secret": {"ok": bool(settings.shared_secret), "detail": "configured" if settings.shared_secret else "missing"},
         "observability": {"ok": langsmith_reach["ok"], "project": settings.langsmith_project,
                           "tracing": settings.langsmith_tracing, **langsmith_reach},
@@ -273,6 +292,167 @@ async def session_close(sid: str, request: Request, _: bytes = Depends(signed)) 
     return {"closed": closed}
 
 
+# -- the supervisor graph (Week 2) ---------------------------------------------------
+class DocumentRef(BaseModel):
+    doc_id: int = Field(ge=1)
+    doc_type: Literal["lab_pdf", "intake_form"]
+    name: str = ""
+    date: str = ""
+    processed: bool = False
+    content_base64: str | None = None
+
+
+class SuperviseRequest(BaseModel):
+    pid: int
+    documents: list[DocumentRef] = Field(default_factory=list)
+    # Week 2: a follow-up runs the same graph. With a question the retriever answers it instead of
+    # briefing, and the supervisor still decides whether a document has to be read first.
+    question: str | None = Field(default=None, max_length=2000)
+
+
+class PersistedRef(BaseModel):
+    doc_id: int
+    doc_type: Literal["lab_pdf", "intake_form"]
+    source_ids: list[str] = Field(default_factory=list)
+    order_id: int | None = None
+    sidecar_doc_id: int | None = None
+    skipped: list[dict[str, Any]] = Field(default_factory=list)
+    # Why the module would not file it, when it would not. Pydantic drops unknown fields in
+    # silence, so leaving this out meant a refused document arrived here looking like an ordinary
+    # one that happened to produce no rows -- and the brief then said it "was read: 0 result(s)
+    # added to the chart, pending clinician review" about a report belonging to someone else.
+    refused: str | None = None
+
+
+class ResumeRequest(BaseModel):
+    pid: int
+    persisted: list[PersistedRef] = Field(default_factory=list)
+    chart: Chart | None = None
+
+
+def _count_supervised(summary: dict[str, Any]) -> None:
+    counters["supervise_runs"] += 1
+    counters["supervise_documents_read"] += len(summary.get("extractions", []))
+    counters["supervise_documents_failed"] += len(summary.get("failed", []))
+    counters["supervise_handoffs"] += len(summary.get("handoffs", []))
+    if summary.get("phase") == "done" and summary.get("brief"):
+        counters["supervise_briefs"] += 1
+        counters["supervise_changes"] += len(summary.get("changes", []))
+
+
+@app.post("/session/{sid}/supervise")
+async def session_supervise(sid: str, request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """Run the graph: detect unread documents, extract, hand back for persistence, or brief straight away."""
+    cid = correlation(request)
+    payload = SuperviseRequest.model_validate_json(body)
+    for doc in payload.documents:
+        if doc.content_base64 and len(doc.content_base64) * 3 // 4 > settings.max_document_bytes:
+            raise HTTPException(status_code=413, detail=f"document {doc.doc_id} too large")
+    started = time.perf_counter()
+    documents = [d.model_dump() for d in payload.documents]
+    if payload.question:
+        summary = await store.ask_supervised(sid, payload.pid, payload.question, documents, vision_llm, cid)
+    else:
+        summary = await store.supervise(sid, payload.pid, documents, vision_llm, cid)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="no such session or patient")
+    record_latency("supervise_ms", int((time.perf_counter() - started) * 1000))
+    _count_supervised(summary)
+    return {"correlation_id": cid, **summary}
+
+
+@app.post("/session/{sid}/supervise/resume")
+async def session_supervise_resume(sid: str, request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """The module has persisted and re-read the chart; the graph finishes with the brief and what changed."""
+    cid = correlation(request)
+    payload = ResumeRequest.model_validate_json(body)
+    started = time.perf_counter()
+    summary = await store.ask_supervised_resume(sid, payload.pid, [p.model_dump() for p in payload.persisted],
+                                                payload.chart, vision_llm, cid)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="no such session or patient")
+    if summary.get("phase") == "denied":
+        raise HTTPException(status_code=403, detail=summary.get("reason"))
+    record_latency("supervise_ms", int((time.perf_counter() - started) * 1000))
+    _count_supervised(summary)
+    return {"correlation_id": cid, **summary}
+
+
+# -- documents (Week 2) ---------------------------------------------------------
+class ExtractRequest(BaseModel):
+    pid: int
+    doc_id: int = Field(ge=1)
+    doc_type: Literal["lab_pdf", "intake_form"]
+    filename: str = ""
+    mime: str = "application/pdf"
+    content_base64: str = Field(min_length=1)
+
+
+@app.post("/documents/extract")
+async def documents_extract(request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """Read one stored document. The caller (the module) stores the result; nothing is written here."""
+    cid = correlation(request)
+    payload = ExtractRequest.model_validate_json(body)
+    if payload.mime != "application/pdf":
+        raise HTTPException(status_code=415, detail="only PDF documents are read")
+    approved, reason = settings.provider_approved(settings.vision_model)
+    if not approved:
+        counters["extraction_refused_provider"] += 1
+        raise HTTPException(status_code=503, detail=f"vision model not approved: {reason}")
+    try:
+        raw = base64.b64decode(payload.content_base64, validate=True)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="content_base64 is not valid base64")
+    if len(raw) > settings.max_document_bytes:
+        raise HTTPException(status_code=413, detail="document too large")
+
+    started = time.perf_counter()
+    try:
+        result = await asyncio.to_thread(extract_document, payload.doc_id, raw, payload.doc_type, vision_llm(), settings, cid, payload.filename)
+    except ExtractionFailed as exc:
+        counters["extraction_failed"] += 1
+        raise HTTPException(status_code=502, detail=str(exc))
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    record_latency("extract_ms", duration_ms)
+    counters["documents_extracted"] += 1
+    counters["extraction_results"] += len(getattr(result.document, "results", []))
+    counters["extraction_unsupported_fields"] += len(result.unsupported_fields)
+    return {"correlation_id": cid, "duration_ms": duration_ms, **result.model_dump()}
+
+
+class PageRequest(BaseModel):
+    pid: int
+    doc_id: int = Field(ge=1)
+    page: int = Field(ge=1)
+    quotes: list[str] = Field(default_factory=list, max_length=20)
+    content_base64: str = Field(min_length=1)
+    scale: float = Field(default=1.5, ge=0.5, le=3.0)
+
+
+@app.post("/documents/page")
+async def documents_page(request: Request, body: bytes = Depends(signed)) -> dict[str, Any]:
+    """Click-to-source: one page as an image, with boxes where the cited quotes are. No model."""
+    cid = correlation(request)
+    payload = PageRequest.model_validate_json(body)
+    try:
+        raw = base64.b64decode(payload.content_base64, validate=True)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="content_base64 is not valid base64")
+    if len(raw) > settings.max_document_bytes:
+        raise HTTPException(status_code=413, detail="document too large")
+    try:
+        located = await asyncio.to_thread(locate, raw, payload.page, payload.quotes)
+        image = await asyncio.to_thread(render, raw, payload.page, payload.scale)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:  # noqa: BLE001 - an unreadable file, reported by type only
+        raise HTTPException(status_code=422, detail=f"document could not be rendered ({type(exc).__name__})")
+    counters["document_pages_rendered"] += 1
+    emit("document_page_rendered", cid, doc_id=payload.doc_id, page=payload.page, quotes=len(payload.quotes),
+         found=sum(1 for b in located["boxes"] if b["found"]))
+    return {"correlation_id": cid, **located, "image_base64": base64.b64encode(image).decode("ascii")}
+
+
 @app.get("/metrics")
 async def metrics(request: Request, _: bytes = Depends(signed)) -> dict[str, Any]:
     events = event_counts()
@@ -290,5 +470,10 @@ async def metrics(request: Request, _: bytes = Depends(signed)) -> dict[str, Any
             "tool_round_failed": events.get("model_tool_round_failed", 0),
             "forced_relookup": events.get("followup_relookup", 0),
             "topic_check_failed": events.get("topic_check_failed", 0),
+        },
+        # Week 2: how often guidance was searched, and how often the index was missing.
+        "retrieval": {
+            "searches": events.get("guideline_search", 0),
+            "index_unavailable": events.get("guideline_index_unavailable", 0),
         },
     }

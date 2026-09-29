@@ -18,10 +18,16 @@ $pid = $session->get('pid', 0);
 
 use OpenEMR\Common\Csrf\CsrfUtils;
 use OpenEMR\Core\OEGlobalsBag;
+use OpenEMR\Patient\Summary\DashboardFragmentGuard;
 
 CsrfUtils::checkCsrfInput(INPUT_POST, dieOnFail: true);
 
 $lbf_form_id = $_GET['formname'];
+// Only an active LBF layout is a dashboard card, and its own ACO applies (BUG-006).
+$lbfAcos = DashboardFragmentGuard::lbfCardAcos(is_string($lbf_form_id) ? $lbf_form_id : '');
+if ($lbfAcos === null || !DashboardFragmentGuard::allows($pid, $lbfAcos)) {
+    DashboardFragmentGuard::deny();
+}
 ?>
 <div id='<?php echo attr($lbf_form_id); ?>' style='margin-top: 3px; margin-left: 10px; margin-right: 10px'>
     <br />

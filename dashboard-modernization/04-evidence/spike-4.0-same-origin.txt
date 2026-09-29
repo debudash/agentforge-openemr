@@ -1,0 +1,16 @@
+TOKEN_OK scopes=fhirUser launch/patient openid patient/AllergyIntolerance.rs patient/CareTeam.rs patient/Condition.rs patient/MedicationRequest.rs patient/Observation.rs patient/Patient.rs patient/Practitioner.rs
+patient=a2bf78a3-cba7-4956-bc38-27323998b7be
+PATIENT {"id":"a2bf78a3-cba7-4956-bc38-27323998b7be","name":{"use":"official","family":"Dicki44","given":["Adan632"]},"birthDate":"1981-07-04","gender":"male"}
+RES AllergyIntolerance total=0
+RES Condition total=73
+RES MedicationRequest total=8
+RES CareTeam total=0
+RES Observation?category=vital-signs total=15
+DONE
+NODE 200 Patient/a2bf78a3-cba7-4956-bc38-27323998b7be Patient 
+NODE 200 AllergyIntolerance Bundle 0
+NODE 200 Condition Bundle 73
+NODE 200 MedicationRequest Bundle 8
+NODE 200 CareTeam Bundle 0
+NODE 200 Observation Bundle 15
+PREFLIGHT_NODE 404 {"access-control-allow-origin":"http://localhost:5173"} {"error":"An error occurred","message":"Route not found","code":0}

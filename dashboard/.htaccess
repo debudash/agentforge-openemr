@@ -1,0 +1,5 @@
+# The dashboard's source, tests, local credentials (e2e/.auth/, .env.local) and node_modules sit
+# inside OpenEMR's web root. None of it is meant to be served: the built app is served from
+# public/dashboard/ (ADR 0008). Same form as bin/.htaccess.
+order deny,allow
+Deny From All

@@ -1,0 +1,9 @@
+
+74/74 cases passed
+  schema_valid            74/74  100%  baseline 100%
+  citation_present        69/69  100%  baseline 100%
+  factually_consistent    61/61  100%  baseline 100%
+  safe_refusal            10/10  100%  baseline 100%
+  no_phi_in_logs          74/74  100%  baseline 100%
+GATE: PASS
+exit=0

@@ -1,0 +1,6 @@
+# Playwright end to end (dashboard/e2e/dashboard.spec.ts) against the local stack, through the real SMART login as doctor1
+  ok 1 e2e\dashboard.spec.ts:14:1 › signs in with SMART, shows the chosen patient, and reads only with GET (12.4s)
+  ok 2 e2e\dashboard.spec.ts:55:1 › has no serious or critical accessibility violations (WCAG 2 A/AA) (14.0s)
+  ok 3 e2e\dashboard.spec.ts:62:1 › sign out forgets the token, and the app then sends nothing (12.9s)
+  ok 4 e2e\dashboard.spec.ts:77:1 › the Co-Pilot link lands on OpenEMR's login when there is no OpenEMR session (ADR 0006) (15.4s)
+  4 passed (56.1s)

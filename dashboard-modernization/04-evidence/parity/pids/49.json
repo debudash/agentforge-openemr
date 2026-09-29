@@ -1,0 +1,111 @@
+{
+  "pid": 49,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Vernice968 Deb577 Stroman228",
+        "49",
+        "1991-06-05",
+        "35"
+      ],
+      "port": [
+        "Vernice968 Deb577 Stroman228",
+        "49",
+        "1991-06-05",
+        "35",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Received higher education (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "History of tubal ligation (situation)",
+        "Unemployed (finding)"
+      ],
+      "port": [
+        "Received higher education (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "History of tubal ligation (situation)",
+        "Unemployed (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 157.6 in (400.30 cm)",
+        "Temperature: 37.636416 F (3.13 C)",
+        "Pulse: 89 per min",
+        "Respiration: 14 per min",
+        "BMI: 29 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 157.6 in",
+        "pulse: 89 /min",
+        "respiration: 14 /min",
+        "temperature: 37.64 °F",
+        "bmi: 28.57 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 29 kg/m^2 vs 28.57 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

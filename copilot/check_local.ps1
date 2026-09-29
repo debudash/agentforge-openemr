@@ -37,6 +37,13 @@ if (Test-Path $marker) { Remove-Item $marker }
 
 Step "unit and service tests" { & $python -m pytest -q }
 
+# Week 2 gate: 50 recorded cases through the real code, no model, no key. Always runs.
+Step "Week 2 eval gate (stage2, deterministic)" { & $python -m evals.stage2.gate }
+
+# One class of UI bug no other layer can see: an element hidden while a Bootstrap display
+# utility keeps it on screen. Static, no browser.
+Step "UI guard (hidden vs display utilities)" { & $python -m evals.ui_guard }
+
 if (-not $SkipGolden) {
     Step "golden gate (stage1, live model)" { & $python -m evals.run_evals --stage stage1 --suite golden --pace 8 }
 }

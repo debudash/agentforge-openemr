@@ -1,0 +1,103 @@
+{
+  "meta": {
+    "lastUpdated": "2026-09-26T02:40:32"
+  },
+  "resourceType": "Bundle",
+  "type": "collection",
+  "total": 1,
+  "link": [
+    {
+      "relation": "self",
+      "url": "https://localhost:9300/apis/default/fhir/CareTeam"
+    }
+  ],
+  "entry": [
+    {
+      "fullUrl": "https://localhost:9300/apis/default/fhir/CareTeam/a2d5c182-d9c7-44f1-b2d6-58e0fe5b0ce1",
+      "resource": {
+        "id": "a2d5c182-d9c7-44f1-b2d6-58e0fe5b0ce1",
+        "meta": {
+          "versionId": "1",
+          "lastUpdated": "2026-09-26T02:26:23+00:00",
+          "profile": [
+            "http://hl7.org/fhir/us/core/StructureDefinition/us-core-careteam"
+          ]
+        },
+        "resourceType": "CareTeam",
+        "status": "active",
+        "name": "Primary care team",
+        "subject": {
+          "reference": "Patient/a2bf78a3-cba7-4956-bc38-27323998b7be",
+          "type": "Patient"
+        },
+        "participant": [
+          {
+            "role": [
+              {
+                "coding": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "code": "158965000",
+                    "display": "Physician"
+                  }
+                ]
+              }
+            ],
+            "member": {
+              "reference": "Practitioner/a2c1949c-719f-4be3-83be-d9d52750517b",
+              "type": "Practitioner"
+            },
+            "onBehalfOf": {
+              "reference": "Organization/a2bf5ae6-a82a-46ad-b6e3-d54f7062954b",
+              "type": "Organization"
+            },
+            "period": {
+              "start": "2024-01-15"
+            }
+          },
+          {
+            "role": [
+              {
+                "coding": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "code": "224571005",
+                    "display": "Nurse Practitioner"
+                  }
+                ]
+              }
+            ],
+            "member": {
+              "reference": "Practitioner/a2c194a0-f592-4936-a65d-030a1ff13fac",
+              "type": "Practitioner"
+            },
+            "onBehalfOf": {
+              "reference": "Organization/a2bf5ae6-a82a-46ad-b6e3-d54f7062954b",
+              "type": "Organization"
+            },
+            "period": {
+              "start": "2025-06-01"
+            }
+          },
+          {
+            "role": [
+              {
+                "coding": [
+                  {
+                    "system": "http://snomed.info/sct",
+                    "code": "43741000",
+                    "display": "Healthcare facility"
+                  }
+                ]
+              }
+            ],
+            "member": {
+              "reference": "Organization/a2bf5ae6-a82a-46ad-b6e3-d54f7062954b",
+              "type": "Organization"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

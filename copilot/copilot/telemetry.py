@@ -26,12 +26,18 @@ from typing import Any, Iterator
 from .config import Settings
 
 _log = logging.getLogger("copilot.events")
+# Level and propagation are set unconditionally, and the stream handler only if nobody else has
+# attached one. They used to be set together, inside the `if`, which meant an unrelated handler
+# attached first silenced telemetry entirely: the eval gate adds its own capture handler before the
+# first case imports this module, so the logger stayed at the default WARNING, every emit() was
+# dropped, and the no_phi_in_logs rubric passed 74/74 having read an empty log. It only ever ran for
+# real under pytest, where another module imports this one first. Found 2026-09-23.
+_log.setLevel(logging.INFO)
+_log.propagate = False
 if not _log.handlers:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter("%(message)s"))
     _log.addHandler(handler)
-    _log.setLevel(logging.INFO)
-    _log.propagate = False
 
 _FORBIDDEN_KEYS = {"name", "prompt", "response", "text", "claims", "chart", "question", "answer", "dob"}
 

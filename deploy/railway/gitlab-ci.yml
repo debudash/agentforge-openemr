@@ -1,0 +1,61 @@
+# PARKED -- NOT ACTIVE. The *deploy* half of the pipeline, deliberately not at the repository root.
+#
+# The test half is live: `.gitlab-ci.yml` at the root runs the unit tests, the 74-case eval gate,
+# the UI guard and a PHP syntax check on every push and merge request. It holds no secrets and
+# cannot deploy anything. That is what satisfies the eval-gate requirement.
+#
+# What is parked here is only the Railway deploy, and it stays parked on purpose: this repository
+# has never published without a person approving that specific change, and a pipeline that could
+# deploy would quietly remove that. The two jobs below have never been executed.
+#
+# To switch the deploy half on later:
+#   1. Add RAILWAY_TOKEN as a masked, protected CI/CD variable (Settings -> CI/CD -> Variables).
+#   2. Append `deploy` to `stages:` in the root .gitlab-ci.yml.
+#   3. Paste the jobs below into it, or move this file to the root in place of that one.
+#   4. Run them once by hand and watch what they do.
+# Keep `when: manual`. Changing it to `on_success` trades the approval gate away; that is a
+# decision, not a setting.
+#
+# The agent's own secrets (OPENROUTER_API_KEY, COPILOT_SHARED_SECRET, ...) are Railway service
+# variables and are never needed here: this would build and ship the image, not run the service.
+
+stages:
+  - deploy
+
+# --------------------------------------------------------------------------------------------
+# deploy -- manual, protected branches only
+# --------------------------------------------------------------------------------------------
+
+.railway:
+  image: node:22-alpine
+  before_script:
+    - test -n "$RAILWAY_TOKEN" || (echo "RAILWAY_TOKEN is not set. Add it as a masked, protected CI/CD variable." && exit 1)
+    - npm install -g @railway/cli@4
+    - railway whoami
+
+deploy agent:
+  extends: .railway
+  stage: deploy
+  environment:
+    name: production
+    url: https://openemr-production-461d.up.railway.app
+  script:
+    # Builds Dockerfile.copilot and replaces the running service. The image installs the CPU torch
+    # wheel and prefetches the two retrieval models, so a cold start downloads nothing -- and the
+    # build is slower than it looks for that reason.
+    - railway up --service copilot-agent-v82 --environment v82 -c
+    - echo "Checking readiness over the private network..."
+    - railway ssh --service openemr-v82 --environment v82 sh -c "curl -s -m 20 http://copilot-agent-v82.railway.internal:8600/readyz"
+  when: manual
+  allow_failure: false
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+    - if: $CI_COMMIT_BRANCH == "week2"
+      when: manual
+
+# There is no "deploy module" job any more. Since 2026-09-25 the module ships inside the OpenEMR
+# image, built from this repository by deploy/railway/build_openemr_image.sh (it needs docker
+# buildx and a Docker Hub login, so it runs on a workstation, not here). A CI job for it would
+# build that image and then run `railway service source connect --image ... --service openemr-v82`.
+# Until 2026-09-25 this job tarred the module onto the sites volume of the stock 8.0.0 image.

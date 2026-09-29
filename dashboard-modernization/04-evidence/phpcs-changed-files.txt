@@ -1,0 +1,6 @@
+# PHPCS (phpcs.xml.dist) on every PHP file this change adds or modifies: 22 files
+...................... 22 / 22 (100%)
+
+
+Time: 1.21 secs; Memory: 44.5MB
+phpcs-exit=0

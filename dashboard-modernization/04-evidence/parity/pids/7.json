@@ -1,0 +1,122 @@
+{
+  "pid": 7,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Colby655 Monahan736",
+        "7",
+        "2020-05-03",
+        "6"
+      ],
+      "port": [
+        "Colby655 Monahan736",
+        "7",
+        "2020-05-03",
+        "6",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+        "Penicillin V Potassium 250 MG Oral Tablet",
+        "Ibuprofen 100 MG Oral Tablet",
+        "Amoxicillin 500 MG Oral Tablet",
+        "Acetaminophen 160 MG Chewable Tablet",
+        "Acetaminophen 325 MG Oral Tablet"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Penicillin V Potassium 250 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Ibuprofen 100 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Amoxicillin 500 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 160 MG Chewable Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "match",
+      "legacy": [
+        "Height: 58.4 in (148.30 cm)",
+        "Pulse: 89 per min",
+        "Respiration: 14 per min",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 58.4 in",
+        "pulse: 89 /min",
+        "respiration: 14 /min"
+      ],
+      "differences": []
+    }
+  ]
+}

@@ -42,9 +42,6 @@ class CareTeamViewCard extends CardModel
     {
         $opts = $this->setupOpts($opts);
         parent::__construct($opts);
-
-        // Handle form submission if this is a POST request
-        $this->handleFormSubmission();
     }
 
     public function getListService(): ListService
@@ -121,13 +118,22 @@ class CareTeamViewCard extends CardModel
         return $templateVars;
     }
 
-    private function handleFormSubmission()
+    /**
+     * Saves the care team form, if the request carries it. The page calls this before it renders
+     * anything; it used to run from the constructor with no permission check at all (BUG-001).
+     * Saving replaces the patient's care team, so it needs patients/demo write, the same
+     * permission that shows the card's Edit button.
+     */
+    public function handleFormSubmission(): CardPostOutcome
     {
         $request = HttpRestRequest::createFromGlobals()->request;
         if ($request->getString('save_care_team') !== 'true') {
-            return;
+            return CardPostOutcome::NotSubmitted;
         }
         CsrfUtils::checkCsrfInput(INPUT_POST, dieOnFail: true);
+        if (!AclMain::aclCheckCore('patients', 'demo', '', 'write')) {
+            return CardPostOutcome::Denied;
+        }
 
         $teamId = ValidationUtils::validateInt($request->getString('team_id'));
         $teamId = $teamId === false ? null : $teamId;
@@ -144,6 +150,7 @@ class CareTeamViewCard extends CardModel
         }
 
         $this->getCareTeamService()->saveCareTeam($this->pid, $teamId, $teamName, $team, $teamStatus);
+        return CardPostOutcome::Handled;
     }
 
     private function getUserCardSetting($settingName)

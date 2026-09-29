@@ -1,0 +1,137 @@
+{
+  "pid": 4,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Blossom971 Temple691 Parker433",
+        "4",
+        "1994-09-04",
+        "32"
+      ],
+      "port": [
+        "Blossom971 Temple691 Parker433",
+        "4",
+        "1994-09-04",
+        "32",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Housing unsatisfactory (finding)",
+        "Received higher education (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Body mass index 30+ - obesity (finding)",
+        "History of appendectomy (situation)",
+        "Metabolic syndrome X (disorder)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Full-time employment (finding)",
+        "Social isolation (finding)",
+        "Stress (finding)"
+      ],
+      "port": [
+        "Housing unsatisfactory (finding)",
+        "Received higher education (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Body mass index 30+ - obesity (finding)",
+        "History of appendectomy (situation)",
+        "Metabolic syndrome X (disorder)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Full-time employment (finding)",
+        "Social isolation (finding)",
+        "Stress (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Jolivette 28 Day]"
+      ],
+      "port": [
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Jolivette 28 Day]"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "match",
+      "legacy": [
+        "tropicamide 5 MG/ML Ophthalmic Solution",
+        "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Jolivette 28 Day]",
+        "Etonogestrel 68 MG Drug Implant",
+        "Acetaminophen 325 MG Oral Tablet",
+        "Amoxicillin 250 MG Oral Capsule",
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System",
+        "Ibuprofen 200 MG Oral Tablet",
+        "{21 (ethinyl estradiol 0.03 MG / levonorgestrel 0.15 MG Oral Tablet) / 7 (inert ingredients 1 MG Oral Tablet) } Pack [Levora 0.15/30 28 Day]",
+        "Naproxen sodium 220 MG Oral Tablet",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Camila 28 Day]"
+      ],
+      "port": [
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Jolivette 28 Day]",
+        "{28 (norethindrone 0.35 MG Oral Tablet) } Pack [Camila 28 Day]",
+        "Naproxen sodium 220 MG Oral Tablet",
+        "{21 (ethinyl estradiol 0.03 MG / levonorgestrel 0.15 MG Oral Tablet) / 7 (inert ingredients 1 MG Oral Tablet) } Pack [Levora 0.15/30 28 Day]",
+        "Ibuprofen 200 MG Oral Tablet",
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System",
+        "Amoxicillin 250 MG Oral Capsule",
+        "Acetaminophen 325 MG Oral Tablet",
+        "Etonogestrel 68 MG Drug Implant",
+        "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+        "tropicamide 5 MG/ML Ophthalmic Solution"
+      ],
+      "differences": []
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 174 in (442.00 cm)",
+        "Pulse: 84 per min",
+        "Respiration: 13 per min",
+        "BMI: 31 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 174 in",
+        "pulse: 84 /min",
+        "respiration: 13 /min",
+        "bmi: 31.08 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 31 kg/m^2 vs 31.08 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

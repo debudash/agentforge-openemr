@@ -1,0 +1,33 @@
+# Red: module at HEAD (patient.php, demo.php as committed; flags.php absent)
+PASSED test_uc_dashboard_links.py::test_no_parameter_behaves_as_today
+PASSED test_uc_dashboard_links.py::test_matching_uuid_renders_the_page_for_that_patient
+PASSED test_uc_dashboard_links.py::test_matching_uuid_is_case_insensitive
+PASSED test_uc_dashboard_links.py::test_matching_uuid_is_not_refused_on_either_page[patient.php]
+PASSED test_uc_dashboard_links.py::test_matching_uuid_is_not_refused_on_either_page[demo.php]
+PASSED test_uc_dashboard_links.py::test_mismatched_uuid_is_audited
+PASSED test_uc_dashboard_links.py::test_no_session_shows_the_openemr_login
+FAILED test_uc_dashboard_links.py::test_mismatched_uuid_is_refused_and_names_both_patients[patient.php]
+FAILED test_uc_dashboard_links.py::test_mismatched_uuid_is_refused_and_names_both_patients[demo.php]
+FAILED test_uc_dashboard_links.py::test_unknown_uuid_is_refused[patient.php]
+FAILED test_uc_dashboard_links.py::test_unknown_uuid_is_refused[demo.php] - a...
+FAILED test_uc_dashboard_links.py::test_malformed_patient_parameter_is_refused_without_reflecting_it[3]
+FAILED test_uc_dashboard_links.py::test_malformed_patient_parameter_is_refused_without_reflecting_it[not-a-uuid]
+FAILED test_uc_dashboard_links.py::test_malformed_patient_parameter_is_refused_without_reflecting_it[' OR '1'='1]
+FAILED test_uc_dashboard_links.py::test_malformed_patient_parameter_is_refused_without_reflecting_it[<script>alert(1)</script>]
+FAILED test_uc_dashboard_links.py::test_malformed_patient_parameter_is_refused_without_reflecting_it[a2bf78bb-8052-4600-a47f-567135c1f296x]
+FAILED test_uc_dashboard_links.py::test_malformed_patient_parameter_is_refused_without_reflecting_it[]
+FAILED test_uc_dashboard_links.py::test_a_repeated_patient_parameter_is_refused
+FAILED test_uc_dashboard_links.py::test_switch_opens_the_dashboards_patient_then_renders_it
+FAILED test_uc_dashboard_links.py::test_switch_without_the_token_is_refused_and_changes_nothing
+FAILED test_uc_dashboard_links.py::test_switch_token_from_another_session_is_refused
+FAILED test_uc_dashboard_links.py::test_switch_does_not_bypass_the_panel_check
+FAILED test_uc_dashboard_links.py::test_switch_to_an_unknown_uuid_is_refused
+FAILED test_uc_dashboard_links.py::test_flags_are_public_and_carry_no_patient_data
+FAILED test_uc_dashboard_links.py::test_a_link_to_a_patient_outside_the_users_squad_is_refused_without_naming_them
+FAILED test_uc_dashboard_links.py::test_a_forged_switch_to_a_patient_outside_the_users_squad_changes_nothing
+================== 19 failed, 7 passed in 320.31s (0:05:20) ===================
+
+# Red: gate without the may-open check (review finding S3); squad tests only
+PASSED test_uc_dashboard_links.py::test_a_forged_switch_to_a_patient_outside_the_users_squad_changes_nothing
+FAILED test_uc_dashboard_links.py::test_a_link_to_a_patient_outside_the_users_squad_is_refused_without_naming_them
+================= 1 failed, 1 passed, 24 deselected in 25.95s =================

@@ -1,0 +1,134 @@
+{
+  "pid": 8,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Cordell41 McGlynn426",
+        "8",
+        "1985-12-25",
+        "40"
+      ],
+      "port": [
+        "Cordell41 McGlynn426",
+        "8",
+        "1985-12-25",
+        "40",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Serving in military service (finding)",
+        "Received higher education (finding)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Body mass index 30+ - obesity (finding)",
+        "Full-time employment (finding)",
+        "Medication review due (situation)"
+      ],
+      "port": [
+        "Serving in military service (finding)",
+        "Received higher education (finding)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Body mass index 30+ - obesity (finding)",
+        "Full-time employment (finding)",
+        "Medication review due (situation)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "acetaminophen 300 MG / hydrocodone bitartrate 10 MG Oral Tablet"
+      ],
+      "port": [
+        "acetaminophen 300 MG / hydrocodone bitartrate 10 MG Oral Tablet"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "Acetaminophen 325 MG Oral Tablet",
+        "Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+        "Sertraline 100 MG Oral Tablet",
+        "acetaminophen 300 MG / hydrocodone bitartrate 10 MG Oral Tablet"
+      ],
+      "port": [
+        "acetaminophen 300 MG / hydrocodone bitartrate 10 MG Oral Tablet"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Sertraline 100 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 172.2 in (437.40 cm)",
+        "Pulse: 97 per min",
+        "Respiration: 16 per min",
+        "BMI: 28 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 172.2 in",
+        "pulse: 97 /min",
+        "respiration: 16 /min",
+        "bmi: 27.97 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 28 kg/m^2 vs 27.97 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

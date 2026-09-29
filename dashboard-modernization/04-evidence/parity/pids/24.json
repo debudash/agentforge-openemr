@@ -1,0 +1,112 @@
+{
+  "pid": 24,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Josue598 Runolfsson901",
+        "24",
+        "2017-02-24",
+        "9"
+      ],
+      "port": [
+        "Josue598 Runolfsson901",
+        "24",
+        "2017-02-24",
+        "9",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Acetaminophen 325 MG Oral Tablet",
+        "Amoxicillin 500 MG Oral Tablet",
+        "Ibuprofen 100 MG Oral Tablet",
+        "sodium fluoride 0.0272 MG/MG Oral Gel"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: Acetaminophen 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Amoxicillin 500 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Ibuprofen 100 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "match",
+      "legacy": [
+        "Height: 55.2 in (140.20 cm)",
+        "Pulse: 83 per min",
+        "Respiration: 14 per min",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 55.2 in",
+        "pulse: 83 /min",
+        "respiration: 14 /min"
+      ],
+      "differences": []
+    }
+  ]
+}

@@ -1,0 +1,141 @@
+{
+  "pid": 50,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Yang129 Yasmin241 Mosciski958",
+        "50",
+        "1992-11-19",
+        "33"
+      ],
+      "port": [
+        "Yang129 Yasmin241 Mosciski958",
+        "50",
+        "1992-11-19",
+        "33",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Risk activity involvement (finding)",
+        "Loss of teeth (disorder)",
+        "Received higher education (finding)",
+        "Full-time employment (finding)",
+        "Social isolation (finding)",
+        "Stress (finding)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Victim of intimate partner abuse (finding)"
+      ],
+      "port": [
+        "Risk activity involvement (finding)",
+        "Loss of teeth (disorder)",
+        "Received higher education (finding)",
+        "Full-time employment (finding)",
+        "Social isolation (finding)",
+        "Stress (finding)",
+        "Unhealthy alcohol drinking behavior (finding)",
+        "Victim of intimate partner abuse (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System"
+      ],
+      "port": [
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System",
+        "{5 (dienogest 2 MG / estradiol valerate 2 MG Oral Tablet) / 17 (dienogest 3 MG / estradiol valerate 2 MG Oral Tablet) / 2 (estradiol valerate 1 MG Ora",
+        "levonorgestrel 0.000729 MG/HR Intrauterine System [Kyleena]",
+        "{21 (ethinyl estradiol 0.03 MG / levonorgestrel 0.15 MG Oral Tablet) / 7 (inert ingredients 1 MG Oral Tablet) } Pack [Levora 0.15/30 28 Day]",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "Amoxicillin 250 MG / Clavulanate 125 MG Oral Tablet"
+      ],
+      "port": [
+        "168 HR Ethinyl Estradiol 0.00146 MG/HR / norelgestromin 0.00625 MG/HR Transdermal System"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: {5 (dienogest 2 MG / estradiol valerate 2 MG Oral Tablet) / 17 (dienogest 3 MG / estradiol valerate 2 MG Oral Tablet) / 2 (estradiol valerate 1 MG Ora",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: levonorgestrel 0.000729 MG/HR Intrauterine System [Kyleena]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: {21 (ethinyl estradiol 0.03 MG / levonorgestrel 0.15 MG Oral Tablet) / 7 (inert ingredients 1 MG Oral Tablet) } Pack [Levora 0.15/30 28 Day]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Amoxicillin 250 MG / Clavulanate 125 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 157.1 in (399.00 cm)",
+        "Temperature: 37.182998 F (2.88 C)",
+        "Pulse: 68 per min",
+        "Respiration: 14 per min",
+        "BMI: 25 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 157.1 in",
+        "pulse: 68 /min",
+        "respiration: 14 /min",
+        "temperature: 37.18 °F",
+        "bmi: 25.14 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 25 kg/m^2 vs 25.14 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

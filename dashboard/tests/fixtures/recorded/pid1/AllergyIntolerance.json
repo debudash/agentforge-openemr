@@ -1,0 +1,14 @@
+{
+  "meta": {
+    "lastUpdated": "2026-09-26T02:40:24"
+  },
+  "resourceType": "Bundle",
+  "type": "collection",
+  "total": 0,
+  "link": [
+    {
+      "relation": "self",
+      "url": "https://localhost:9300/apis/default/fhir/AllergyIntolerance"
+    }
+  ]
+}

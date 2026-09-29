@@ -1,0 +1,5 @@
+  ok 1 e2e\parity.spec.ts:43:3 › parity pid 1 (37.0s)
+  ok 2 e2e\parity.spec.ts:43:3 › parity pid 3 (32.6s)
+  ok 3 e2e\parity.spec.ts:43:3 › parity pid 5 (36.4s)
+  3 passed (2.0m)
+Report regenerated from all 50 pid files: identical to the Phase 4 report except its timestamp line; the Phase 4 report was put back.

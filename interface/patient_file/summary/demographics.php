@@ -57,6 +57,7 @@ use OpenEMR\FHIR\SMART\SmartLaunchController;
 use OpenEMR\Menu\PatientMenuRole;
 use OpenEMR\OeUI\OemrUI;
 use OpenEMR\Patient\Cards\BillingViewCard;
+use OpenEMR\Patient\Cards\CardPostOutcome;
 use OpenEMR\Patient\Cards\CareExperiencePreferenceViewCard;
 use OpenEMR\Patient\Cards\CareTeamViewCard;
 use OpenEMR\Patient\Cards\DemographicsViewCard;
@@ -80,6 +81,24 @@ SessionUtil::setSession('disablePreviousNameAdds', 0);
 
 $twig = new TwigContainer(null, OEGlobalsBag::getInstance()->getKernel());
 
+// Authorize before anything patient-specific happens: no session change, recent-list write, CDR
+// run or output for a user who may not see this patient (BUG-003, BUG-008). The check covers the
+// patient the request is for, the patients/demo ACL, the ViewEvent listeners and the patient's
+// squad; a squad the user is not in stops the whole page, not only its header (BUG-005).
+$requestedPid = filter_has_var(INPUT_GET, 'set_pid') ? filter_input(INPUT_GET, 'set_pid', FILTER_VALIDATE_INT) : filter_var($pid, FILTER_VALIDATE_INT);
+$authorizedToView = false;
+if (is_int($requestedPid) && $requestedPid > 0 && AclMain::aclCheckCore('patients', 'demo')) {
+    $viewEvent = OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher()->dispatch(new ViewEvent($requestedPid), ViewEvent::EVENT_HANDLE);
+    $squadRow = getPatientData($requestedPid, 'squad');
+    $squad = is_string($squadRow['squad'] ?? null) ? $squadRow['squad'] : '';
+    $authorizedToView = $viewEvent->authorized() && ($squad === '' || AclMain::aclCheckCore('squads', $squad));
+}
+if (!$authorizedToView) {
+    http_response_code(403);
+    echo $twig->getTwig()->render('core/unauthorized.html.twig', ['pageTitle' => xl("Medical Dashboard")]);
+    exit();
+}
+
 // Set session for pid (via setpid). Also set session for encounter (if applicable)
 if (isset($_GET['set_pid'])) {
     require_once($srcdir . "/pid.inc.php");
@@ -101,6 +120,25 @@ $smartLaunchController->registerContextEvents();
 $hiddenCards = getHiddenDashboardCards();
 
 $ed = OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher();
+
+// Card forms are handled here, before anything is rendered, and each card checks its own write
+// permission (BUG-001, BUG-002, BUG-004). A refused write changes nothing and ends the request.
+$careTeamCard = new CareTeamViewCard($pid, ['dispatcher' => $ed]);
+$treatmentPreferenceCard = new TreatmentPreferenceViewCard($pid);
+$careExperiencePreferenceCard = new CareExperiencePreferenceViewCard($pid);
+foreach (
+    [
+        $careTeamCard->handleFormSubmission(...),
+        $treatmentPreferenceCard->handlePost(...),
+        $careExperiencePreferenceCard->handlePost(...),
+    ] as $handleCardForm
+) {
+    if ($handleCardForm() === CardPostOutcome::Denied) {
+        http_response_code(403);
+        echo $twig->getTwig()->render('core/unauthorized.html.twig', ['pageTitle' => xl("Medical Dashboard")]);
+        exit();
+    }
+}
 
 $active_reminders = false;
 $all_allergy_alerts = false;
@@ -360,6 +398,54 @@ $result3 = getInsuranceData(
 $insco_name = "";
 if (!empty($result3['provider'])) {   // Use provider in case there is an ins record w/ unassigned insco
     $insco_name = getInsuranceProvider($result3['provider']);
+}
+
+// ADR 0009: an admin setting can replace the cards below the header and patient menu with a
+// SMART app, EHR-launched for the patient authorized above. ehr-launch-client.php builds the
+// launch from the session patient; the app refuses a launch whose patient is not the one this
+// page declares on its frame. Any other value, or no client ID, keeps the cards.
+// ADR 0010: the FHIR API skips the user's ACL for patient-scoped tokens (API-11), so the app is
+// embedded only for a user who may see the clinical cards anyway: patients/med and the allergy,
+// problem and medication issue ACLs. Anyone else gets the cards, which check their own ACLs.
+// With the setting on legacy nothing below runs, not even the ACL checks.
+$dashboardSmartClientId = OEGlobalsBag::getInstance()->getString('patient_dashboard_smart_client_id');
+$dashboardPatientUuid = '';
+if (
+    OEGlobalsBag::getInstance()->getString('patient_dashboard_renderer') === 'smart_app'
+    && $dashboardSmartClientId !== ''
+    && is_int($requestedPid)
+    && AclMain::aclCheckCore('patients', 'med')
+    && AclMain::aclCheckIssue('allergy')
+    && AclMain::aclCheckIssue('medical_problem')
+    && AclMain::aclCheckIssue('medication')
+) {
+    $dashboardPatientUuidBytes = (new PatientService())->getUuid((string) $requestedPid);
+    if (is_string($dashboardPatientUuidBytes) && $dashboardPatientUuidBytes !== '') {
+        $dashboardPatientUuid = \OpenEMR\Common\Uuid\UuidRegistry::uuidToString($dashboardPatientUuidBytes);
+    }
+}
+$dashboardSmartApp = $dashboardPatientUuid !== '';
+
+// Edit in the chart: the app's Edit buttons open the editors the legacy cards open, under the same
+// rules. Allergies, problems and medications always offer Edit (the editor checks its own ACL);
+// prescriptions only with patients/rx write or addonly, and not when prescriptions are disabled.
+$dashboardEditActions = [];
+if ($dashboardSmartApp) {
+    $dashboardWebRoot = OEGlobalsBag::getInstance()->getWebRoot();
+    foreach (['allergy', 'medical_problem', 'medication'] as $dashboardIssueType) {
+        $dashboardEditActions[$dashboardIssueType] = [
+            'url' => $dashboardWebRoot . '/interface/patient_file/summary/stats_full.php?active=all&category=' . $dashboardIssueType,
+            'dialog' => false,
+        ];
+    }
+    if (
+        !OEGlobalsBag::getInstance()->getBoolean('disable_prescriptions')
+        && AclMain::aclCheckCore('patients', 'rx', '', ['write', 'addonly'])
+    ) {
+        $dashboardEditActions['prescriptions'] = OEGlobalsBag::getInstance()->getBoolean('erx_enable')
+            ? ['url' => $dashboardWebRoot . '/interface/eRx.php?page=compose', 'dialog' => false]
+            : ['url' => $dashboardWebRoot . '/controller.php?prescription&list&' . http_build_query(['id' => $requestedPid]), 'dialog' => true];
+    }
 }
 
 $arrOeUiSettings = [
@@ -1050,31 +1136,15 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
 
 <body class="mt-1 patient-demographic bg-light">
     <?php
-    // Create and fire the patient demographics view event
-    $viewEvent = new ViewEvent($pid);
-    $viewEvent = OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher()->dispatch($viewEvent, ViewEvent::EVENT_HANDLE);
-    $thisauth = AclMain::aclCheckCore('patients', 'demo');
-
-    if (!$thisauth || !$viewEvent->authorized()) {
-        echo $twig->getTwig()->render('core/unauthorized-partial.html.twig', ['pageTitle' => xl("Medical Dashboard")]);
-        exit();
-    }
+    // patients/demo, the ViewEvent and the squad were checked before any output (top of file).
     ?>
 
     <div id="container_div" class="<?php echo $oemr_ui->oeContainer(); ?> mb-2">
         <a href='../reminder/active_reminder_popup.php' id='reminder_popup_link' style='display: none' onclick='top.restoreSession()'></a>
         <a href='../birthday_alert/birthday_pop.php?pid=<?php echo attr_url($pid); ?>&user_id=<?php echo attr_url($session->get('authUserID')); ?>' id='birthday_popup' style='display: none;' onclick='top.restoreSession()'></a>
         <?php
-        if ($thisauth) {
-            if ($result['squad'] && !AclMain::aclCheckCore('squads', $result['squad'])) {
-                $thisauth = 0;
-            }
-        }
-
-        if ($thisauth) :
-            OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher()->dispatch(new RenderEvent($pid), RenderEvent::EVENT_SECTION_LIST_RENDER_TOP);
-            require_once($webserver_root . "/interface/patient_file/summary/dashboard_header.php");
-        endif;
+        OEGlobalsBag::getInstance()->getKernel()->getEventDispatcher()->dispatch(new RenderEvent($pid), RenderEvent::EVENT_SECTION_LIST_RENDER_TOP);
+        require_once($webserver_root . "/interface/patient_file/summary/dashboard_header.php");
 
         $list_id = "dashboard"; // to indicate nav item is active, count and give correct id
         // Collect the patient menu then build it
@@ -1086,6 +1156,50 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
             $idcard_doc_id = get_document_by_catg($pid, OEGlobalsBag::getInstance()->getString('patient_id_category_name'), 3);
         }
         ?>
+        <?php if ($dashboardSmartApp) : ?>
+        <div class="main mb-1">
+            <iframe id="dashboard_smart_app" class="d-block w-100 border-0" title="<?php echo xla('Patient Dashboard'); ?>"
+                src="<?php echo attr(OEGlobalsBag::getInstance()->getWebRoot() . '/interface/smart/ehr-launch-client.php?' . http_build_query([
+                    'client_id' => $dashboardSmartClientId,
+                    'csrf_token' => CsrfUtils::collectCsrfToken(session: $session),
+                    'intent' => \OpenEMR\FHIR\SMART\SMARTLaunchToken::INTENT_PATIENT_DEMOGRAPHICS_DIALOG,
+                ])); ?>"
+                data-fhir-patient="<?php echo attr($dashboardPatientUuid); ?>"
+                data-edit-actions="<?php echo attr(implode(' ', array_keys($dashboardEditActions))); ?>"
+                referrerpolicy="no-referrer"></iframe>
+        </div>
+        <script>
+            // The app fills the rest of the tab and scrolls inside it.
+            (function () {
+                const frame = document.getElementById('dashboard_smart_app');
+                // Edit in the chart: the app's Edit button names an action; this page opens the
+                // same legacy editor the old card opens, from URLs built here. Only this frame, on
+                // this origin, and only an action granted above, is honoured.
+                const editors = <?php echo json_encode($dashboardEditActions, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_THROW_ON_ERROR); ?>;
+                window.addEventListener('message', function (event) {
+                    if (event.origin !== window.location.origin || event.source !== frame.contentWindow) {
+                        return;
+                    }
+                    const data = event.data;
+                    if (!data || data.type !== 'oe-dashboard-edit' || typeof data.action !== 'string' || !Object.prototype.hasOwnProperty.call(editors, data.action)) {
+                        return;
+                    }
+                    const editor = editors[data.action];
+                    if (editor.dialog) {
+                        editScripts(editor.url);
+                    } else {
+                        load_location(editor.url);
+                    }
+                });
+                const fit = function () {
+                    frame.style.height = Math.max(480, window.innerHeight - frame.getBoundingClientRect().top - 8) + 'px';
+                };
+                fit();
+                window.addEventListener('resize', fit);
+                window.addEventListener('load', fit);
+            })();
+        </script>
+        <?php else : ?>
         <div class="main mb-1">
             <!-- start main content div -->
             <div class="row">
@@ -1250,7 +1364,7 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
             <div class="row">
                 <?php
                 if (!in_array('card_care_team', $hiddenCards)) {
-                    $card = new CareTeamViewCard($pid, ['dispatcher' => $ed]);
+                    $card = $careTeamCard;
                     $btnLabel = false;
                     if ($card->canAdd()) {
                         $btnLabel = 'Add';
@@ -1278,7 +1392,7 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
                 // TREATMENT INTERVENTION PREFERENCES CARD
                 // ============================================================================
                 if (!in_array('card_treatment_preferences', $hiddenCards)) {
-                    $card = new TreatmentPreferenceViewCard($pid);
+                    $card = $treatmentPreferenceCard;
                     $viewArgs = [
                         'title' => xl('Treatment Intervention Preferences'),
                         'id' => 'card_treatment_preferences',
@@ -1304,7 +1418,7 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
                 // CARE EXPERIENCE PREFERENCES CARD
                 // ============================================================================
                 if (!in_array('card_care_experience', $hiddenCards)) {
-                    $card = new CareExperiencePreferenceViewCard($pid);
+                    $card = $careExperiencePreferenceCard;
 
                     $viewArgs = [
                         'title' => xl('Care Experience Preferences'),
@@ -2043,18 +2157,17 @@ $oemr_ui = new OemrUI($arrOeUiSettings);
                         ]);
                     }  // end track_anything
 
-                    if ($thisauth) :
-                        echo $twig->getTwig()->render('patient/partials/delete.html.twig', [
-                            'isAdmin' => AclMain::aclCheckCore('admin', 'super'),
-                            'allowPatientDelete' => OEGlobalsBag::getInstance()->getBoolean('allow_pat_delete'),
-                            'csrf' => CsrfUtils::collectCsrfToken(session: $session),
-                            'pid' => $pid
-                        ]);
-                    endif;
+                    echo $twig->getTwig()->render('patient/partials/delete.html.twig', [
+                        'isAdmin' => AclMain::aclCheckCore('admin', 'super'),
+                        'allowPatientDelete' => OEGlobalsBag::getInstance()->getBoolean('allow_pat_delete'),
+                        'csrf' => CsrfUtils::collectCsrfToken(session: $session),
+                        'pid' => $pid
+                    ]);
                     ?>
                 </div> <!-- end right column div -->
             </div> <!-- end div.main > row:first  -->
         </div> <!-- end main content div -->
+        <?php endif; ?>
     </div><!-- end container div -->
     <?php $oemr_ui->oeBelowContainerDiv(); ?>
     <script>

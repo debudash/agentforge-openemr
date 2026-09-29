@@ -67,3 +67,49 @@ The judge never overrides the deterministic checks: a case with a deterministic 
 - latency p50 / p95 over applicable cases
 
 Results are written to `copilot/evals/<stage>/results/<timestamp>-<suite>.json` (gitignored) and, when LangSmith is configured, uploaded to a dataset named per stage and suite so stages never mix.
+
+## Week 2 extensions
+
+Two sources join the chart: documents the agent has read, and guideline evidence. Both are cited
+under the same contract. The Week 1 ids keep working; the verifier sees them as `record`.
+
+| `source_type` | Prefix | Example | What it is |
+|---|---|---|---|
+| `record` | any Week 1 prefix | `lab:6001` | A row read from the chart |
+| `document` | `doc:` | `doc:412` | A stored document; citation carries page and quote |
+| `guideline` | `guideline:` | `guideline:uspstf-htn-2021` | A chunk of the guideline corpus; not a patient record |
+| `rule`, `signal`, `empty` | as before | `rule:ALLERGY-1` | Derived facts, unchanged |
+
+Citation shape: `{source_type, source_id, page_or_section, field_or_chunk_id, quote_or_value}`,
+with `type`, `label` and `date` kept for the UI.
+
+How the existing rules apply to the new sources:
+
+| Rule | For documents and guidelines |
+|---|---|
+| 1 | `document:` and `guideline:` are citable. A claim about the patient must cite a `record`, `document` or `rule`; one citing `guideline:` alone is removed (`guideline_only`), except in the evidence section. |
+| 2 | A document must belong to the active patient, checked against `documents.foreign_id` before extraction. |
+| 3 | A number read from a document is verified against the **persisted row**, never the model's extraction. The document entry in the index carries no values; the `lab:` row it produced does. |
+| 4 | Unchanged. Guidelines may be quoted as evidence, never applied as advice. |
+| 7 | A lab report's own abnormal flag is extracted data. "Abnormal" in a response still needs a rule-engine outcome. |
+
+Three rules added:
+
+| # | Rule | Enforced by |
+|---|---|---|
+| 11 | Every extracted fact shown to the clinician carries a document citation with a page, and its extraction confidence is displayed. A field the model could not read is null with confidence 0, never guessed: the schema refuses a value without a citation. | `documents/schemas.py`, verifier, UI |
+| 12 | Guideline evidence sits in its own response section, structurally and visually apart from patient facts. An evidence entry must cite a `guideline:` id (`evidence_without_guideline`); a claim about the patient may not cite a guideline alone (`guideline_only`). | `AnswerDraft.evidence`, verifier, UI, judge |
+| 13 | **An answer may say what a search found only if the search ran that turn.** A question the supervisor routes to the guideline corpus must call `search_guidelines`: its first round is forced to call a tool, and if no search has run, one more forced pass follows, even when the model gave a boundary statement. If a search still never ran, no evidence is shown, the model's wording about guidance is replaced with "No guideline search ran for this question", and the answer is `partial`, never `complete`. Added 2026-09-27 after a live answer said "no specific guidelines were found in the search results" with no search run and was marked Complete. | `answer_followup` (`force_first`, forced evidence search, `NO_SEARCH_STATEMENT`), gate S11 and S12 |
+
+## How a control is built here
+
+Every rule above has two outcomes, and the second one is the one that goes wrong. When a check
+passes, the value travels on through typed structures validated at each step. When it fails, an
+*absence* travels — and absence is what permissive schema defaults, ambiguous JSON empties and
+tolerant callers quietly turn into "nothing to report".
+
+So a refusal is modelled as explicitly as an acceptance: a declared field with a declared type, a
+terminal state rather than a pending one, and a gate case asserting the refusal **reaches the
+clinician**, not only that the write did not happen. The Week 2 cross-check refused every misfiled
+document correctly and the brief still reported one as read, because the reason was an un-modelled
+key that Pydantic dropped in silence. `W2_ARCHITECTURE.md` §12b has the full account.

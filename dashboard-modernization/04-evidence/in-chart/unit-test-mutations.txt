@@ -1,0 +1,20 @@
+# ADR 0009 rule lines broken on purpose, one at a time; npx vitest run tests/ehr-launch.test.tsx
+
+M1 src/auth/smart.ts: drop the "token patient must be the chart's patient" check -> 1 failed | 15 passed
+M2 src/auth/smart.ts: drop the "iss must be this server" check before authorize  -> 1 failed | 15 passed
+M3 src/header/PatientHeader.tsx: show Sign out inside the chart                  -> 1 failed | 15 passed
+
+Each file was restored after its run (git diff --no-index against the saved copy: no difference).
+Unmutated: 16 passed (16).
+
+# ADR 0010 chart guard, broken on purpose (browser test)
+
+M4 demographics.php: drop `&& $dashboardUserMaySeeClinicalCards` from the embed condition
+   npx playwright test e2e/in-chart.spec.ts -g "without patients/med"
+   -> 1 failed: expect(locator('#dashboard_smart_app')).toHaveCount(0) (the app was embedded for dash-demoview)
+   File restored (cmp against the saved copy: identical); the same test then passes (e2e-in-chart.txt, test 6).
+
+M5 demographics.php: drop `&& AclMain::aclCheckIssue('allergy')` from the embed condition
+   npx playwright test e2e/in-chart.spec.ts -g "without an issue ACL"
+   -> 1 failed: expect(locator('#dashboard_smart_app')).toHaveCount(0)
+   File restored (cmp: identical); issue_types.aco_spec for allergy back to patients|med.

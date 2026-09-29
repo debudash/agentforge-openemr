@@ -1,0 +1,332 @@
+{
+  "pid": 10,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Donnell534 Kerluke267",
+        "10",
+        "1961-08-16",
+        "65"
+      ],
+      "port": [
+        "Donnell534 Kerluke267",
+        "10",
+        "1961-08-16",
+        "65",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "match",
+      "legacy": [
+        "Allergic disposition (finding)",
+        "Mold (organism)",
+        "House dust mite (organism)",
+        "Animal dander (substance)",
+        "Grass pollen (substance)",
+        "Tree pollen (substance)",
+        "Penicillin V",
+        "Cow's milk (substance)",
+        "Shellfish (substance)",
+        "Tree nut (substance)",
+        "Peanut (substance)"
+      ],
+      "port": [
+        "Allergic disposition (finding)",
+        "Mold (organism)",
+        "House dust mite (organism)",
+        "Animal dander (substance)",
+        "Grass pollen (substance)",
+        "Tree pollen (substance)",
+        "Penicillin V",
+        "Cow's milk (substance)",
+        "Shellfish (substance)",
+        "Tree nut (substance)",
+        "Peanut (substance)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Chronic sinusitis (disorder)",
+        "Received higher education (finding)",
+        "Asthma (disorder)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Hypertriglyceridemia (disorder)",
+        "Metabolic syndrome X (disorder)",
+        "Body mass index 30+ - obesity (finding)",
+        "Hyperglycemia (disorder)",
+        "Chronic kidney disease stage 1 (disorder)",
+        "Disorder of kidney due to diabetes mellitus (disorder)",
+        "Chronic kidney disease stage 2 (disorder)",
+        "Microalbuminuria due to type 2 diabetes mellitus (disorder)",
+        "Has a criminal record (finding)",
+        "Osteoporosis (disorder)",
+        "Essential hypertension (disorder)",
+        "Loss of teeth (disorder)",
+        "Acute ST segment elevation myocardial infarction (disorder)",
+        "History of myocardial infarction (situation)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)",
+        "History of coronary artery bypass grafting (situation)",
+        "Full-time employment (finding)",
+        "Nonproliferative diabetic retinopathy due to type II diabetes mellitus",
+        "Stress (finding)",
+        "Unhealthy alcohol drinking behavior (finding)"
+      ],
+      "port": [
+        "Chronic sinusitis (disorder)",
+        "Received higher education (finding)",
+        "Asthma (disorder)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Hypertriglyceridemia (disorder)",
+        "Metabolic syndrome X (disorder)",
+        "Body mass index 30+ - obesity (finding)",
+        "Hyperglycemia (disorder)",
+        "Chronic kidney disease stage 1 (disorder)",
+        "Disorder of kidney due to diabetes mellitus (disorder)",
+        "Chronic kidney disease stage 2 (disorder)",
+        "Microalbuminuria due to type 2 diabetes mellitus (disorder)",
+        "Has a criminal record (finding)",
+        "Osteoporosis (disorder)",
+        "Essential hypertension (disorder)",
+        "Loss of teeth (disorder)",
+        "Acute ST segment elevation myocardial infarction (disorder)",
+        "History of myocardial infarction (situation)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)",
+        "History of coronary artery bypass grafting (situation)",
+        "Full-time employment (finding)",
+        "Nonproliferative diabetic retinopathy due to type II diabetes mellitus",
+        "Stress (finding)",
+        "Unhealthy alcohol drinking behavior (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Chlorpheniramine Maleate 2 MG/ML Oral Solution",
+        "aspirin 81 MG Oral Tablet",
+        "24 HR metoprolol succinate 25 MG Extended Release Oral Tablet",
+        "atorvastatin 10 MG Oral Tablet",
+        "losartan potassium 100 MG Oral Tablet",
+        "prasugrel 10 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "port": [
+        "Chlorpheniramine Maleate 2 MG/ML Oral Solution",
+        "aspirin 81 MG Oral Tablet",
+        "24 HR metoprolol succinate 25 MG Extended Release Oral Tablet",
+        "atorvastatin 10 MG Oral Tablet",
+        "losartan potassium 100 MG Oral Tablet",
+        "prasugrel 10 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "10 ML Fentanyl 0.05 MG/ML Injection",
+        "sevoflurane 1000 MG/ML Inhalation Solution",
+        "Rocuronium bromide 10 MG/ML Injectable Solution",
+        "100 ML Propofol 10 MG/ML Injection",
+        "Midazolam 1 MG/ML Injectable Solution",
+        "2 ML Ondansetron 2 MG/ML Injection",
+        "insulin, regular, human 100 UNT/ML Injectable Solution",
+        "cefazolin 2000 MG Injection",
+        "1 ML heparin sodium, porcine 5000 UNT/ML Injection",
+        "25 ML protamine sulfate (USP) 10 MG/ML Injection",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "prasugrel 10 MG Oral Tablet",
+        "losartan potassium 100 MG Oral Tablet",
+        "atorvastatin 10 MG Oral Tablet",
+        "24 HR metoprolol succinate 25 MG Extended Release Oral Tablet",
+        "aspirin 81 MG Oral Tablet",
+        "ticagrelor 90 MG Oral Tablet",
+        "heparin sodium, porcine 100 UNT/ML Injectable Solution",
+        "reteplase 10 UNT Injection",
+        "nitroglycerin 0.4 MG Sublingual Tablet",
+        "aspirin 325 MG Oral Tablet",
+        "Hydrochlorothiazide 25 MG Oral Tablet",
+        "amLODIPine 2.5 MG Oral Tablet",
+        "lisinopril 10 MG Oral Tablet",
+        "Alendronic acid 10 MG Oral Tablet",
+        "tropicamide 5 MG/ML Ophthalmic Solution",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "albuterol 0.83 MG/ML Inhalation Solution",
+        "budesonide 0.125 MG/ML Inhalation Suspension",
+        "24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+        "insulin isophane, human 70 UNT/ML / insulin, regular, human 30 UNT/ML Injectable Suspension [Humulin]",
+        "Chlorpheniramine Maleate 2 MG/ML Oral Solution"
+      ],
+      "port": [
+        "Chlorpheniramine Maleate 2 MG/ML Oral Solution",
+        "aspirin 81 MG Oral Tablet",
+        "24 HR metoprolol succinate 25 MG Extended Release Oral Tablet",
+        "atorvastatin 10 MG Oral Tablet",
+        "losartan potassium 100 MG Oral Tablet",
+        "prasugrel 10 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: 10 ML Fentanyl 0.05 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sevoflurane 1000 MG/ML Inhalation Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Rocuronium bromide 10 MG/ML Injectable Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 100 ML Propofol 10 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Midazolam 1 MG/ML Injectable Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 2 ML Ondansetron 2 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: insulin, regular, human 100 UNT/ML Injectable Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: cefazolin 2000 MG Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 1 ML heparin sodium, porcine 5000 UNT/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 25 ML protamine sulfate (USP) 10 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: ticagrelor 90 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: heparin sodium, porcine 100 UNT/ML Injectable Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: reteplase 10 UNT Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: nitroglycerin 0.4 MG Sublingual Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: aspirin 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Hydrochlorothiazide 25 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: amLODIPine 2.5 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: lisinopril 10 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Alendronic acid 10 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: tropicamide 5 MG/ML Ophthalmic Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: albuterol 0.83 MG/ML Inhalation Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: budesonide 0.125 MG/ML Inhalation Suspension",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 24 HR Metformin hydrochloride 500 MG Extended Release Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: insulin isophane, human 70 UNT/ML / insulin, regular, human 30 UNT/ML Injectable Suspension [Humulin]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 182.1 in (462.50 cm)",
+        "Pulse: 73 per min",
+        "Respiration: 14 per min",
+        "BMI: 30 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 182.1 in",
+        "pulse: 73 /min",
+        "respiration: 14 /min",
+        "bmi: 30.16 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 30 kg/m^2 vs 30.16 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

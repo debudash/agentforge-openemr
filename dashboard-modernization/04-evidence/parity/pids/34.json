@@ -1,0 +1,119 @@
+{
+  "pid": 34,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Neely59 Hartmann983",
+        "34",
+        "2006-07-06",
+        "20"
+      ],
+      "port": [
+        "Neely59 Hartmann983",
+        "34",
+        "2006-07-06",
+        "20",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Medication review due (situation)",
+        "Received higher education (finding)",
+        "Full-time employment (finding)",
+        "Stress (finding)"
+      ],
+      "port": [
+        "Medication review due (situation)",
+        "Received higher education (finding)",
+        "Full-time employment (finding)",
+        "Stress (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "1 ML medroxyPROGESTERone acetate 150 MG/ML Injection",
+        "Acetaminophen 325 MG Oral Tablet",
+        "sodium fluoride 0.0272 MG/MG Oral Gel"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: 1 ML medroxyPROGESTERone acetate 150 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 325 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 149.1 in (378.70 cm)",
+        "Pulse: 82 per min",
+        "Respiration: 12 per min",
+        "BMI: 19 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 149.1 in",
+        "pulse: 82 /min",
+        "respiration: 12 /min",
+        "bmi: 19.27 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 19 kg/m^2 vs 19.27 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

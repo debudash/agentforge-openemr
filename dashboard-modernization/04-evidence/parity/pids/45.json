@@ -1,0 +1,130 @@
+{
+  "pid": 45,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Shakia673 Izetta651 Hauck852",
+        "45",
+        "1982-06-21",
+        "44"
+      ],
+      "port": [
+        "Shakia673 Izetta651 Hauck852",
+        "45",
+        "1982-06-21",
+        "44",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "match",
+      "legacy": [
+        "Allergic disposition (finding)",
+        "Mold (organism)",
+        "Aspirin"
+      ],
+      "port": [
+        "Allergic disposition (finding)",
+        "Mold (organism)",
+        "Aspirin"
+      ],
+      "differences": []
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Received higher education (finding)",
+        "Chronic pain (finding)",
+        "Chronic low back pain (finding)",
+        "History of tubal ligation (situation)",
+        "Body mass index 30+ - obesity (finding)",
+        "Misuses drugs (finding)",
+        "Part-time employment (finding)"
+      ],
+      "port": [
+        "Received higher education (finding)",
+        "Chronic pain (finding)",
+        "Chronic low back pain (finding)",
+        "History of tubal ligation (situation)",
+        "Body mass index 30+ - obesity (finding)",
+        "Misuses drugs (finding)",
+        "Part-time employment (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Terfenadine 60 MG Oral Tablet"
+      ],
+      "port": [
+        "Terfenadine 60 MG Oral Tablet"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "{24 (drospirenone 3 MG / ethinyl estradiol 0.02 MG Oral Tablet) / 4 (inert ingredients 1 MG Oral Tablet) } Pack [Yaz 28 Day]",
+        "Acetaminophen 325 MG / Oxycodone Hydrochloride 10 MG Oral Tablet [Percocet]",
+        "Terfenadine 60 MG Oral Tablet"
+      ],
+      "port": [
+        "Terfenadine 60 MG Oral Tablet"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: {24 (drospirenone 3 MG / ethinyl estradiol 0.02 MG Oral Tablet) / 4 (inert ingredients 1 MG Oral Tablet) } Pack [Yaz 28 Day]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 325 MG / Oxycodone Hydrochloride 10 MG Oral Tablet [Percocet]",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 161.9 in (411.20 cm)",
+        "Pulse: 82 per min",
+        "Respiration: 15 per min",
+        "BMI: 30 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 161.9 in",
+        "pulse: 82 /min",
+        "respiration: 15 /min",
+        "bmi: 29.51 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 30 kg/m^2 vs 29.51 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

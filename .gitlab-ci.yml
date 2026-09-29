@@ -1,0 +1,110 @@
+# CI for the Clinical Co-Pilot: the eval gate, and nothing else.
+#
+# This file runs tests. It does not deploy, it holds no secrets, and it cannot reach Railway --
+# publishing stays a deliberate, human-approved act, and the deploy jobs are parked out of the
+# root at deploy/railway/gitlab-ci.yml where GitLab never reads them.
+#
+# Every job here needs no API key, no network and no running service. The eval gate replays 76
+# recorded cases through the real code, so the same cases that block a local push block a merge
+# here. Verified: the gate is green with OPENROUTER_API_KEY, ANTHROPIC_API_KEY and LANGSMITH_API_KEY
+# all unset. A deterministic gate cannot flake on a provider outage, which is the whole point.
+#
+# Runner: a PROJECT runner -- a `gitlab-runner` container on the maintainer's machine, Docker
+# executor, untagged jobs enabled. This GitLab does have a shared instance runner, but instance
+# runners are off per project and the toggle would not stick, so every job failed in 00:00:00:
+# created, picked up by nobody, no log worth reading. Running our own removed that dependency.
+#
+# The consequence, stated because it is easy to miss: pipelines only run while that machine and
+# Docker Desktop are up. Nothing about grading this repository depends on one -- the gate needs no
+# runner, no key and no network, and `cd copilot && python -m evals.stage2.gate` is the whole of it.
+# Setup and rationale: deploy/railway/README.md, "Where the pipeline runs".
+#
+# If a job ever sits stuck, the runner is offline or wants a tag; add it to `default:` below.
+
+workflow:
+  rules:
+    # One pipeline per change, never two. Without these three rules a push to a branch that has an
+    # open merge request builds twice -- once for the branch, once for the MR -- which is what the
+    # first attempt at this file did.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+stages:
+  - test
+
+default:
+  interruptible: true
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  GIT_DEPTH: "50"
+
+.python:
+  image: python:3.13-slim
+  cache:
+    key:
+      files:
+        - copilot/requirements-ci.txt
+    paths:
+      - .cache/pip
+  before_script:
+    - cd copilot
+    - pip install --quiet --root-user-action=ignore -r requirements-ci.txt
+
+unit tests:
+  extends: .python
+  stage: test
+  script:
+    - python -m pytest -q
+
+eval gate:
+  extends: .python
+  stage: test
+  script:
+    # 76 recorded cases, five boolean rubrics, a committed baseline. The job fails if any rubric
+    # falls below its threshold or more than five points below the baseline -- that failure is
+    # what blocks the merge.
+    - python -m evals.stage2.gate
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      # The run's own evidence, downloadable from the job: per-case verdicts and the summary.
+      - copilot/evals/stage2/results/
+      - copilot/evals/stage2/baseline.json
+
+ui guard:
+  extends: .python
+  stage: test
+  script:
+    # One class of UI bug nothing else can see: an element hidden while a Bootstrap display
+    # utility keeps it on screen. Static, no browser.
+    - python -m evals.ui_guard
+
+php syntax:
+  stage: test
+  image: php:8.2-cli-alpine
+  script:
+    - find interface/modules/custom_modules/oe-module-copilot-agent -name '*.php' -print0 | xargs -0 -n1 php -l
+
+dashboard:
+  # The new patient dashboard (dashboard/, ADR 0001): lint (which carries the no-HTML-sink and
+  # GET-only rules), typecheck and the Vitest suite over recorded FHIR fixtures. The browser
+  # suites (end to end, parity harness, legacy reproductions) need the OpenEMR dev stack and run
+  # locally; their reports are committed under dashboard-modernization/04-evidence/.
+  stage: test
+  image: node:22-alpine
+  cache:
+    key:
+      files:
+        - dashboard/package-lock.json
+    paths:
+      - .cache/npm
+  script:
+    - cd dashboard
+    - npm ci --no-audit --no-fund --cache ../.cache/npm
+    - npm run lint
+    - npm run typecheck
+    - npm test

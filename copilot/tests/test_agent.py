@@ -71,20 +71,64 @@ def test_followup_retries_a_malformed_tool_round_once(chart101, settings, today)
     assert response.iterations == 2   # the failed round and its retry count as one iteration; the final round is the second
 
 
-def test_topic_check_answers_off_topic_before_any_tool_or_history(chart101, today):
-    """The transcript case: allergies in memory, then 'what is the weather'. With the pre-check on, the
-    question is classified alone; a 'no' returns the scope sentence with no tools and no re-lookup."""
+def test_an_off_topic_question_is_refused_when_the_turn_also_finds_nothing(chart101, today):
+    """The transcript case: allergies in memory, then 'what is the weather'. The pre-check says
+    off-topic and the turn looks nothing up, so the scope sentence stands.
+
+    The pre-check alone no longer decides. It reads four words with no chart and no history, and
+    on terse clinical questions it is a coin flip -- so it is advice, and what settles the turn is
+    whether anything was found. Here nothing is, and the two agree."""
     from dataclasses import replace
     from langchain_core.messages import AIMessage, HumanMessage
     from copilot.agent import SCOPE_STATEMENT
-    from copilot.schemas import TopicCheck
+    from copilot.schemas import AnswerDraft, TopicCheck
     settings = replace(Settings(), topic_check=True)
     history = [HumanMessage(content="what are the allergies"), AIMessage(content="Mold (organism) with reaction 1, begun 1993-08-18.")]
-    llm = ScriptedLLM([TopicCheck(about_patient_record=False)])
+    llm = ScriptedLLM([TopicCheck(about_patient_record=False),
+                       AnswerDraft(claims=[], off_topic=True, missing="That is a general knowledge question.")])
     response, turn = answer_followup(chart101, "what is the weather", history, llm, settings, "cid-topic-no", today)
     assert response.off_topic and response.state == ResponseState.COMPLETE
-    assert response.claims == [] and response.tool_calls == [] and response.iterations == 0
-    assert response.missing == SCOPE_STATEMENT and llm.responses == []   # nothing else was consulted
+    assert response.claims == [] and response.tool_calls == []
+    assert response.missing == SCOPE_STATEMENT
+
+
+def test_a_terse_question_the_model_answers_without_looking_is_made_to_look(chart101, today):
+    """The real shape of the "what changed" bug. The pre-check said the question *was* about the
+    chart -- it is accurate, and the logs proved it -- and the model then produced a first round
+    with no tool call at all, which the no-lookup rule turned into a refusal. Being told to look
+    is what rescues it, and the pre-check is left to do the job it is good at."""
+    from dataclasses import replace
+    from langchain_core.messages import AIMessage
+    from copilot.schemas import AnswerDraft, Claim, TopicCheck
+    settings = replace(Settings(), topic_check=True)
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_labs", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
+    answer = AnswerDraft(claims=[Claim(text="Potassium was 5.4 mmol/L on 2026-08-16.", source_ids=["lab:6001"])])
+    # On-topic, then a round that looks nothing up, then the forced round that does.
+    llm = ScriptedLLM([TopicCheck(about_patient_record=True), AnswerDraft(claims=[]), lookup, answer])
+    response, turn = answer_followup(chart101, "what changed", [], llm, settings, "cid-terse", today)
+    assert not response.off_topic, "a question the pre-check called on-topic is not refused for being terse"
+    assert response.claims and response.tool_calls == ["get_labs"]
+
+
+def test_an_off_topic_question_is_refused_even_with_the_chart_in_the_conversation(chart101, today):
+    """Reported live: "how is the weather", asked after questions about the chart, came back with
+    the patient's medications and labs. The pre-check had said off-topic and been overruled by a
+    model that had the earlier answers in front of it. Reading the question alone is precisely
+    what makes the check hard to talk round, so its verdict ends the turn."""
+    from dataclasses import replace
+    from langchain_core.messages import AIMessage, HumanMessage
+    from copilot.agent import SCOPE_STATEMENT
+    from copilot.schemas import AnswerDraft, Claim, TopicCheck
+    settings = replace(Settings(), topic_check=True)
+    history = [HumanMessage(content="what changed"),
+               AIMessage(content="Potassium was 5.4 mmol/L on 2026-08-16.")]
+    lookup = AIMessage(content="", tool_calls=[{"name": "get_labs", "args": {"pid": 101}, "id": "c1", "type": "tool_call"}])
+    eager = AnswerDraft(claims=[Claim(text="Potassium was 5.4 mmol/L on 2026-08-16.", source_ids=["lab:6001"])])
+    llm = ScriptedLLM([TopicCheck(about_patient_record=False), lookup, eager])
+    response, turn = answer_followup(chart101, "how is the weather", history, llm, settings, "cid-weather", today)
+    assert response.off_topic and response.claims == [] and response.tool_calls == []
+    assert response.missing == SCOPE_STATEMENT
+    assert llm.responses, "the turn ended before the tools or the model were consulted"
 
 
 def test_topic_check_yes_proceeds_normally(chart101, today):
@@ -108,7 +152,8 @@ def test_topic_check_error_fails_open(chart101, today):
 
 def test_followup_off_topic_question_is_named_as_such(chart101, settings, today):
     final = AnswerDraft(claims=[], off_topic=True, missing="This co-pilot only answers questions about the selected patient's chart.")
-    response, turn = answer_followup(chart101, "What is the weather like today?", [], ScriptedLLM([final]), settings, "cid-weather", today)
+    second = AnswerDraft(claims=[], off_topic=True, missing="This co-pilot only answers questions about the selected patient's chart.")
+    response, turn = answer_followup(chart101, "What is the weather like today?", [], ScriptedLLM([final, second]), settings, "cid-weather", today)
     assert response.state == ResponseState.COMPLETE and response.off_topic
     assert response.state_reason == "not a question about this patient's record"
     assert response.claims == [] and response.tool_calls == []
@@ -119,7 +164,8 @@ def test_followup_off_topic_flag_with_poor_wording_gets_the_scope_statement(char
     """The model flags off-topic but explains it in lab terms (seen live): the fixed sentence replaces it."""
     from copilot.agent import SCOPE_STATEMENT
     final = AnswerDraft(claims=[], off_topic=True, missing="No tool results were obtained in this turn to support any claims about the patient's chart.")
-    response, _ = answer_followup(chart101, "whats the weather", [], ScriptedLLM([final]), settings, "cid-poor", today)
+    second = AnswerDraft(claims=[], off_topic=True, missing="Nothing in the chart to cite.")
+    response, _ = answer_followup(chart101, "whats the weather", [], ScriptedLLM([final, second]), settings, "cid-poor", today)
     assert response.off_topic and response.missing == SCOPE_STATEMENT
 
 
@@ -128,7 +174,10 @@ def test_followup_no_lookup_is_treated_as_off_topic_whatever_the_model_wrote(cha
     'missing' about lab results. The agent imposes the scope statement and the off-topic reason."""
     from copilot.agent import SCOPE_STATEMENT
     final = AnswerDraft(claims=[], missing="No tool results were obtained in this turn to support any claims about lab results.")
-    response, _ = answer_followup(chart101, "whats the weather", [], ScriptedLLM([final]), settings, "cid-nolookup", today)
+    # Two empty passes: the agent tells a model that looked nothing up to go and look, and only
+    # calls the question off-topic when the second pass comes back empty too.
+    second = AnswerDraft(claims=[], missing="Still nothing to cite.")
+    response, _ = answer_followup(chart101, "whats the weather", [], ScriptedLLM([final, second]), settings, "cid-nolookup", today)
     assert response.off_topic and response.state == ResponseState.COMPLETE
     assert response.state_reason == "not a question about this patient's record"
     assert response.missing == SCOPE_STATEMENT and response.tool_calls == []
@@ -136,14 +185,20 @@ def test_followup_no_lookup_is_treated_as_off_topic_whatever_the_model_wrote(cha
 
 def test_followup_no_lookup_keeps_the_models_own_scope_statement(chart101, settings, today):
     final = AnswerDraft(claims=[], missing="Only the active patient (id 101) can be read; patient 202 was not retrieved.")
-    response, _ = answer_followup(chart101, "and patient 202?", [], ScriptedLLM([final]), settings, "cid-scope", today)
+    second = AnswerDraft(claims=[], missing="Only the active patient (id 101) can be read; patient 202 was not retrieved.")
+    response, _ = answer_followup(chart101, "and patient 202?", [], ScriptedLLM([final, second]), settings, "cid-scope", today)
     assert response.off_topic and "active patient" in response.missing
 
 
 def test_followup_off_topic_flag_wins_over_stray_claims(chart101, settings, today):
-    """A model that flags off-topic but also copies chart facts: the facts are discarded, the flag stands."""
+    """A model that flags off-topic but also copies chart facts: the facts are discarded, the flag stands.
+
+    Both opinions are scripted, because one no longer decides: the pre-check says off-topic and
+    the model says off-topic, so the stray facts it copied in anyway are what gets thrown away."""
+    from copilot.schemas import TopicCheck
     final = AnswerDraft(claims=[Claim(text="Essential hypertension is on the problem list.", source_ids=["problem:9001"])], off_topic=True)
-    response, _ = answer_followup(chart101, "what is the weather", [], ScriptedLLM([final]), settings, "cid-mixed", today)
+    llm = ScriptedLLM([TopicCheck(about_patient_record=False), final])
+    response, _ = answer_followup(chart101, "what is the weather", [], llm, settings, "cid-mixed", today)
     assert response.state == ResponseState.COMPLETE and response.off_topic and response.claims == []
     assert response.removed_claims[0].reason.startswith("off-topic question")
     assert "selected patient" in (response.missing or "")
@@ -242,3 +297,18 @@ def test_brief_partial_when_a_source_failed(chart303, settings, today):
 def test_brief_unable_when_model_output_invalid_twice(chart101, settings, today):
     response = generate_brief(chart101, ScriptedLLM([]), settings, "cid-8", today)
     assert response.state == ResponseState.UNABLE and response.sections == []
+
+
+def test_a_round_cannot_ask_for_the_whole_toolbox_over_and_over(chart101, settings, today):
+    """The round cap bounds how often the model may think, not how many tools it may ask for at
+    once. Seen live: one round requesting the same ten tools repeatedly, hundreds of calls, and an
+    answer of 56 claims nobody would read."""
+    from langchain_core.messages import AIMessage
+    from copilot.schemas import AnswerDraft, Claim
+
+    greedy = AIMessage(content="", tool_calls=[
+        {"name": "get_labs", "args": {"pid": 101}, "id": f"c{i}", "type": "tool_call"} for i in range(40)])
+    answer = AnswerDraft(claims=[Claim(text="Potassium was 5.4 mmol/L on 2026-08-16.", source_ids=["lab:6001"])])
+    response, _ = answer_followup(chart101, "what changed", [], ScriptedLLM([greedy, answer]), settings, "cid-greedy", today)
+    assert len(response.tool_calls) <= 12, response.tool_calls
+    assert response.claims, "the answer still lands; only the excess calls are dropped"

@@ -136,15 +136,18 @@
   </header>
 
   <div class="snapshot">
-    <strong>Snapshot, not live.</strong> Taken from the development instance on 2026-09-20. Volumes are
-    small &mdash; 3 sessions, 3 briefs, 3 answers &mdash; so the percentiles below are shown for shape,
-    not for judgement. Percentiles need roughly 20 samples before they mean anything.
+    <strong>Snapshot, not live.</strong> Two snapshots, in fact. The Week 1 figures are from the
+    development instance on 2026-09-20 &mdash; 3 sessions, 3 briefs, 3 answers, so those percentiles show
+    shape, not judgement. The Week 2 section is from the same endpoint on 2026-09-23 and has 26 supervise
+    runs behind it, which is the first percentile in this project with enough samples to argue with.
   </div>
 
   <section>
     <h2>The four that must be zero</h2>
-    <p class="note">These are not targets to improve. They are release criteria, and any value above zero
-      is an incident rather than a trend.</p>
+    <p class="note">The first three are not targets to improve. They are release criteria, and any value
+      above zero is an incident rather than a trend. The fourth counts refusals at the door, so a non-zero
+      value is the gate working &mdash; it is on this board because a sudden rise means something is
+      probing the agent, which is worth waking someone for.</p>
     <div class="tiles">
       <div class="tile zero"><span class="k">Wrong-patient citations</span><span class="v">0</span>
         <span class="d">A claim citing another patient's record</span></div>
@@ -152,8 +155,9 @@
         <span class="d">Data reaching a denied role or context</span></div>
       <div class="tile zero"><span class="k">Incorrect completeness</span><span class="v">0</span>
         <span class="d">Labelled complete while a source had failed</span></div>
-      <div class="tile zero"><span class="k">Auth rejections</span><span class="v">0</span>
-        <span class="d">Unsigned or stale requests to the agent</span></div>
+      <div class="tile"><span class="k">Auth rejections</span><span class="v">1</span>
+        <span class="d">One unsigned <code>/metrics</code> probe from the dev host, refused &mdash; the control
+          working, and left on the board rather than reset</span></div>
     </div>
   </section>
 
@@ -257,6 +261,53 @@
     </div>
   </section>
 
+
+  <section>
+    <h2>Week 2: documents and the supervisor</h2>
+    <p class="note">The same endpoint, the counters the supervisor graph added. A chart is opened,
+      unread documents are read, the results are filed, and the brief is regenerated only if the chart
+      actually changed.</p>
+    <div class="tiles">
+      <div class="tile"><span class="k">Supervise runs</span><span class="v">26</span>
+        <span class="d">Opening the Co-Pilot tab, or asking it something</span></div>
+      <div class="tile"><span class="k">Documents read</span><span class="v">12</span>
+        <span class="d">Lab reports and intake forms, page images to structured values</span></div>
+      <div class="tile zero"><span class="k">Reads that failed</span><span class="v">0</span>
+        <span class="d">A failure is reported as unread, never guessed</span></div>
+      <div class="tile"><span class="k">Supervisor handoffs</span><span class="v">90</span>
+        <span class="d">To the intake-extractor or the evidence-retriever</span></div>
+      <div class="tile"><span class="k">Briefs regenerated</span><span class="v">5</span>
+        <span class="d">Of 26 runs &mdash; the other 21 charts had not changed</span></div>
+      <div class="tile"><span class="k">&ldquo;What changed&rdquo; answered</span><span class="v">6</span>
+        <span class="d">With something new to report</span></div>
+      <div class="tile"><span class="k">Pages rendered</span><span class="v">4</span>
+        <span class="d">Click-to-source, with the quote boxed on the page</span></div>
+      <div class="tile"><span class="k">Guideline searches</span><span class="v">3</span>
+        <span class="d">0 with the index unavailable</span></div>
+    </div>
+    <div class="lat">
+      <div class="row">
+        <span class="nm">supervise p50</span>
+        <span class="track"><span class="fill ok" style="width:9%"></span><span class="target" style="left:60%" data-t="30 s target"></span></span>
+        <span class="val">4.4 s</span>
+      </div>
+      <div class="row">
+        <span class="nm">supervise p95</span>
+        <span class="track"><span class="fill over" style="width:68%"></span><span class="target" style="left:60%" data-t="30 s target"></span></span>
+        <span class="val over">33.8 s</span>
+      </div>
+      <div class="row">
+        <span class="nm">supervise p99</span>
+        <span class="track"><span class="fill over" style="width:94%"></span><span class="target" style="left:60%" data-t="30 s target"></span></span>
+        <span class="val over">47.0 s</span>
+      </div>
+    </div>
+    <p class="note"><strong>The p50 is a chart with nothing to read; the tail is a chart with two new
+      documents.</strong> That run is three model calls in one request &mdash; read, read, then a new brief
+      over the changed chart &mdash; and it misses the 30-second target. It is recorded as a miss. The fix is
+      not a faster model: it is returning &ldquo;what changed&rdquo; as soon as the documents are read and
+      letting the brief arrive after.</p>
+  </section>
   <section>
     <div class="gap">
       <h3>What this view cannot tell you yet</h3>
@@ -266,6 +317,10 @@
           number &mdash; cannot be computed from <code>/metrics</code>. One counter would fix it.</li>
         <li><strong>Counters reset on restart.</strong> They live in process memory alongside everything
           else, so this is "since the service last started", not a period.</li>
+        <li><strong>Refused documents are not counted here.</strong> A document naming another patient, or
+          one nothing could be read from, is refused on the OpenEMR side and recorded beside the document
+          &mdash; so <code>supervise_documents_failed: 0</code> means no read broke, not that every document
+          reached a chart. The two counts live in different systems and should not be.</li>
         <li><strong>No per-clinician or per-ward breakdown.</strong> Deliberate: the metrics endpoint
           carries no identifiers, so it cannot become a second place PHI lives.</li>
         <li><strong>Time saved is still unmeasured.</strong> The workflow promise has no baseline, and
@@ -276,9 +331,12 @@
 
   <footer>
     Source: <code>GET /metrics</code> on the agent service, HMAC-signed, no clinical content.<br>
-    Counters: sessions_opened, select_*, brief_state_*, answer_state_*, tool_calls, claims_removed,
-    feedback_*, auth_rejected. Latency: brief_ms, answer_ms (p50/p95/p99).<br>
-    Companion documents: KEY_METRICS.md &middot; EVAL_DATASET.md &middot; ARCHITECTURE.md
+    Week 1 counters: sessions_opened, select_*, brief_state_*, answer_state_*, tool_calls,
+    claims_removed, feedback_*, auth_rejected. Latency: brief_ms, answer_ms.<br>
+    Week 2 counters: supervise_runs, supervise_documents_read, supervise_documents_failed,
+    supervise_handoffs, supervise_briefs, supervise_changes, document_pages_rendered, retrieval.searches.
+    Latency: supervise_ms (p50/p95/p99).<br>
+    Companion documents: KEY_METRICS.md &middot; W2_COST_LATENCY.md &middot; W2_ARCHITECTURE.md
   </footer>
 
 </div>

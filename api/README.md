@@ -86,6 +86,11 @@ body, so a captured signature cannot be replayed against a different request.
 | 8 | Rate the answer | Attaches a rating to that answer's LangSmith trace |
 | 9 | Metrics | Counters, retries and latency percentiles since the service started |
 | 10 | Close session | Drops every chart and conversation held for the session |
+| 11 | Week 2: Read a lab report | The fixture two-page report through the vision model; every value carries a page and a quote, or the provider's 429 is reported as such |
+| 12 | Week 2: Supervise | The supervisor graph with nothing unread: a brief plus the logged handoffs between agents |
+| 13 | Week 2: Page with quote boxes | Page 1 of the report as an image, "Potassium" boxed where the text layer places it, an absent quote reported not drawn |
+
+Requests 11–13 sit before Close so the session is still open; 11 needs a vision model with quota (free slugs often answer 429).
 
 Request 3 carries a complete demo chart, so the workflow produces a real brief with real
 citations without any other setup. The patient is synthetic.

@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>EHR launch spike</title><script src="fhir-client.min.js"></script></head>
+<body><pre id="out">launch received: </pre>
+<script>
+// Throwaway: SMART EHR launch. OpenEMR calls this with ?iss=&launch=.
+const q = new URLSearchParams(location.search);
+document.getElementById("out").textContent += "iss=" + q.get("iss") + " launch=" + (q.get("launch") ? "yes" : "no");
+fetch("client-id.txt").then(r => r.text()).then(id => FHIR.oauth2.authorize({
+  clientId: id.trim(),
+  scope: "openid fhirUser launch patient/Patient.rs patient/AllergyIntolerance.rs patient/Condition.rs patient/MedicationRequest.rs patient/Observation.rs",
+  redirectUri: "index.html",
+  pkceMode: "required",
+}));
+</script></body></html>

@@ -1,0 +1,208 @@
+{
+  "pid": 5,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Bryan958 Lockman863",
+        "5",
+        "1962-04-21",
+        "64"
+      ],
+      "port": [
+        "Bryan958 Lockman863",
+        "5",
+        "1962-04-21",
+        "64",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Housing unsatisfactory (finding)",
+        "Received higher education (finding)",
+        "Refugee (person)",
+        "Body mass index 30+ - obesity (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Has a criminal record (finding)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)",
+        "History of coronary artery bypass grafting (situation)",
+        "Stress (finding)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Full-time employment (finding)",
+        "Limited social contact (finding)"
+      ],
+      "port": [
+        "Housing unsatisfactory (finding)",
+        "Received higher education (finding)",
+        "Refugee (person)",
+        "Body mass index 30+ - obesity (finding)",
+        "Prediabetes (finding)",
+        "Anemia (disorder)",
+        "Has a criminal record (finding)",
+        "Ischemic heart disease (disorder)",
+        "Abnormal findings diagnostic imaging heart+coronary circulat (finding)",
+        "History of coronary artery bypass grafting (situation)",
+        "Stress (finding)",
+        "Diabetes mellitus type 2 (disorder)",
+        "Full-time employment (finding)",
+        "Limited social contact (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "match",
+      "legacy": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "port": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": []
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "tropicamide 5 MG/ML Ophthalmic Solution",
+        "Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+        "ciprofloxacin 500 MG Oral Tablet",
+        "sulfamethoxazole 800 MG / trimethoprim 160 MG Oral Tablet",
+        "sodium fluoride 0.0272 MG/MG Oral Gel",
+        "remifentanil 2 MG Injection",
+        "isoflurane 999 MG/ML Inhalation Solution",
+        "Rocuronium bromide 10 MG/ML Injectable Solution",
+        "100 ML Propofol 10 MG/ML Injection",
+        "Midazolam 1 MG/ML Injectable Solution",
+        "2 ML Ondansetron 2 MG/ML Injection",
+        "25 ML protamine sulfate (USP) 10 MG/ML Injection",
+        "1 ML heparin sodium, porcine 5000 UNT/ML Injection",
+        "cefazolin 2000 MG Injection",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "Clopidogrel 75 MG Oral Tablet"
+      ],
+      "port": [
+        "Clopidogrel 75 MG Oral Tablet",
+        "Simvastatin 20 MG Oral Tablet",
+        "24 HR metoprolol succinate 100 MG Extended Release Oral Tablet",
+        "Nitroglycerin 0.4 MG/ACTUAT Mucosal Spray"
+      ],
+      "differences": [
+        {
+          "what": "only in legacy: tropicamide 5 MG/ML Ophthalmic Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Acetaminophen 21.7 MG/ML / Dextromethorphan Hydrobromide 1 MG/ML / doxylamine succinate 0.417 MG/ML Oral Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: ciprofloxacin 500 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sulfamethoxazole 800 MG / trimethoprim 160 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: remifentanil 2 MG Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: isoflurane 999 MG/ML Inhalation Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Rocuronium bromide 10 MG/ML Injectable Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 100 ML Propofol 10 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: Midazolam 1 MG/ML Injectable Solution",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 2 ML Ondansetron 2 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 25 ML protamine sulfate (USP) 10 MG/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: 1 ML heparin sodium, porcine 5000 UNT/ML Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        },
+        {
+          "what": "only in legacy: cefazolin 2000 MG Injection",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 181.9 in (462.00 cm)",
+        "Pulse: 79 per min",
+        "Respiration: 14 per min",
+        "BMI: 27 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 181.9 in",
+        "pulse: 79 /min",
+        "respiration: 14 /min",
+        "bmi: 27.38 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 27 kg/m^2 vs 27.38 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

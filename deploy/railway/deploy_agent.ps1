@@ -38,7 +38,7 @@ if ($facts["golden"] -ne "passed") {
 }
 
 Write-Host "Local checks passed at $($facts['checked_at']) on head $head (golden=$($facts['golden']), gateway=$($facts['gateway']))." -ForegroundColor Green
-Write-Host "Target: Railway project openemr-agent, service copilot-agent (built from Dockerfile.copilot)."
+Write-Host "Target: Railway project openemr-agent, environment v82, service copilot-agent-v82 (built from Dockerfile.copilot)."
 Write-Host ""
 $answer = Read-Host "Type DEPLOY to publish the agent to Railway, anything else to abort"
 if ($answer -cne "DEPLOY") {
@@ -46,7 +46,7 @@ if ($answer -cne "DEPLOY") {
     exit 1
 }
 
-railway up --service copilot-agent -c
+railway up --service copilot-agent-v82 --environment v82 -c
 if ($LASTEXITCODE -ne 0) {
     Write-Host "railway up failed." -ForegroundColor Red
     exit 1
@@ -54,7 +54,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host ""
 Write-Host "Checking readiness over the private network..."
-railway ssh --service openemr sh -c "curl -s -m 20 http://copilot-agent.railway.internal:8600/readyz"
+railway ssh --service openemr-v82 --environment v82 sh -c "curl -s -m 20 http://copilot-agent-v82.railway.internal:8600/readyz"
 Write-Host ""
 Write-Host "Done. Consider deleting the marker so the next publish needs a fresh check:" -ForegroundColor Yellow
 Write-Host "  Remove-Item copilot\.local-checks-passed"

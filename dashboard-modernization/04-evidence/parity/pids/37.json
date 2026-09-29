@@ -1,0 +1,119 @@
+{
+  "pid": 37,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Paula289 Grayce293 Hilll811",
+        "37",
+        "1977-12-17",
+        "48"
+      ],
+      "port": [
+        "Paula289 Grayce293 Hilll811",
+        "37",
+        "1977-12-17",
+        "48",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Educated to high school level (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Victim of intimate partner abuse (finding)",
+        "History of tubal ligation (situation)",
+        "Body mass index 30+ - obesity (finding)",
+        "Not in labor force (finding)",
+        "Stress (finding)",
+        "Concussion injury of brain (disorder)",
+        "Concussion with no loss of consciousness (disorder)"
+      ],
+      "port": [
+        "Educated to high school level (finding)",
+        "Past pregnancy history of miscarriage (situation)",
+        "Victim of intimate partner abuse (finding)",
+        "History of tubal ligation (situation)",
+        "Body mass index 30+ - obesity (finding)",
+        "Not in labor force (finding)",
+        "Stress (finding)",
+        "Concussion injury of brain (disorder)",
+        "Concussion with no loss of consciousness (disorder)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "Naproxen sodium 220 MG Oral Tablet"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: Naproxen sodium 220 MG Oral Tablet",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 163.7 in (415.80 cm)",
+        "Pulse: 92 per min",
+        "Respiration: 15 per min",
+        "BMI: 28 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 163.7 in",
+        "pulse: 92 /min",
+        "respiration: 15 /min",
+        "bmi: 28.12 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 28 kg/m^2 vs 28.12 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

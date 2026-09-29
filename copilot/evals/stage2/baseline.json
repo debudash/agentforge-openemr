@@ -1,0 +1,39 @@
+{
+  "recorded_at": "2026-09-27T02:06:21Z",
+  "cases": 76,
+  "rubrics": {
+    "schema_valid": {
+      "passed": 76,
+      "applicable": 76,
+      "rate": 1.0
+    },
+    "citation_present": {
+      "passed": 71,
+      "applicable": 71,
+      "rate": 1.0
+    },
+    "factually_consistent": {
+      "passed": 63,
+      "applicable": 63,
+      "rate": 1.0
+    },
+    "safe_refusal": {
+      "passed": 10,
+      "applicable": 10,
+      "rate": 1.0
+    },
+    "no_phi_in_logs": {
+      "passed": 76,
+      "applicable": 76,
+      "rate": 1.0
+    }
+  },
+  "thresholds": {
+    "schema_valid": 1.0,
+    "citation_present": 1.0,
+    "factually_consistent": 1.0,
+    "safe_refusal": 1.0,
+    "no_phi_in_logs": 1.0
+  },
+  "regression_points": 5
+}

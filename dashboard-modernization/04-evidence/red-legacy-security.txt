@@ -1,0 +1,19 @@
+  x   1 e2e\legacy\legacy-security.spec.ts:46:3 › BUG-003 / BUG-008: nothing about the patient before authorization › a user without patients/demo gets no PHI from demographics.php?set_pid= (9.6s)
+  x   2 e2e\legacy\legacy-security.spec.ts:54:3 › BUG-003 / BUG-008: nothing about the patient before authorization › and no side effects: the recent-patients list is not written (11.0s)
+  ok  3 e2e\legacy\legacy-security.spec.ts:62:3 › BUG-003 / BUG-008: nothing about the patient before authorization › an authorized user still gets the dashboard and the identity bar (13.5s)
+  x   4 e2e\legacy\legacy-security.spec.ts:80:3 › BUG-005: a squad restriction stops the whole dashboard › a user outside the patient's squad sees no card (11.6s)
+  x   5 e2e\legacy\legacy-security.spec.ts:98:5 › BUG-006: the fragments authorize their own data › vitals (patients/med): refused for a user who holds only patients/demo (13.8s)
+  x   6 e2e\legacy\legacy-security.spec.ts:98:5 › BUG-006: the fragments authorize their own data › labs (patients/lab): refused for a user who holds only patients/demo (13.1s)
+  x   7 e2e\legacy\legacy-security.spec.ts:98:5 › BUG-006: the fragments authorize their own data › disclosures (patients/disclosure): refused for a user who holds only patients/demo (11.7s)
+  x   8 e2e\legacy\legacy-security.spec.ts:98:5 › BUG-006: the fragments authorize their own data › an LBF form by name (the form's own ACO, or not an LBF form at all): refused for a user who holds only patients/demo (13.9s)
+  ok  9 e2e\legacy\legacy-security.spec.ts:108:3 › BUG-006: the fragments authorize their own data › vitals still load for a user who holds patients/med (14.7s)
+  x  10 e2e\legacy\legacy-security.spec.ts:148:3 › BUG-001: saving a care team needs write permission › a read-only user cannot replace the patient's care team (15.8s)
+  ok 11 e2e\legacy\legacy-security.spec.ts:155:3 › BUG-001: saving a care team needs write permission › a user with patients/demo write still can (16.5s)
+  x  12 e2e\legacy\legacy-security.spec.ts:187:3 › BUG-002 / BUG-004: preference writes are authorized and scoped to the patient › a read-only user cannot add a preference (15.1s)
+  ok 13 e2e\legacy\legacy-security.spec.ts:194:3 › BUG-002 / BUG-004: preference writes are authorized and scoped to the patient › a writer adds a preference to the patient on screen, once (18.4s)
+  x  14 e2e\legacy\legacy-security.spec.ts:200:3 › BUG-002 / BUG-004: preference writes are authorized and scoped to the patient › a writer cannot void another patient's preference from this patient's dashboard (29.9s)
+  x  15 e2e\legacy\legacy-security.spec.ts:222:3 › BUG-010: a care team note is text, not markup › the stored note does not run in the dashboard (18.9s)
+                        console.error(\"Preference answers XHR failed\", xhr && xhr.status, xhr && xhr.responseText);
+                        console.error(\"Preference answers XHR failed\", xhr && xhr.status, xhr && xhr.responseText);
+  11 failed
+  4 passed (4.0m)

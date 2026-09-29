@@ -1,0 +1,117 @@
+{
+  "pid": 43,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Roscoe437 Turner526",
+        "43",
+        "1991-08-14",
+        "35"
+      ],
+      "port": [
+        "Roscoe437 Turner526",
+        "43",
+        "1991-08-14",
+        "35",
+        "Male",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Seizure disorder (disorder)",
+        "History of seizure (situation)",
+        "Housing unsatisfactory (finding)",
+        "Received higher education (finding)",
+        "Not in labor force (finding)",
+        "Limited social contact (finding)",
+        "Stress (finding)"
+      ],
+      "port": [
+        "Seizure disorder (disorder)",
+        "History of seizure (situation)",
+        "Housing unsatisfactory (finding)",
+        "Received higher education (finding)",
+        "Not in labor force (finding)",
+        "Limited social contact (finding)",
+        "Stress (finding)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "explained",
+      "legacy": [
+        "sodium fluoride 0.0272 MG/MG Oral Gel"
+      ],
+      "port": [],
+      "differences": [
+        {
+          "what": "only in legacy: sodium fluoride 0.0272 MG/MG Oral Gel",
+          "rule": "R4/BUG-028 (one definition of active): the prescription has an end date, so the API reports it completed; the legacy card lists every row with active=1"
+        }
+      ]
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "explained",
+      "legacy": [
+        "Height: 165.7 in (420.90 cm)",
+        "Temperature: 37.43722 F (3.02 C)",
+        "Pulse: 94 per min",
+        "Respiration: 12 per min",
+        "BMI: 25 kg/m^2",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 165.7 in",
+        "pulse: 94 /min",
+        "respiration: 12 /min",
+        "temperature: 37.44 °F",
+        "bmi: 25.03 kg/m²"
+      ],
+      "differences": [
+        {
+          "what": "BMI 25 kg/m^2 vs 25.03 kg/m²",
+          "rule": "R6: the port shows the recorded value; the legacy report rounds BMI to a whole number"
+        }
+      ]
+    }
+  ]
+}

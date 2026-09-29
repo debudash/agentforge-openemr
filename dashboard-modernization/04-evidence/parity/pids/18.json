@@ -1,0 +1,89 @@
+{
+  "pid": 18,
+  "cards": [
+    {
+      "card": "header",
+      "verdict": "match",
+      "legacy": [
+        "Jae222 Hamill307",
+        "18",
+        "2024-01-12",
+        "2"
+      ],
+      "port": [
+        "Jae222 Hamill307",
+        "18",
+        "2024-01-12",
+        "2",
+        "Female",
+        "Active"
+      ],
+      "differences": []
+    },
+    {
+      "card": "allergies",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"No allergies recorded\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "problems",
+      "verdict": "match",
+      "legacy": [
+        "Medication review due (situation)"
+      ],
+      "port": [
+        "Medication review due (situation)"
+      ],
+      "differences": []
+    },
+    {
+      "card": "medications",
+      "verdict": "explained",
+      "legacy": [],
+      "port": [],
+      "differences": [
+        {
+          "what": "empty state \"Nothing Recorded\" vs \"None\"",
+          "rule": "API-03/BUG-014: the legacy wording depends on list_touch, which FHIR does not carry; the port says 'No allergies recorded' (allergies) or 'None'"
+        }
+      ]
+    },
+    {
+      "card": "prescriptions",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "care-team",
+      "verdict": "match",
+      "legacy": [],
+      "port": [],
+      "differences": []
+    },
+    {
+      "card": "vitals",
+      "verdict": "match",
+      "legacy": [
+        "Height: 55.2 in (140.20 cm)",
+        "Pulse: 71 per min",
+        "Respiration: 14 per min",
+        "Last Updated: 2026-09-15 00:40:56"
+      ],
+      "port": [
+        "height: 55.2 in",
+        "pulse: 71 /min",
+        "respiration: 14 /min"
+      ],
+      "differences": []
+    }
+  ]
+}

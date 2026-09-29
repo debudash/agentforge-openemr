@@ -12,7 +12,7 @@ from datetime import date
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ResponseState(str, Enum):
@@ -106,6 +106,9 @@ class Lab(BaseModel):
     date: str | None = None
     status: str | None = None
     order_name: str | None = None
+    # Week 2: a machine-read result names the stored document and page it came from.
+    document_id: int | None = None
+    page: int | None = None
 
 
 class Encounter(BaseModel):
@@ -141,6 +144,24 @@ class VitalsRecord(BaseModel):
     temperature: str | None = None
 
 
+class DocumentRef(BaseModel):
+    """A lab report or intake form on file, and what was read out of it (Week 2).
+
+    `reported` carries an intake form's facts, which live in a sidecar rather than in the chart's
+    lists because a form is someone else's account and is not reconciled. The field is named for
+    what it is so that every reader is told again.
+    """
+
+    source_id: str
+    doc_id: int
+    doc_type: Literal["lab_pdf", "intake_form"]
+    name: str
+    date: str | None = None
+    processed: bool = False
+    results: int = 0
+    reported: dict[str, Any] = Field(default_factory=dict)
+
+
 class Chart(BaseModel):
     """One patient's compact, field-limited chart as read by the PHP gateway (REQ-MIN-1)."""
 
@@ -156,6 +177,7 @@ class Chart(BaseModel):
     encounters: list[Encounter] = Field(default_factory=list)
     immunizations: list[Immunization] = Field(default_factory=list)
     vitals: list[VitalsRecord] = Field(default_factory=list)
+    documents: list[DocumentRef] = Field(default_factory=list)
 
     def index(self) -> dict[str, dict[str, Any]]:
         """source_id -> record, for the verifier. Only this patient's records are here."""
@@ -163,7 +185,7 @@ class Chart(BaseModel):
         if self.appointment and self.appointment.source_id:
             out[self.appointment.source_id] = self.appointment.model_dump()
         for group in (self.problems, self.medications, self.allergies, self.labs,
-                      self.encounters, self.immunizations, self.vitals):
+                      self.encounters, self.immunizations, self.vitals, self.documents):
             for record in group:
                 out[record.source_id] = record.model_dump()
         return out
@@ -215,17 +237,59 @@ class AnswerDraft(BaseModel):
         default=None,
         description="Set when the question asks for a diagnosis, treatment, dose change or order: the product boundary statement",
     )
+    evidence: list[Claim] = Field(
+        default_factory=list,
+        description="Guideline evidence only, kept apart from claims about the patient. Each cites guideline: ids "
+                    "returned by search_guidelines this turn, quotes what the guideline says, and never applies it "
+                    "to this patient as advice",
+    )
     off_topic: bool = Field(
         default=False,
         description="True when the question is not about the selected patient's record at all (weather, small talk, general knowledge); then give no claims and put the one-sentence reply in 'missing'",
     )
 
 
+SourceType = Literal["record", "document", "guideline", "rule", "signal", "empty"]
+
+_SOURCE_TYPE_BY_PREFIX: dict[str, str] = {
+    "doc": "document", "guideline": "guideline", "rule": "rule", "signal": "signal", "empty": "empty",
+}
+
+
+def source_type_for(source_id: str) -> str:
+    """The citation class a source_id belongs to. Every Week 1 record prefix is "record"."""
+    return _SOURCE_TYPE_BY_PREFIX.get(source_id.split(":", 1)[0], "record")
+
+
 class Citation(BaseModel):
+    """Week 2 citation contract: {source_type, source_id, page_or_section, field_or_chunk_id, quote_or_value}.
+
+    `type`, `label` and `date` are what the Week 1 UI renders and are kept. A Week 1 citation
+    ("lab:6001") validates unchanged and reads as source_type "record" with the other three null.
+    """
+
     source_id: str
     type: str
     label: str
     date: str | None = None
+    source_type: SourceType = "record"
+    page_or_section: str | None = None
+    field_or_chunk_id: str | None = None
+    quote_or_value: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_source_type(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "source_type" not in data and isinstance(data.get("source_id"), str):
+            data = {**data, "source_type": source_type_for(data["source_id"])}
+        return data
+
+    @model_validator(mode="after")
+    def _source_type_matches_id(self) -> "Citation":
+        expected = source_type_for(self.source_id)
+        if self.source_type != expected:
+            raise ValueError(f"source_type {self.source_type!r} does not match source_id {self.source_id!r} ({expected})")
+        return self
 
 
 class VerifiedClaim(BaseModel):
@@ -265,6 +329,8 @@ class AgentResponse(BaseModel):
     generated_at: str
     sections: list[VerifiedSection] = Field(default_factory=list)
     claims: list[VerifiedClaim] = Field(default_factory=list)
+    # Week 2, rule 12: guideline evidence is a separate section, never mixed into claims.
+    evidence: list[VerifiedClaim] = Field(default_factory=list)
     missing: str | None = None
     boundary: str | None = None
     off_topic: bool = False

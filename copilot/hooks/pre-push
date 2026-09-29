@@ -1,0 +1,14 @@
+#!/bin/sh
+# Blocks a push when the co-pilot's tests or the Week 2 eval gate fail.
+# Installed by copilot/hooks/install-hooks.ps1 (copies this file to .git/hooks/pre-push).
+# No model calls and no keys: the gate replays recorded outputs through the real code.
+# Bypass, deliberately and visibly: git push --no-verify
+cd "$(git rev-parse --show-toplevel)/copilot" || exit 1
+PY=".venv/Scripts/python.exe"
+[ -x "$PY" ] || PY=".venv/bin/python"
+echo "pre-push: unit tests"
+"$PY" -m pytest -q -x --no-header -p no:cacheprovider || { echo "pre-push: unit tests failed; push blocked"; exit 1; }
+echo "pre-push: Week 2 eval gate"
+"$PY" -m evals.stage2.gate || { echo "pre-push: eval gate failed; push blocked"; exit 1; }
+echo "pre-push: UI guard"
+"$PY" -m evals.ui_guard || { echo "pre-push: UI guard failed; push blocked"; exit 1; }

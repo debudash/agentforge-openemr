@@ -1,0 +1,567 @@
+<title>Co-Pilot Week 2 Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --ground:#F4F7F6; --surface:#FFFFFF; --ink:#16211F; --muted:#56655F; --rule:#D3DDDA;
+  --accent:#0C6A70; --accent-soft:#DCEDEC; --legacy:#A8671A; --legacy-soft:#F5E8D6;
+  --stop:#B3372C; --stop-soft:#F7E1DE;
+  --sup:#5B3FA8; --sup-soft:#EEE8FA; --ext:#0B6F86; --ext-soft:#E0F2F6;
+  --ret:#2B7447; --ret-soft:#E3F3E8; --rag:#2D5AA0; --rag-soft:#E4ECF8;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --ground:#0E1413; --surface:#151D1C; --ink:#E2EBE8; --muted:#95A6A1; --rule:#2A3634;
+    --accent:#5FC2C7; --accent-soft:#16312F; --legacy:#E3A95C; --legacy-soft:#33281A;
+    --stop:#EC8074; --stop-soft:#3A1E1B;
+    --sup:#B9A4F0; --sup-soft:#241D38; --ext:#6CCDE0; --ext-soft:#132A30;
+    --ret:#7FCF9C; --ret-soft:#15291D; --rag:#8FB3EE; --rag-soft:#172335;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --ground:#0E1413; --surface:#151D1C; --ink:#E2EBE8; --muted:#95A6A1; --rule:#2A3634;
+  --accent:#5FC2C7; --accent-soft:#16312F; --legacy:#E3A95C; --legacy-soft:#33281A;
+  --stop:#EC8074; --stop-soft:#3A1E1B;
+  --sup:#B9A4F0; --sup-soft:#241D38; --ext:#6CCDE0; --ext-soft:#132A30;
+  --ret:#7FCF9C; --ret-soft:#15291D; --rag:#8FB3EE; --rag-soft:#172335;
+}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.6;padding-inline:20px;padding-block:0 64px}
+.wrap{max-width:1080px;margin-inline:auto}
+header{padding-block:48px 28px;border-bottom:1px solid var(--rule);display:grid;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(34px,5vw,50px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:28px;font-weight:700}
+h3{font-size:19px;font-weight:600}
+p{margin:0;max-width:68ch}
+.lede{font-size:19px;color:var(--muted)}
+code,.mono{font-family:var(--mono);font-size:.82em}
+code{background:var(--accent-soft);padding:1px 5px;border-radius:3px;color:var(--ink)}
+.facts{display:flex;flex-wrap:wrap;gap:8px 28px;margin:6px 0 0;padding:0;list-style:none;font-size:15px}
+.facts li{display:flex;gap:8px;align-items:baseline}
+.facts b{font-family:var(--mono);font-weight:500;font-size:14px;font-variant-numeric:tabular-nums;color:var(--accent)}
+section{padding-block:44px 8px;display:grid;gap:18px}
+.sec-head{display:grid;gap:8px}
+.key{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;color:var(--muted)}
+.key span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:12px;height:12px;border-radius:2px;display:inline-block}
+.sw.m{background:var(--accent)} .sw.l{background:var(--legacy)} .sw.x{background:var(--muted)}
+figure{margin:0;background:var(--surface);border:1px solid var(--rule);border-radius:6px;padding:18px}
+figcaption{font-size:14px;color:var(--muted);margin-top:10px;max-width:none}
+.scroll{overflow-x:auto}
+svg{display:block;max-width:100%;height:auto;font-family:var(--body)}
+svg text{fill:var(--ink);font-size:13px}
+svg .sm{font-size:11.5px;fill:var(--muted)}
+svg .mn{font-family:var(--mono);font-size:11.5px}
+svg .hd{font-weight:600}
+svg .box{fill:var(--surface);stroke:var(--rule);stroke-width:1.2}
+svg .zone{fill:var(--ground);stroke:var(--muted);stroke-width:1;stroke-dasharray:5 4}
+svg .modern{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.4}
+svg .legacy{fill:var(--legacy-soft);stroke:var(--legacy);stroke-width:1.4}
+svg .ln{stroke:var(--muted);stroke-width:1.3;fill:none}
+svg .ln.hot{stroke:var(--accent);stroke-width:2}
+svg .ln.old{stroke:var(--legacy)}
+svg .ln.dash{stroke-dasharray:4 3}
+svg .ah{fill:var(--muted)} svg .ah.hot{fill:var(--accent)} svg .ah.old{fill:var(--legacy)}
+svg .lbl{font-size:11px;fill:var(--muted);font-family:var(--mono)}
+/* agent diagram */
+.agent svg text{font-size:12.5px}
+.agent svg .t{font-family:var(--display);font-size:16px;font-weight:700}
+.agent svg .s{font-size:11.5px}
+.agent svg .st{font-weight:600}
+.agent svg .sub{fill:var(--surface);stroke:var(--rule);stroke-width:1}
+.agent svg .p-cli{fill:var(--surface);stroke:var(--muted);stroke-width:1.3}
+.agent svg .p-gate{fill:var(--legacy-soft);stroke:var(--legacy);stroke-width:1.3}
+.agent svg .p-sup{fill:var(--sup-soft);stroke:var(--sup);stroke-width:1.5}
+.agent svg .p-ext{fill:var(--ext-soft);stroke:var(--ext);stroke-width:1.3}
+.agent svg .p-ret{fill:var(--ret-soft);stroke:var(--ret);stroke-width:1.3}
+.agent svg .p-rag{fill:var(--rag-soft);stroke:var(--rag);stroke-width:1.3}
+.agent svg .p-ver{fill:var(--stop-soft);stroke:var(--stop);stroke-width:1.3}
+.agent svg .p-ans{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.3}
+.agent svg .c-gate{fill:var(--legacy)} .agent svg .c-sup{fill:var(--sup)} .agent svg .c-ext{fill:var(--ext)}
+.agent svg .c-ret{fill:var(--ret)} .agent svg .c-rag{fill:var(--rag)} .agent svg .c-ver{fill:var(--stop)} .agent svg .c-ans{fill:var(--accent)}
+.agent svg .e{stroke:var(--muted);stroke-width:1.4;fill:none}
+.agent svg .e.sup{stroke:var(--sup);stroke-width:1.8}
+.agent svg .e.dash{stroke-dasharray:4 3}
+.agent svg .ah.sup{fill:var(--sup)}
+.pipe{list-style:none;margin:0;padding:0;counter-reset:step;display:grid}
+.pipe li{counter-increment:step;display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:baseline;padding:11px 0;border-top:1px solid var(--rule)}
+.pipe li:first-child{border-top:0}
+.pipe li::before{content:counter(step,decimal-leading-zero);font-family:var(--mono);font-size:13px;color:var(--accent);font-variant-numeric:tabular-nums}
+.pipe .nm{font-family:var(--mono);font-size:14px;font-weight:500}
+.pipe .ds{display:block;font-size:15px;color:var(--muted)}
+.pipe .ev{font-family:var(--mono);font-size:11.5px;color:var(--muted);white-space:nowrap}
+.pipe li.gate .nm{color:var(--accent)}
+.pipe li.stop .nm{color:var(--stop)}
+@media (max-width:620px){.pipe li{grid-template-columns:34px minmax(0,1fr)}.pipe .ev{grid-column:2}}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:18px 36px}
+.cols > div{display:grid;gap:8px;align-content:start}
+.tag{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;justify-self:start}
+.tag.m{background:var(--accent-soft);color:var(--accent)} .tag.l{background:var(--legacy-soft);color:var(--legacy)} .tag.s{background:var(--stop-soft);color:var(--stop)}
+ul.plain{margin:0;padding-left:18px;display:grid;gap:4px;max-width:68ch}
+table{border-collapse:collapse;width:100%;font-size:15px;min-width:600px}
+th,td{text-align:left;padding:8px 12px 8px 0;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.num{font-family:var(--mono);font-size:13.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.callout{background:var(--accent-soft);border-radius:6px;padding:20px 22px;display:grid;gap:10px}
+.callout h3{color:var(--accent)}
+footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--rule);font-size:14px;color:var(--muted)}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">debudash/openemragent · branch week2 · tag week2-submission @ f4e11a5</div>
+  <h1>Co-Pilot Week 2 Map</h1>
+  <p class="lede">Week 1 was one agent loop reading structured chart data. Week 2 adds a chart tab, a document reader, a guideline corpus and a three-node graph. The agent still writes nothing: the module does every write, under the clinician's session.</p>
+  <ul class="facts">
+    <li><b>3</b> graph nodes</li>
+    <li><b>2</b> document types</li>
+    <li><b>20</b> guideline chunks</li>
+    <li><b>76</b> gate cases · 5 rubrics</li>
+    <li><b>13</b> grounding rules</li>
+    <li><b>4</b> Railway services</li>
+  </ul>
+</header>
+
+<section class="agent">
+  <div class="sec-head">
+    <h2>Supervisor, workers and evidence</h2>
+    <p>What happens between a clinician opening a chart and the answer on screen.</p>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1160 720" style="min-width:900px" role="img" aria-label="A clinician in OpenEMR passes through the module's authorization gate to a LangGraph supervisor. The supervisor hands unread documents to the intake-extractor, then hands off to the evidence-retriever, which calls a hybrid RAG guideline search. The retriever's draft goes through a code verifier before the clinician sees the brief, what changed, and guideline evidence.">
+      <defs>
+        <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="gs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah sup" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+
+      <!-- row 1 -->
+      <rect class="p-cli" x="20" y="20" width="220" height="120" rx="8"/>
+      <text x="130" y="52" text-anchor="middle" class="t">Clinician in OpenEMR</text>
+      <text x="130" y="80" text-anchor="middle" class="s">Co-Pilot tab in the patient chart</text>
+      <text x="130" y="98" text-anchor="middle" class="s">opens a chart, asks a question</text>
+      <text x="130" y="116" text-anchor="middle" class="s">lab PDF or intake form filed</text>
+
+      <rect class="p-gate" x="280" y="20" width="250" height="120" rx="8"/>
+      <text x="405" y="52" text-anchor="middle" class="t c-gate">Authorization gate</text>
+      <text x="405" y="80" text-anchor="middle" class="s">the module, in PHP · hospitalists only</text>
+      <text x="405" y="98" text-anchor="middle" class="s">PanelScope: patient in your panel?</text>
+      <text x="405" y="116" text-anchor="middle" class="s">before any agent call · HMAC-signed</text>
+
+      <rect class="p-sup" x="570" y="20" width="570" height="120" rx="8"/>
+      <text x="855" y="52" text-anchor="middle" class="t c-sup">LangGraph supervisor</text>
+      <text x="855" y="80" text-anchor="middle" class="s">no tools and no model call · routes on the question's words</text>
+      <text x="855" y="98" text-anchor="middle" class="s">unread documents? · needs guideline evidence? · asks what changed?</text>
+      <text x="855" y="116" text-anchor="middle" class="s">pauses while the module saves · every handoff logged, no PHI</text>
+
+      <line x1="240" y1="80" x2="276" y2="80" class="e" marker-end="url(#g)"/>
+      <line x1="530" y1="80" x2="566" y2="80" class="e" marker-end="url(#g)"/>
+
+      <!-- supervisor -> workers -->
+      <path d="M660,140 C600,176 280,164 185,196" class="e sup" marker-end="url(#gs)"/>
+      <text x="400" y="176" class="lbl" style="fill:var(--sup)">1 · unread documents only</text>
+      <path d="M800,140 C780,172 600,168 580,196" class="e sup" marker-end="url(#gs)"/>
+      <text x="700" y="186" class="lbl" style="fill:var(--sup)">2 · hand off</text>
+
+      <!-- extractor -->
+      <rect class="p-ext" x="20" y="200" width="330" height="350" rx="8"/>
+      <text x="185" y="228" text-anchor="middle" class="t c-ext">Intake-extractor worker</text>
+      <text x="185" y="248" text-anchor="middle" class="s c-ext">unread documents · up to 6 pages each</text>
+
+      <rect class="sub" x="36" y="262" width="298" height="50" rx="5"/>
+      <text x="185" y="283" text-anchor="middle" class="st">Vision model reads each page</text>
+      <text x="185" y="301" text-anchor="middle" class="s">value, quote and confidence per field</text>
+      <rect class="sub" x="36" y="326" width="298" height="50" rx="5"/>
+      <text x="185" y="347" text-anchor="middle" class="st">Strict schema</text>
+      <text x="185" y="365" text-anchor="middle" class="s">not found: null, confidence 0, never guessed</text>
+      <rect class="sub" x="36" y="390" width="298" height="50" rx="5"/>
+      <text x="185" y="411" text-anchor="middle" class="st">Module checks the printed name</text>
+      <text x="185" y="429" text-anchor="middle" class="s">wrong or unreadable: refused, not filed</text>
+      <rect class="sub" x="36" y="454" width="298" height="50" rx="5"/>
+      <text x="185" y="475" text-anchor="middle" class="st">Module files document + lab rows</text>
+      <text x="185" y="493" text-anchor="middle" class="s">one transaction · pending clinician review</text>
+      <line x1="185" y1="312" x2="185" y2="323" class="e" marker-end="url(#g)"/>
+      <line x1="185" y1="376" x2="185" y2="387" class="e" marker-end="url(#g)"/>
+      <line x1="185" y1="440" x2="185" y2="451" class="e" marker-end="url(#g)"/>
+      <text x="185" y="530" text-anchor="middle" class="s">one retry, then "could not be read"</text>
+
+      <!-- retriever -->
+      <rect class="p-ret" x="380" y="200" width="400" height="350" rx="8"/>
+      <text x="580" y="228" text-anchor="middle" class="t c-ret">Evidence-retriever worker</text>
+      <text x="580" y="248" text-anchor="middle" class="s c-ret">the Week 1 agent loop · ≤ 5 rounds · ≤ 12 tools a round</text>
+
+      <rect class="sub" x="396" y="262" width="368" height="50" rx="5"/>
+      <text x="580" y="283" text-anchor="middle" class="st">Topic check reads the question alone</text>
+      <text x="580" y="301" text-anchor="middle" class="s">off-topic: boundary answer, no chart read</text>
+      <rect class="sub" x="396" y="326" width="176" height="50" rx="5"/>
+      <text x="484" y="347" text-anchor="middle" class="st">Chart tools</text>
+      <text x="484" y="365" text-anchor="middle" class="s">labs, meds, problems, docs</text>
+      <rect class="sub" x="588" y="326" width="176" height="50" rx="5"/>
+      <text x="676" y="347" text-anchor="middle" class="st">search_guidelines</text>
+      <text x="676" y="365" text-anchor="middle" class="s">hybrid RAG, right</text>
+      <rect class="sub" x="396" y="390" width="368" height="50" rx="5"/>
+      <text x="580" y="411" text-anchor="middle" class="st">Draft: claims, each citing a source</text>
+      <text x="580" y="429" text-anchor="middle" class="s">only the rule engine judges constraints</text>
+      <rect class="sub" x="396" y="454" width="368" height="50" rx="5"/>
+      <text x="580" y="475" text-anchor="middle" class="st">An evidence question must search first</text>
+      <text x="580" y="493" text-anchor="middle" class="s">no search ran: it says so, state partial</text>
+      <line x1="580" y1="312" x2="580" y2="323" class="e" marker-end="url(#g)"/>
+      <line x1="580" y1="376" x2="580" y2="387" class="e" marker-end="url(#g)"/>
+      <line x1="580" y1="440" x2="580" y2="451" class="e" marker-end="url(#g)"/>
+      <text x="580" y="530" text-anchor="middle" class="s">answers from the chart as re-read after filing</text>
+
+      <line x1="764" y1="351" x2="806" y2="351" class="e" marker-end="url(#g)"/>
+
+      <!-- rag -->
+      <rect class="p-rag" x="810" y="200" width="330" height="350" rx="8"/>
+      <text x="975" y="228" text-anchor="middle" class="t c-rag">Guideline search (hybrid RAG)</text>
+      <text x="975" y="248" text-anchor="middle" class="s c-rag">20 chunks · 3 USPSTF + 2 MedlinePlus</text>
+
+      <rect class="sub" x="826" y="262" width="145" height="50" rx="5"/>
+      <text x="898" y="283" text-anchor="middle" class="st">Sparse: BM25</text>
+      <text x="898" y="301" text-anchor="middle" class="s">rank_bm25</text>
+      <rect class="sub" x="983" y="262" width="141" height="50" rx="5"/>
+      <text x="1053" y="283" text-anchor="middle" class="st">Dense: MiniLM</text>
+      <text x="1053" y="301" text-anchor="middle" class="s">cosine, in memory</text>
+      <rect class="sub" x="826" y="326" width="298" height="50" rx="5"/>
+      <text x="975" y="347" text-anchor="middle" class="st">Reciprocal-rank fusion (k = 60)</text>
+      <text x="975" y="365" text-anchor="middle" class="s">+1 vote if about a charted condition</text>
+      <rect class="sub" x="826" y="390" width="298" height="50" rx="5"/>
+      <text x="975" y="411" text-anchor="middle" class="st">Cross-encoder rerank → top 3</text>
+      <text x="975" y="429" text-anchor="middle" class="s">Cohere rerank behind one variable</text>
+      <rect class="sub" x="826" y="454" width="298" height="50" rx="5"/>
+      <text x="975" y="475" text-anchor="middle" class="st">Each passage keeps its citation</text>
+      <text x="975" y="493" text-anchor="middle" class="s mono">guideline:&lt;doc&gt;#&lt;section&gt;</text>
+      <line x1="898" y1="312" x2="930" y2="323" class="e" marker-end="url(#g)"/>
+      <line x1="1053" y1="312" x2="1020" y2="323" class="e" marker-end="url(#g)"/>
+      <line x1="975" y1="376" x2="975" y2="387" class="e" marker-end="url(#g)"/>
+      <line x1="975" y1="440" x2="975" y2="451" class="e" marker-end="url(#g)"/>
+      <text x="975" y="530" text-anchor="middle" class="s">in the gate: BM25 only, nothing downloaded</text>
+
+      <!-- row 3 -->
+      <path d="M580,550 C580,572 420,568 380,586" class="e" marker-end="url(#g)"/>
+      <rect class="p-ver" x="20" y="590" width="540" height="110" rx="8"/>
+      <text x="290" y="620" text-anchor="middle" class="t c-ver">Verifier (code, not a model)</text>
+      <text x="290" y="644" text-anchor="middle" class="s">every claim cites a record, document, guideline or rule read this turn</text>
+      <text x="290" y="662" text-anchor="middle" class="s">numbers must match the stored row, not the model's extraction</text>
+      <text x="290" y="680" text-anchor="middle" class="s">no guideline-only patient facts · recommendation phrasing removed</text>
+
+      <line x1="560" y1="645" x2="596" y2="645" class="e" marker-end="url(#g)"/>
+      <rect class="p-ans" x="600" y="590" width="540" height="110" rx="8"/>
+      <text x="870" y="620" text-anchor="middle" class="t c-ans">What the clinician sees</text>
+      <text x="870" y="644" text-anchor="middle" class="s">brief, then "what changed": one sentence per document, cited doc:id</text>
+      <text x="870" y="662" text-anchor="middle" class="s">guideline evidence in its own section · click a claim for the boxed quote</text>
+      <text x="870" y="680" text-anchor="middle" class="s">complete · partial · unable_to_answer · access_denied</text>
+    </svg>
+    </div>
+    <figcaption>Workers report back to the supervisor, which assembles the answer. With no unread documents, step 1 is skipped and the brief matches Week 1's. Extracted values reach the answer only after the module has filed them and the chart is re-read.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Where it runs</h2>
+    <p>Three tiers, as in Week 1. The browser talks only to OpenEMR. The module decides who you are and which patients are yours, then calls the agent over a private network with a signed request. Only the agent talks to a model.</p>
+    <div class="key"><span><i class="sw m"></i>New or changed in Week 2</span><span><i class="sw l"></i>OpenEMR platform</span><span><i class="sw x"></i>Week 1, unchanged · external</span></div>
+  </div>
+  <figure>
+    <div class="scroll">
+    <svg viewBox="0 0 1000 540" style="min-width:860px" role="img" aria-label="The clinician's browser reaches four surfaces inside the OpenEMR container: the frozen Week 1 rounding tab, the new Co-Pilot chart tab, the Demo Data tab and the React patient dashboard. The tabs call the co-pilot module, which reads and writes through OpenEMR services and calls the agent service with HMAC-signed requests. The dashboard reads FHIR with a SMART token. The agent runs a supervisor graph with an intake extractor and an evidence retriever, and calls OpenRouter and LangSmith.">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah hot" d="M0,0 L10,5 L0,10 z"/></marker>
+        <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah old" d="M0,0 L10,5 L0,10 z"/></marker>
+      </defs>
+
+      <!-- browser -->
+      <rect class="box" x="10" y="56" width="140" height="290" rx="4"/>
+      <text x="80" y="190" text-anchor="middle" class="hd">Clinician</text>
+      <text x="80" y="208" text-anchor="middle" class="sm">browser</text>
+      <text x="80" y="226" text-anchor="middle" class="sm">no keys, never</text>
+      <text x="80" y="242" text-anchor="middle" class="sm">reaches the agent</text>
+
+      <!-- openemr zone -->
+      <rect class="zone" x="186" y="14" width="420" height="400" rx="6"/>
+      <text x="200" y="36" class="mn">openemr-v82 · Apache + PHP · 8.2.0-dev built from this repo</text>
+
+      <!-- surfaces -->
+      <rect class="box" x="204" y="56" width="176" height="50" rx="4"/>
+      <text x="216" y="77" class="mn">Rounding list tab</text>
+      <text x="216" y="95" class="sm">Week 1 · frozen · index.php</text>
+
+      <rect class="modern" x="204" y="120" width="176" height="50" rx="4"/>
+      <text x="216" y="141" class="mn">Co-Pilot chart tab</text>
+      <text x="216" y="159" class="sm">patient.php · PatientMenuEvent</text>
+
+      <rect class="modern" x="204" y="184" width="176" height="50" rx="4"/>
+      <text x="216" y="205" class="mn">Demo Data tab</text>
+      <text x="216" y="223" class="sm">demo.php · COPILOT_DEMO_TOOLS</text>
+
+      <rect class="modern" x="204" y="270" width="176" height="62" rx="4"/>
+      <text x="216" y="291" class="mn">Patient dashboard</text>
+      <text x="216" y="309" class="sm">React + TS · public/dashboard/</text>
+      <text x="216" y="325" class="sm">SMART on FHIR, read-only</text>
+
+      <!-- module -->
+      <rect class="modern" x="420" y="56" width="168" height="178" rx="4"/>
+      <text x="434" y="78" class="mn">oe-module-copilot-agent</text>
+      <text x="434" y="96" class="sm">api.php</text>
+      <text x="434" y="120">PanelScope</text>
+      <text x="434" y="138">LinkGate</text>
+      <text x="434" y="156">ChartReader</text>
+      <text x="434" y="174">DocumentWriter</text>
+      <text x="434" y="192">DemoDocuments</text>
+      <text x="434" y="216" class="sm">AgentClient · HMAC</text>
+
+      <!-- platform -->
+      <rect class="legacy" x="420" y="262" width="168" height="134" rx="4"/>
+      <text x="434" y="284" class="mn">OpenEMR core</text>
+      <text x="434" y="306" class="sm">oauth2/ · SMART launch</text>
+      <text x="434" y="324" class="sm">apis/ · FHIR R4</text>
+      <text x="434" y="342" class="sm">src/Services</text>
+      <text x="434" y="360" class="sm">\Document · procedure_*</text>
+      <text x="434" y="378" class="sm">EventAuditLogger</text>
+
+      <!-- mysql -->
+      <rect class="box" x="420" y="446" width="168" height="54" rx="4"/>
+      <text x="434" y="468">mysql-v82</text>
+      <text x="434" y="486" class="sm">MariaDB · chart + audit log</text>
+      <line x1="504" y1="396" x2="504" y2="442" class="ln" marker-end="url(#a)"/>
+      <text x="512" y="424" class="lbl">SQL</text>
+
+      <!-- browser -> surfaces -->
+      <line x1="150" y1="81" x2="200" y2="81" class="ln" marker-end="url(#a)"/>
+      <line x1="150" y1="145" x2="200" y2="145" class="ln hot" marker-end="url(#ah)"/>
+      <line x1="150" y1="209" x2="200" y2="209" class="ln hot" marker-end="url(#ah)"/>
+      <line x1="150" y1="301" x2="200" y2="301" class="ln hot" marker-end="url(#ah)"/>
+      <text x="175" y="72" text-anchor="middle" class="lbl">session</text>
+
+      <!-- surfaces -> module -->
+      <line x1="380" y1="81" x2="416" y2="81" class="ln" marker-end="url(#a)"/>
+      <line x1="380" y1="145" x2="416" y2="145" class="ln hot" marker-end="url(#ah)"/>
+      <line x1="380" y1="209" x2="416" y2="209" class="ln hot" marker-end="url(#ah)"/>
+      <!-- dashboard -> core -->
+      <line x1="380" y1="310" x2="416" y2="310" class="ln hot" marker-end="url(#ah)"/>
+      <text x="398" y="302" text-anchor="middle" class="lbl">Bearer</text>
+      <!-- module -> core -->
+      <line x1="504" y1="234" x2="504" y2="258" class="ln old" marker-end="url(#ao)"/>
+      <text x="512" y="252" class="lbl">read · write</text>
+
+      <!-- agent zone -->
+      <rect class="zone" x="642" y="14" width="348" height="400" rx="6"/>
+      <text x="656" y="36" class="mn">copilot-agent-v82 · FastAPI · private :8600</text>
+
+      <rect class="modern" x="662" y="56" width="308" height="54" rx="4"/>
+      <text x="816" y="78" text-anchor="middle" class="mn">Supervisor · LangGraph</text>
+      <text x="816" y="96" text-anchor="middle" class="sm">routes and assembles · no tools · logs every handoff</text>
+
+      <rect class="modern" x="662" y="150" width="146" height="112" rx="4"/>
+      <text x="674" y="172" class="mn">Intake-extractor</text>
+      <text x="674" y="194" class="sm">lab PDF · intake form</text>
+      <text x="674" y="212" class="sm">VLM → strict schema</text>
+      <text x="674" y="230" class="sm">per-field citation</text>
+      <text x="674" y="248" class="sm">and confidence</text>
+
+      <rect class="box" x="824" y="150" width="146" height="112" rx="4"/>
+      <text x="836" y="172" class="mn">Evidence-retriever</text>
+      <text x="836" y="194" class="sm">the Week 1 agent loop</text>
+      <text x="836" y="212" class="sm">chart tools · rule engine</text>
+      <text x="836" y="230" class="sm">verifier · 4 states</text>
+      <text x="836" y="248" class="sm">+ search_guidelines</text>
+
+      <rect class="modern" x="662" y="300" width="146" height="94" rx="4"/>
+      <text x="674" y="322" class="mn">Page locator</text>
+      <text x="674" y="344" class="sm">pypdfium2 text layer</text>
+      <text x="674" y="362" class="sm">quote → box, or</text>
+      <text x="674" y="380" class="sm">found: false</text>
+
+      <rect class="modern" x="824" y="300" width="146" height="94" rx="4"/>
+      <text x="836" y="322" class="mn">Guideline corpus</text>
+      <text x="836" y="344" class="sm">20 chunks · 5 sources</text>
+      <text x="836" y="362" class="sm">BM25 + MiniLM · RRF</text>
+      <text x="836" y="380" class="sm">cross-encoder rerank</text>
+
+      <!-- graph edges -->
+      <line x1="735" y1="110" x2="735" y2="146" class="ln hot" marker-end="url(#ah)"/>
+      <line x1="897" y1="110" x2="897" y2="146" class="ln hot" marker-end="url(#ah)"/>
+      <text x="743" y="132" class="lbl">1</text>
+      <text x="905" y="132" class="lbl">2</text>
+      <line x1="897" y1="262" x2="897" y2="296" class="ln" marker-end="url(#a)"/>
+
+      <!-- module <-> agent -->
+      <line x1="588" y1="76" x2="658" y2="76" class="ln hot" marker-end="url(#ah)"/>
+      <text x="623" y="68" text-anchor="middle" class="lbl">HMAC</text>
+      <path d="M658,100 C630,100 620,176 592,176" class="ln hot dash" marker-end="url(#ah)"/>
+      <text x="616" y="160" text-anchor="middle" class="lbl">interrupt</text>
+      <path d="M592,200 C620,200 630,330 658,340" class="ln" marker-end="url(#a)"/>
+      <text x="612" y="290" text-anchor="middle" class="lbl">page</text>
+
+      <!-- externals -->
+      <rect class="box" x="662" y="446" width="146" height="54" rx="4"/>
+      <text x="674" y="468">OpenRouter</text>
+      <text x="674" y="486" class="sm">gemini-2.5-flash-lite</text>
+      <rect class="box" x="824" y="446" width="146" height="54" rx="4"/>
+      <text x="836" y="468">LangSmith</text>
+      <text x="836" y="486" class="sm">traces · redacted</text>
+      <line x1="735" y1="414" x2="735" y2="442" class="ln" marker-end="url(#a)"/>
+      <line x1="897" y1="414" x2="897" y2="442" class="ln" marker-end="url(#a)"/>
+      <text x="743" y="434" class="lbl">agent + vision</text>
+    </svg>
+    </div>
+    <figcaption>Edge 1 runs only when the chart has unread documents; with none, the graph goes straight to edge 2 and the brief matches Week 1's. The dashed return is LangGraph's <code>interrupt</code>: the graph pauses and hands the extractions back to the module to persist.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>One chart opening, end to end</h2>
+    <p>The same graph runs for a follow-up question. The only difference is that the retriever answers instead of briefing.</p>
+  </div>
+  <figure>
+    <ol class="pipe">
+      <li class="gate"><div><span class="nm">patient.php · PanelScope</span><span class="ds">Reads the open patient from <span class="mono">PatientSessionUtil::getPid()</span>. Refuses and audits a patient outside the clinician's panel. OpenEMR itself would open any chart.</span></div><span class="ev">module</span></li>
+      <li><div><span class="nm">POST /session/{sid}/supervise</span><span class="ds">Module lists the patient's documents and sends the unread ones' bytes, HMAC-signed.</span></div><span class="ev">module → agent</span></li>
+      <li><div><span class="nm">supervisor → intake-extractor</span><span class="ds">The VLM reads each document into <span class="mono">LabDocument</span> or <span class="mono">IntakeForm</span>. A field it cannot find is null with confidence 0. One retry, then "could not be read".</span></div><span class="ev">agent</span></li>
+      <li class="stop"><div><span class="nm">interrupt → DocumentWriter</span><span class="ds">Checks the name printed on the document against the chart. A mismatch or unreadable name is refused and recorded beside the document. A match is filed: the document, plus labs as a procedure chain in one transaction.</span></div><span class="ev">agent → module</span></li>
+      <li><div><span class="nm">POST /supervise/resume</span><span class="ds">Module re-reads the chart and sends the persisted ids. The graph resumes from its checkpoint.</span></div><span class="ev">module → agent</span></li>
+      <li class="gate"><div><span class="nm">evidence-retriever · verifier</span><span class="ds">Briefs from the re-read chart. Searches guidelines when the supervisor says the question needs evidence. The verifier drops any claim without a resolvable citation.</span></div><span class="ev">agent</span></li>
+      <li><div><span class="nm">supervisor assembles</span><span class="ds">Brief, "what changed" (one sentence per document, cited <span class="mono">doc:&lt;id&gt;</span>) and guideline evidence in its own section.</span></div><span class="ev">agent → module → browser</span></li>
+    </ol>
+  </figure>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>What gets written, and by whom</h2>
+    <p>The agent holds no database credentials. Every write below is made by the module through OpenEMR, and lands in OpenEMR's audit log.</p>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Artefact</th><th>Destination</th><th>Clinician sees it in</th><th>FHIR</th></tr></thead>
+    <tbody>
+      <tr><td>Lab PDF</td><td><span class="mono">documents</span>, Lab Report category</td><td>Chart → Documents</td><td class="mono">DocumentReference</td></tr>
+      <tr><td>Intake form</td><td><span class="mono">documents</span>, Medical Record category</td><td>Chart → Documents</td><td class="mono">DocumentReference</td></tr>
+      <tr><td>Extracted lab values</td><td><span class="mono">procedure_order → _code → _report → _result</span>, marked machine-extracted</td><td>Results, Lab Overview</td><td class="mono">Observation (preliminary)</td></tr>
+      <tr><td>Extracted intake facts</td><td>Sidecar JSON document beside the form. Never written to <span class="mono">lists</span></td><td>Chart → Documents</td><td class="mono">DocumentReference</td></tr>
+      <tr><td>A refusal</td><td>JSON note beside the document, so it is not re-read on every open</td><td>Chart → Documents</td><td class="mono">—</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Citations</h2>
+    <p>Every kept claim carries <code>{source_type, source_id, page_or_section, field_or_chunk_id, quote_or_value}</code>. A Week 1 id such as <code>lab:6001</code> still works and normalises to <code>record</code>.</p>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>source_type</th><th>Example id</th><th>Resolves against</th><th>A click does</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">record</td><td class="mono">lab:6001</td><td>Chart index built this turn</td><td>Shows the row</td></tr>
+      <tr><td class="mono">document</td><td class="mono">doc:412 · p2</td><td>Stored document and its extraction</td><td>Opens the page with the quote boxed from the PDF text layer</td></tr>
+      <tr><td class="mono">guideline</td><td class="mono">guideline:uspstf-htn#…</td><td>Corpus index</td><td>Shows the quoted passage, in the evidence section only</td></tr>
+      <tr><td class="mono">rule</td><td class="mono">rule:ALLERGY-1</td><td>Rule-engine outcomes</td><td>Shows the rule result</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>No model is in the click path. A box is where the text is, or the page says it is not there. A claim about the patient may not cite a guideline alone.</p>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>The patient dashboard port</h2>
+    <p>Separate from the co-pilot, on branch <code>dashboard-modernization</code>. The legacy 2,080-line PHP dashboard, rebuilt as a React and TypeScript app that reads only FHIR.</p>
+  </div>
+  <div class="cols">
+    <div>
+      <span class="tag m">Login</span>
+      <p>SMART on FHIR through <code>fhirclient</code>: authorization code with PKCE, an OpenID Connect ID token, read-only scopes for one patient. Inside the chart it reuses the OpenEMR sign-in.</p>
+    </div>
+    <div>
+      <span class="tag m">Cards</span>
+      <p>Header, Allergies, Problems, Medications, Prescriptions with history, Care Team, latest Vitals. Each FHIR response is parsed into a typed model at the boundary.</p>
+    </div>
+    <div>
+      <span class="tag l">Writes stay in OpenEMR</span>
+      <p><b>Edit</b> opens the legacy OpenEMR editor, under OpenEMR's own ACLs. The app only reads. One global setting switches the chart between old and new.</p>
+    </div>
+    <div>
+      <span class="tag s">Link to the co-pilot</span>
+      <p><code>LinkGate</code> accepts a link by FHIR patient id and refuses one that does not match the open chart, before the page renders.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Gate and delivery</h2>
+    <p>No model runs in the gate. Every case replays a recorded model output through the real code, so a rate limit cannot silence it.</p>
+  </div>
+  <figure>
+    <ol class="pipe">
+      <li class="gate"><div><span class="nm">pre-push hook · stage 2 gate</span><span class="ds">76 cases, five boolean rubrics: <span class="mono">schema_valid</span>, <span class="mono">citation_present</span>, <span class="mono">factually_consistent</span>, <span class="mono">safe_refusal</span>, <span class="mono">no_phi_in_logs</span>. Fails on a 5-point drop against <span class="mono">baseline.json</span>.</span></div><span class="ev">copilot/hooks</span></li>
+      <li class="gate"><div><span class="nm">CI eval gate</span><span class="ds">Same gate on every push and merge request, on a runner in a Docker container on this machine. MR !2 shows it blocking a merge.</span></div><span class="ev">GitLab CI</span></li>
+      <li><div><span class="nm">build_openemr_image.sh</span><span class="ds"><span class="mono">git archive</span> of the commit into upstream's release Dockerfile. Bakes in the module and the built dashboard.</span></div><span class="ev">Docker Hub</span></li>
+      <li class="gate"><div><span class="nm">preflight + publish gate</span><span class="ds">Runs locally against a fresh MariaDB, then preflights the module on the target. Nothing ships to Railway without explicit approval.</span></div><span class="ev">deploy/railway</span></li>
+    </ol>
+  </figure>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Railway service</th><th>Runs</th><th>Reachable at</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">openemr-v82</td><td>Image built from this repo: OpenEMR 8.2.0-dev, the module, the dashboard</td><td>Public URL</td></tr>
+      <tr><td class="mono">mysql-v82</td><td>MariaDB</td><td class="mono">mysql-v82.railway.internal</td></tr>
+      <tr><td class="mono">copilot-agent-v82</td><td>FastAPI agent, from <span class="mono">week2</span></td><td class="mono">copilot-agent-v82.railway.internal:8600</td></tr>
+      <tr><td class="mono">copilot-seeder-v82</td><td>Books today's rounding list through the REST API</td><td>Cron, 01:05 UTC</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <h2>Week 1 to Week 2</h2>
+  </div>
+  <div class="scroll">
+  <table>
+    <thead><tr><th></th><th>Week 1</th><th>Week 2</th></tr></thead>
+    <tbody>
+      <tr><td><b>Entry</b></td><td>Top-level tab, rounding list of 5</td><td>Plus a Co-Pilot tab inside each chart. Week 1 tab kept, frozen</td></tr>
+      <tr><td><b>Input</b></td><td>Structured chart reads</td><td>Plus lab PDFs and intake forms, read by a VLM</td></tr>
+      <tr><td><b>Agent shape</b></td><td>One loop</td><td>Supervisor, intake-extractor, evidence-retriever</td></tr>
+      <tr><td><b>Evidence</b></td><td>Patient record</td><td>Plus a guideline corpus, cited in its own section</td></tr>
+      <tr><td><b>Writes</b></td><td>None</td><td>Documents and lab rows, by the module, never the agent</td></tr>
+      <tr><td><b>Patient scope</b></td><td>Second line behind the rounding list</td><td>The only barrier, since any chart can be opened</td></tr>
+      <tr><td><b>Gate</b></td><td>Local check before a publish</td><td>Pre-push hook and CI, 76 cases, no model</td></tr>
+      <tr><td><b>Deploy</b></td><td>Stock OpenEMR 8.0.0 image</td><td>Image built from this repo, same version as local</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section>
+  <div class="callout">
+    <h3>Three things the platform taught</h3>
+    <ul class="plain">
+      <li><b>Build the refusal path like the acceptance path.</b> A correctly refused document was reported as "was read". Pydantic dropped the unmodelled <span class="mono">refused</span> field, an empty PHP array encoded as <span class="mono">[]</span>, and <span class="mono">createDocument()</span> takes its data by reference.</li>
+      <li><b>Test on the platform you ship to.</b> Railway ran 8.0.0 while every test ran 8.2.0-dev. Three failures, none visible locally. Fixed by building the image from this repo.</li>
+      <li><b>A rubric that cannot fail is worse than a missing one.</b> <span class="mono">no_phi_in_logs</span> passed 74/74 against an empty log. A test now asserts the gate reads a non-empty log.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>
+  Built from <span class="mono">W2_ARCHITECTURE.md</span>, <span class="mono">ARCHITECTURE.md</span>, <span class="mono">PATIENT_DASHBOARD_MIGRATION.md</span>, <span class="mono">ENVIRONMENT.md</span>, <span class="mono">deploy/railway/README.md</span>, the module's <span class="mono">src/</span> and the agent's FastAPI routes, at <span class="mono">f4e11a5</span>, 2026-09-28. The platform-level map is <span class="mono">openemr-architecture-map.html</span>.
+</footer>
+</div>

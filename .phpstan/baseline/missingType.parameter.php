@@ -34527,11 +34527,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../../src/Services/BaseServiceInterface.php',
 ];
 $ignoreErrors[] = [
-    'message' => '#^Method OpenEMR\\\\Services\\\\CareExperiencePreferenceService\\:\\:delete\\(\\) has parameter \\$id with no type specified\\.$#',
-    'count' => 1,
-    'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
-];
-$ignoreErrors[] = [
     'message' => '#^Method OpenEMR\\\\Services\\\\CareExperiencePreferenceService\\:\\:getAnswerList\\(\\) has parameter \\$answerListId with no type specified\\.$#',
     'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
@@ -34548,16 +34543,6 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Method OpenEMR\\\\Services\\\\CareExperiencePreferenceService\\:\\:insert\\(\\) has parameter \\$data with no type specified\\.$#',
-    'count' => 1,
-    'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
-];
-$ignoreErrors[] = [
-    'message' => '#^Method OpenEMR\\\\Services\\\\CareExperiencePreferenceService\\:\\:update\\(\\) has parameter \\$data with no type specified\\.$#',
-    'count' => 1,
-    'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
-];
-$ignoreErrors[] = [
-    'message' => '#^Method OpenEMR\\\\Services\\\\CareExperiencePreferenceService\\:\\:update\\(\\) has parameter \\$id with no type specified\\.$#',
     'count' => 1,
     'path' => __DIR__ . '/../../src/Services/CareExperiencePreferenceService.php',
 ];
@@ -41452,11 +41437,6 @@ $ignoreErrors[] = [
     'path' => __DIR__ . '/../../src/Services/SurgeryService.php',
 ];
 $ignoreErrors[] = [
-    'message' => '#^Method OpenEMR\\\\Services\\\\TreatmentInterventionPreferenceService\\:\\:delete\\(\\) has parameter \\$id with no type specified\\.$#',
-    'count' => 1,
-    'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
-];
-$ignoreErrors[] = [
     'message' => '#^Method OpenEMR\\\\Services\\\\TreatmentInterventionPreferenceService\\:\\:getAnswerList\\(\\) has parameter \\$answerListId with no type specified\\.$#',
     'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
@@ -41473,16 +41453,6 @@ $ignoreErrors[] = [
 ];
 $ignoreErrors[] = [
     'message' => '#^Method OpenEMR\\\\Services\\\\TreatmentInterventionPreferenceService\\:\\:insert\\(\\) has parameter \\$data with no type specified\\.$#',
-    'count' => 1,
-    'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
-];
-$ignoreErrors[] = [
-    'message' => '#^Method OpenEMR\\\\Services\\\\TreatmentInterventionPreferenceService\\:\\:update\\(\\) has parameter \\$data with no type specified\\.$#',
-    'count' => 1,
-    'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
-];
-$ignoreErrors[] = [
-    'message' => '#^Method OpenEMR\\\\Services\\\\TreatmentInterventionPreferenceService\\:\\:update\\(\\) has parameter \\$id with no type specified\\.$#',
     'count' => 1,
     'path' => __DIR__ . '/../../src/Services/TreatmentInterventionPreferenceService.php',
 ];

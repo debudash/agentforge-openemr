@@ -1,0 +1,8 @@
+> eslint . --max-warnings 0
+
+> tsc -b
+
+ Test Files  5 passed (5)
+      Tests  73 passed (73)
+   Start at  15:54:35
+   Duration  4.34s (environment 36%, tests 24%, setup 17%, import 14%, transform 8%)

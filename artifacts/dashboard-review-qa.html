@@ -1,0 +1,353 @@
+<title>Dashboard Port Review Q&amp;A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&display=swap">
+<style>
+  :root {
+    --paper: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2830;
+    --muted: #55656c;
+    --rule: #d4dcdb;
+    --accent: #2e6b70;
+    --accent-soft: #e3eeee;
+    --amber: #94661c;
+    --amber-soft: #f6ecd9;
+    --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #11191c;
+      --panel: #172226;
+      --ink: #e2eae9;
+      --muted: #9aaaae;
+      --rule: #2a383c;
+      --accent: #82bcbf;
+      --accent-soft: #1d3134;
+      --amber: #e0b36a;
+      --amber-soft: #33291a;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #11191c;
+    --panel: #172226;
+    --ink: #e2eae9;
+    --muted: #9aaaae;
+    --rule: #2a383c;
+    --accent: #82bcbf;
+    --accent-soft: #1d3134;
+    --amber: #e0b36a;
+    --amber-soft: #33291a;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.6 var(--body);
+    padding-inline: 16px;
+    padding-block: 32px 64px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 40px; }
+
+  header { display: grid; gap: 10px; }
+  .eyebrow {
+    font: 500 12px/1 var(--mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 { font: 600 34px/1.15 var(--display); margin: 0; text-wrap: balance; }
+  .lede { margin: 0; max-width: 65ch; color: var(--muted); }
+
+  .story {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    display: grid;
+    gap: 4px;
+  }
+  .story strong { font: 600 13px/1.3 var(--display); letter-spacing: .04em; text-transform: uppercase; color: var(--accent); }
+  .story p { margin: 0; }
+
+  nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  nav a {
+    display: inline-block;
+    font: 500 13px/1 var(--body);
+    color: var(--ink);
+    text-decoration: none;
+    border: 1px solid var(--rule);
+    background: var(--panel);
+    padding: 8px 12px;
+    border-radius: 999px;
+  }
+  nav a:hover, nav a:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+
+  section { display: grid; gap: 14px; }
+  h2 {
+    font: 600 20px/1.2 var(--display);
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  h2 span { font: 400 12px/1 var(--mono); color: var(--muted); }
+
+  .qa {
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 16px 18px;
+    display: grid;
+    gap: 8px;
+  }
+  .qa.flag { border-color: var(--amber); }
+  .qa h3 { font: 600 16px/1.35 var(--body); margin: 0; text-wrap: balance; }
+  .qa p { margin: 0; max-width: 72ch; }
+  .say::before {
+    content: "Say this";
+    display: block;
+    font: 500 11px/1 var(--mono);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .push { color: var(--muted); }
+  .push b { color: var(--ink); font-weight: 600; }
+  .src { font: 400 12.5px/1.5 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+  .tag {
+    font: 500 11px/1 var(--mono);
+    padding: 3px 6px;
+    border-radius: 3px;
+    background: var(--amber-soft);
+    color: var(--amber);
+    justify-self: start;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  code { font: 13px/1 var(--mono); background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; }
+
+  footer { color: var(--muted); font-size: 13px; border-top: 1px solid var(--rule); padding-top: 14px; }
+
+  @media (max-width: 480px) { h1 { font-size: 28px; } .qa { padding: 14px; } }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Private prep · Patient dashboard port · OpenEMR fork</div>
+    <h1>Dashboard Port Review Q&amp;A</h1>
+    <p class="lede">Short answers for the review. The defense (<code>PATIENT_DASHBOARD_MIGRATION.md</code>) sets the agenda; this sheet covers what someone might dig into. Amber cards are the deviations and limits: state them plainly.</p>
+  </header>
+
+  <div class="story">
+    <strong>The one story</strong>
+    <p>A doctor opens a patient in OpenEMR and gets the new dashboard in the chart, in one click. It reads everything through the FHIR API and edits through OpenEMR's own editors. The standalone URL exists only to demo the login.</p>
+  </div>
+
+  <nav aria-label="Categories">
+    <ul>
+      <li><a href="#tool">The tool</a></li>
+      <li><a href="#api">API and data</a></li>
+      <li><a href="#login">Login</a></li>
+      <li><a href="#backend">The OpenEMR change</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#parity">Parity</a></li>
+      <li><a href="#quality">Testing</a></li>
+      <li><a href="#next">Limits and next</a></li>
+    </ul>
+  </nav>
+
+  <section id="tool">
+    <h2>The tool <span>ADR 0001</span></h2>
+    <div class="qa">
+      <h3>Why React, and not Vue, Svelte or Angular?</h3>
+      <p class="say">React escapes every value by default, and the old page's worst bugs were unescaped values. It also has the largest SMART on FHIR ecosystem, including the reference client we use.</p>
+      <p class="push"><b>If pushed:</b> Vue and Svelte would work, but offer nothing to offset the smaller ecosystem. Modern Angular shares little with OpenEMR's AngularJS 1.8 and is heavy for six cards.</p>
+      <p class="src">docs/adr/0001 · dashboard-modernization/03-migration-spec.md §3</p>
+    </div>
+    <div class="qa">
+      <h3>Why not keep PHP and add htmx or Alpine?</h3>
+      <p class="say">That isn't a framework port, and it keeps the server-rendered model that produced the bugs: the page decided what to draw and its endpoints trusted that decision.</p>
+      <p class="src">dashboard-modernization/02-bug-catalog.md (the pattern behind the worst rows)</p>
+    </div>
+    <div class="qa">
+      <h3>Why TypeScript? Isn't that overhead for six cards?</h3>
+      <p class="say">FHIR is optional fields everywhere. Each response is parsed into a typed model at the boundary, so a missing field fails at build or parse time instead of showing a blank to a clinician.</p>
+    </div>
+    <div class="qa">
+      <h3>Why Vite and not Next.js?</h3>
+      <p class="say">Vite builds plain static files. Next.js or any server rendering adds a second backend that would hold tokens and patient data, which the brief rules out in spirit.</p>
+    </div>
+    <div class="qa">
+      <h3>What did moving off PHP actually buy?</h3>
+      <p class="say">Authorization moved to where the data is (the API checks every request), escaping is on by default, and every card is testable in seconds without a database. One 2,080-line PHP file becomes a small app whose only input is API responses.</p>
+    </div>
+  </section>
+
+  <section id="api">
+    <h2>API and data <span>ADR 0008</span></h2>
+    <div class="qa">
+      <h3>Does it really use only the API?</h3>
+      <p class="say">Yes. Every value comes from FHIR: Patient, AllergyIntolerance, Condition, MedicationRequest, CareTeam, Observation. The app sends GET requests only; lint bans any other network call.</p>
+    </div>
+    <div class="qa">
+      <h3>Why is it served from OpenEMR and not as its own site?</h3>
+      <p class="say">OpenEMR's API can't be called from another web origin. Its CORS handler runs after authorization and routing, so the browser's preflight gets a 404. We proved it in a spike, then served the app from OpenEMR's <code>public/</code> folder. No OpenEMR code changed for that.</p>
+      <p class="src">docs/adr/0008 · catalog API-04 · 04-evidence/spike-4.0.md</p>
+    </div>
+    <div class="qa">
+      <h3>Why one patient per token? Why not a user-wide token?</h3>
+      <p class="say">OpenEMR only lets browser apps (public clients) have patient-scoped tokens. That's the right shape anyway: the dashboard shows one patient, so the token can read only that patient.</p>
+      <p class="src">catalog API-06</p>
+    </div>
+    <div class="qa">
+      <h3>Why no refresh token?</h3>
+      <p class="say">A browser app has nowhere safe to keep one. A sign-in lasts one access token; in the chart, reopening the patient simply launches again.</p>
+    </div>
+    <div class="qa">
+      <h3>What can't FHIR tell you that the old page showed?</h3>
+      <p class="say">Three things a user might notice. OpenEMR reports every patient as active, so status comes from the deceased fields. The "Nothing Recorded" versus "No Known Allergies" wording depends on a flag FHIR doesn't carry. Care team members have no status, so an inactive one is still listed.</p>
+      <p class="src">catalog API-02, API-03, API-08</p>
+    </div>
+  </section>
+
+  <section id="login">
+    <h2>Login <span>ADR 0009</span></h2>
+    <div class="qa">
+      <h3>The brief requires OAuth2 / OpenID Connect. Where is it?</h3>
+      <p class="say">Every open runs a SMART on FHIR authorization-code exchange with PKCE and returns an OpenID ID token naming the doctor. In the chart it's single sign-on, so there's no screen to see. The standalone URL shows the full login, patient picker and consent, and that's what I demo.</p>
+    </div>
+    <div class="qa">
+      <h3>Why doesn't the chart ask the doctor to log in again?</h3>
+      <p class="say">OpenEMR reuses the doctor's session for an in-EMR launch when the admin marks the app as trusted. It's an OpenEMR feature, not ours, and it's the admin's decision per app.</p>
+    </div>
+    <div class="qa flag">
+      <span class="tag">Trade-off</span>
+      <h3>Isn't the "trusted app" flag risky?</h3>
+      <p class="say">It skips the login and consent screens for that one app, which gets only the read scopes it registered, for the patient on screen, as the signed-in doctor. It's meant for the clinic's own app. Untrusted, the app still works; the doctor logs in and approves each time it opens.</p>
+    </div>
+  </section>
+
+  <section id="backend">
+    <h2>The OpenEMR change <span>ADR 0009 · 0010</span></h2>
+    <div class="qa flag">
+      <span class="tag">Deviation</span>
+      <h3>The brief says don't touch the backend. Did you?</h3>
+      <p class="say">Yes, once, deliberately, and it's in the defense. One page (<code>demographics.php</code>) and two settings, so clicking a patient opens the new dashboard inside the EMR. Without it the doctor leaves the EMR, logs in again and picks the patient again, which no clinician would do.</p>
+      <p class="push"><b>If pushed:</b> it's off by default, rollback is one setting, and with it off the page is exactly as before.</p>
+    </div>
+    <div class="qa">
+      <h3>Why not use OpenEMR's existing "SMART Enabled Apps" launch card?</h3>
+      <p class="say">That works with no code change, and we proved it. But the card is collapsed at the bottom of the old dashboard, so the doctor still sees the old page first. Changing one page makes the new dashboard what "open patient" means.</p>
+      <p class="src">04-evidence/spike-ehr/spike-ehr-launch.md</p>
+    </div>
+    <div class="qa">
+      <h3>How does editing work if the app is read-only?</h3>
+      <p class="say">In the chart, Edit opens the same OpenEMR editor the old card opens: the issue editor for allergies, problems and medications, and the prescription dialog. Saving happens there, under OpenEMR's own permission checks. The app only names the action; the chart page builds the URL and accepts the request only from its own frame.</p>
+    </div>
+    <div class="qa">
+      <h3>Why not edit inline in the new cards?</h3>
+      <p class="say">That would mean writing through the API, and the API's permission gap (next section) would let a restricted user change clinical data. Reusing OpenEMR's editors gives parity without a new write path.</p>
+    </div>
+    <div class="qa">
+      <h3>You also changed the old dashboard's code. Why?</h3>
+      <p class="say">The audit found real security bugs in it: care team and preference writes with no permission check, patient data sent before the permission check, and stored XSS. The old page stays in the product, so we fixed them, each reproduced first by a failing test, in a separate commit.</p>
+      <p class="src">dashboard-modernization/05-migration-details.md#legacy-fixes</p>
+    </div>
+  </section>
+
+  <section id="security">
+    <h2>Security <span>API-11 · BUG-110</span></h2>
+    <div class="qa flag">
+      <span class="tag">Known limit</span>
+      <h3>Can a user see data they shouldn't?</h3>
+      <p class="say">In the chart, no. On the standalone login-demo URL, yes, for one kind of user: someone allowed to see demographics but not clinical data. OpenEMR's FHIR API doesn't apply the user's own permissions to patient-scoped tokens. The chart only opens the app for users with clinical access; the real fix is in OpenEMR's API, and a test records the gap so it can't be forgotten.</p>
+      <p class="src">docs/adr/0010 · dashboard/e2e/known-limits.spec.ts · 04-evidence/in-chart/upstream-issue-api-acl.md</p>
+    </div>
+    <div class="qa">
+      <h3>Why didn't this show up in the old dashboard?</h3>
+      <p class="say">The old page never used the API. It checked each card's permission in the same PHP code that read the data. The gap was always in the API; moving onto the API made the API the only gate and exposed it.</p>
+    </div>
+    <div class="qa">
+      <h3>What about squads?</h3>
+      <p class="say">The old page meant to restrict out-of-squad patients but only hid the header; we fixed that, so the chart now refuses the whole page first. The API doesn't know about squads, but no patient on this stack uses them.</p>
+    </div>
+    <div class="qa">
+      <h3>How do you stop XSS in the new app?</h3>
+      <p class="say">React renders text only. Lint bans every HTML sink, and a test puts an <code>&lt;img onerror&gt;</code> payload in every card field and checks it shows as text.</p>
+    </div>
+  </section>
+
+  <section id="parity">
+    <h2>Parity</h2>
+    <div class="qa">
+      <h3>How do you prove it's the same dashboard?</h3>
+      <p class="say">A harness renders the old and new dashboards for all 50 patients on the dev stack, as the same doctor, and compares every card item by item. A difference without a documented reason fails the run. None was unexplained.</p>
+      <p class="src">dashboard/e2e/parity.spec.ts · 04-evidence/parity/parity-report.md</p>
+    </div>
+    <div class="qa">
+      <h3>What's different, then?</h3>
+      <p class="say">Only presentation details: empty-list wording, BMI shown as recorded instead of rounded, "23 months" instead of "23 month", and care team names as "Given Family". One is flagged: the inactive care team member, because FHIR doesn't carry member status.</p>
+    </div>
+    <div class="qa">
+      <h3>Prescriptions: why did the counts differ at first?</h3>
+      <p class="say">The first version showed active prescriptions only. The old card is "Prescription History", which gives clinicians the context of ended ones, so we restored it: current first, then ended, with a status column. It now matches the old card exactly (140 of 140 items on the 10 patients with the most history).</p>
+      <p class="src">04-evidence/prescription-history/README.md</p>
+    </div>
+    <div class="qa">
+      <h3>Did you redesign anything?</h3>
+      <p class="say">No. Same cards, same order, same Bootstrap 4.6 styling OpenEMR ships. The additions the brief asked for are sex and status in the header, plus Vitals as the extra section.</p>
+    </div>
+  </section>
+
+  <section id="quality">
+    <h2>Testing</h2>
+    <div class="qa">
+      <h3>How is it tested?</h3>
+      <p class="say">Unit tests per card over responses recorded from the dev stack, which run in seconds in CI. Playwright end-to-end tests through the real login, in the chart and standalone. The parity harness. Browser tests for every refusal path: the wrong patient, a racing patient switch, restricted users, forged edit messages.</p>
+    </div>
+    <div class="qa">
+      <h3>How do you know the tests would catch a regression?</h3>
+      <p class="say">We broke each rule-carrying line on purpose, one at a time, and confirmed a named test or lint rule failed every time.</p>
+      <p class="src">04-evidence/unit-test-mutations.txt</p>
+    </div>
+    <div class="qa">
+      <h3>Why don't the browser tests run in CI?</h3>
+      <p class="say">They need a running OpenEMR stack, which the pipeline doesn't have. CI runs lint, typecheck and unit tests. The browser suites run locally, and their reports are committed as evidence.</p>
+    </div>
+    <div class="qa">
+      <h3>How did you work out what to build?</h3>
+      <p class="say">Audit first: a dependency tree of the old page, a per-file audit of 51 files, a bug catalog, then a migration spec with ten design rules and a decision per open question, before any code.</p>
+      <p class="src">dashboard-modernization/ (00-tree through 03-migration-spec)</p>
+    </div>
+  </section>
+
+  <section id="next">
+    <h2>Limits and next</h2>
+    <div class="qa">
+      <h3>Is it deployed?</h3>
+      <p class="say">Yes, on the public Railway instance. Open any patient and the chart shows the new dashboard; <code>/public/dashboard/</code> is the login demo. The image build compiles the app into OpenEMR's <code>public/dashboard/</code> and leaves its source out of the web root.</p>
+      <p class="push"><b>If pushed:</b> rollback is one admin setting (back to the old cards), or the previous image, which is recorded.</p>
+      <p class="src">deploy/railway/README.md "Patient dashboard" · 04-evidence/in-chart/railway-in-chart.png</p>
+    </div>
+    <div class="qa">
+      <h3>What would you do next?</h3>
+      <p class="say">Fix the API permission gap upstream (the report is drafted). After that: a launch from calendar appointments, which OpenEMR supports in code but not in its UI, and the deferred Medium and Low bugs from the catalog.</p>
+    </div>
+    <div class="qa">
+      <h3>Why not fix the API permission gap yourselves?</h3>
+      <p class="say">It's a change to OpenEMR's API core, which the brief rules out, and it affects every SMART app, so it belongs upstream. We scoped around it in the chart and documented it.</p>
+    </div>
+  </section>
+
+  <footer>Sources are repo paths relative to the fork's root. Full detail: dashboard-modernization/05-migration-details.md.</footer>
+</div>

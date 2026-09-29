@@ -1,0 +1,6 @@
+ ✘ Observation code text is escaped in the preference list
+   │ BUG-011: observation_code_text printed unescaped
+ ✔ Code display is the fallback when observation code text is empty
+ ✘ A quote in a stored value cannot end the edit buttons data attribute
+   │ BUG-009: a quote in the JSON ended the attribute
+Tests: 3, Assertions: 4, Failures: 2.
