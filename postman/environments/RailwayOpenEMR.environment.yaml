@@ -1,0 +1,30 @@
+name: RailwayOpenEMR
+values:
+  - key: envName
+    value: "railway"
+  - key: baseUrl
+    value: "https://openemr-production-461d.up.railway.app"
+  - key: username
+    value: "admin"
+  - key: password
+    value: ''
+  - key: site
+    value: "default"
+  - key: scope
+    value: "openid offline_access api:oemr api:fhir user/patient.read user/encounter.read user/vital.read user/medical_problem.read user/allergy.read user/medication.read user/appointment.read user/practitioner.read user/facility.read user/user.read user/version.read user/Patient.read user/Condition.read user/Observation.read user/MedicationRequest.read user/AllergyIntolerance.read user/Encounter.read user/Immunization.read user/CarePlan.read user/CareTeam.read user/Appointment.read user/Practitioner.read"
+  - key: clientId
+    value: ''
+  - key: clientSecret
+    value: ''
+  - key: accessToken
+    value: ''
+  - key: refreshToken
+    value: ''
+  - key: patientUuid
+    value: ''
+  - key: patientPid
+    value: ''
+  - key: encounterUuid
+    value: ''
+  - key: encounterId
+    value: ''
