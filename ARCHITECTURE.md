@@ -28,6 +28,49 @@ Companion documents: `AUDIT.md` (findings this design answers), `USER.md` (use c
 
 ---
 
+## High-level architecture
+
+```mermaid
+flowchart LR
+    Browser["Clinician's browser<br/>CopilotAgent tab<br/><i>no keys, no PHI stored</i>"]
+
+    subgraph A["Trust boundary A: OpenEMR (PHP)"]
+        Module["Copilot module<br/>PanelScope · ChartReader · AgentClient"]
+        Audit[("Audit log<br/>metadata only")]
+        DB[("MariaDB<br/>system of record")]
+    end
+
+    subgraph B["Trust boundary B: agent service (Python, private network)"]
+        Session["Session store<br/>RAM only, 120 min expiry"]
+        Agent["Agent<br/>topic check → tool loop ≤5 → verify"]
+        Rules["Rule engine<br/>versioned, outside the model"]
+        Verify["Verifier<br/>turn-scoped citations"]
+        Gateway["Model gateway<br/>allowlist only"]
+    end
+
+    Model["Model provider<br/>Anthropic / OpenRouter"]
+    Trace["LangSmith<br/>traces, optional redaction"]
+    Seeder["Nightly seeder<br/>(Railway cron)"]
+
+    Browser -- "HTTPS, session + CSRF" --> Module
+    Module -- "scope check, reads via services" --> DB
+    Module --> Audit
+    Module -- "HMAC-signed chart JSON" --> Session
+    Session --> Agent
+    Agent --> Rules
+    Agent --> Verify
+    Agent --> Gateway
+    Gateway -- HTTPS --> Model
+    Agent -. traces .-> Trace
+    Seeder -- "appointments via OpenEMR REST API" --> DB
+    Verify -- "verified claims + state" --> Module
+    Module -- "rendered brief / answer" --> Browser
+```
+
+One request: the browser asks OpenEMR, the module checks role and patient scope and reads the chart, then sends a signed request to the agent service. The service assembles facts, runs the rules, calls the model through the allowlisted gateway, deletes any claim the verifier rejects, labels the response state, and returns it through OpenEMR. The browser never reaches the service or the model. §1 shows the same picture with each component's PHI handling.
+
+---
+
 ## 1. Components and trust boundaries
 
 ```

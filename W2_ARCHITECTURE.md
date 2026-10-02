@@ -12,6 +12,61 @@ being extended), [ALERTS.md](ALERTS.md), [AUDIT.md](AUDIT.md).
 
 ---
 
+## High-level architecture
+
+```mermaid
+flowchart LR
+    subgraph Browser["Clinician's browser"]
+        W1Tab["Week 1 tab<br/>rounding list (frozen)"]
+        PTab["Co-Pilot tab<br/>inside the patient chart"]
+    end
+
+    subgraph A["OpenEMR (PHP): the only writer"]
+        Module["Copilot module<br/>PanelScope · ChartReader · AgentClient"]
+        Writer["DocumentWriter<br/>patient cross-check, one transaction"]
+        DB[("MariaDB<br/>documents · procedure_* · audit log")]
+    end
+
+    subgraph B["Agent service (Python, private network): read-only"]
+        Sup["Supervisor<br/>routes and assembles, no tools"]
+        Ext["Intake-extractor<br/>VLM → strict schema"]
+        Ret["Evidence-retriever<br/>Week 1 loop: tools → verify → state"]
+        RAG["Hybrid RAG<br/>BM25 + MiniLM, rerank, 20 chunks"]
+        Pages["Page overlay<br/>text-layer quote boxes"]
+        GW["Model gateway<br/>allowlist only"]
+    end
+
+    Model["Model provider<br/>gemini-2.5-flash-lite (agent + vision)"]
+    Trace["LangSmith<br/>handoffs, tool calls, model calls"]
+
+    PTab -- "HTTPS, session + CSRF" --> Module
+    W1Tab --> Module
+    Module -- "scope check, reads" --> DB
+    Module -- "HMAC-signed: chart + unread document bytes" --> Sup
+    Sup -- "1 · unread documents" --> Ext
+    Ext -- "extractions; graph pauses (interrupt)" --> Writer
+    Writer -- "persists" --> DB
+    Writer -- "resume with re-read chart" --> Sup
+    Sup -- "2 · brief / answer" --> Ret
+    Ret --> RAG
+    Ext --> GW
+    Ret --> GW
+    GW -- HTTPS --> Model
+    Module -- "citation click" --> Pages
+    Sup -- "verified claims, evidence, what changed" --> Module
+    B -. traces .-> Trace
+```
+
+One chart opening: the module checks scope and passes the chart and any unread documents to the
+supervisor. If any are unread, the extractor reads them and the graph pauses. The module then
+cross-checks the patient name, writes what it accepts, re-reads the chart and resumes the graph.
+The retriever writes the brief from that chart, using the guideline corpus where the question
+needs evidence. Every claim passes the Week 1 verifier before the supervisor assembles the
+response. The agent never writes to OpenEMR, and the browser never reaches the agent or the model.
+§3 covers the graph in detail and §4 covers ingestion.
+
+---
+
 ## 1. What changes
 
 | | Week 1 | Week 2 |
