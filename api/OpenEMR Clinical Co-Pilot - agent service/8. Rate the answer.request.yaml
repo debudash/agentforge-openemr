@@ -1,0 +1,19 @@
+$kind: http-request
+description: A clinician rating, attached to the LangSmith trace for that exact answer. Category is a fixed code -- good, mismatch, relevance, completeness, other -- never free text, so a rating can never carry patient data to an external service.
+url: "{{baseUrl}}/session/{{sessionId}}/feedback"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "run_id": "{{lastRunId}}",
+      "score": 1,
+      "category": "good"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test("accepted", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 8000

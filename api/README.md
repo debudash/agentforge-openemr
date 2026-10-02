@@ -1,13 +1,15 @@
 # Runnable API collection
 
-`copilot-agent.postman_collection.json` — Postman v2.1, importable into Postman, Bruno,
-Insomnia or `newman`. Ten requests covering the whole agent workflow end to end.
+[`OpenEMR Clinical Co-Pilot - agent service/`](OpenEMR%20Clinical%20Co-Pilot%20-%20agent%20service/)
+— the collection in Postman's local, one-file-per-request format, registered in
+[`.postman/resources.yaml`](../.postman/resources.yaml) so Postman opens it from the repository.
+Thirteen requests covering the whole agent workflow end to end.
 
 You should not need to read any source to run it.
 
 ## Setup
 
-1. Import the collection. It points at the live demo service, so nothing needs to be running
+1. Open the repository in Postman. The collection points at the live demo service, so nothing needs to be running
    locally; to drive a local service instead, start it first (see
    [copilot/README.md](../copilot/README.md)).
 2. Open the Collection Runner.

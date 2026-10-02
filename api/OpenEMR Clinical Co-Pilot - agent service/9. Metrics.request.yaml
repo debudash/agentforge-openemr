@@ -1,0 +1,13 @@
+$kind: http-request
+description: "Operational counters since the service started: requests by state, verified and removed claims with the cause of each removal, tool calls, retries, and p50/p95/p99 latency. No identifiers and no clinical content."
+url: "{{baseUrl}}/metrics"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      var m = pm.response.json();
+      console.log('counters', JSON.stringify(m.counters));
+      console.log('retries', JSON.stringify(m.retries));
+      pm.test("reports latency percentiles", function () { pm.expect(m).to.have.property('latency_ms'); });
+    language: text/javascript
+order: 9000

@@ -1,0 +1,62 @@
+$kind: collection
+description: |-
+  Runnable collection for the co-pilot agent service.
+
+  SETUP (one variable, then press Run):
+    baseUrl       already points at the live demo; use http://127.0.0.1:8600 for a local service
+    sharedSecret  request it with the demo logins (see the repo README), or your own
+                  COPILOT_SHARED_SECRET if you are running locally
+
+  In the Collection Runner set Delay to 2000 ms: a brief takes 10-30 s and request 4 polls itself.
+
+  Every request is HMAC-signed by a collection-level pre-request script, the same scheme the OpenEMR module uses; there is nothing to sign by hand. Run the requests in order: 3 opens a session, 4 polls until the briefs are ready, 5 through 8 exercise one patient, 9 shows the counters and 10 tears down.
+
+  The browser never talks to this service in normal use -- OpenEMR proxies every call under the clinician's session -- so this collection is the only way to drive it directly.
+
+  Week 2 requests (11-13) read the fixture lab report with the vision model, run the supervisor graph, and render a page with quote boxes. They sit before the close request so the session is still open.
+variables:
+  baseUrl: https://copilot-agent-production-1f21.up.railway.app
+  sharedSecret: ""
+  sessionId: postman-demo-session-0001
+  lastRunId: ""
+  statusTries: "0"
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Signs every request the way the OpenEMR module does, so a grader never has to.
+      //   signature = HMAC-SHA256(secret, "<unix ts>.<METHOD>.<path>.<raw body>")
+      // The service rejects a missing or stale timestamp and any mismatch, so an unsigned
+      // request returns 401 by design.
+      var secret = pm.variables.get("sharedSecret");
+      if (!secret) {
+          console.warn("Set sharedSecret (collection variable, environment, or newman --env-var). Every signed request returns 401 without it.");
+      }
+
+      var ts = Math.floor(Date.now() / 1000).toString();
+      var method = pm.request.method.toUpperCase();
+
+      // The signed path is the path only: no host, no query string. Built from the URL segments
+      // rather than the whole URL, because a pre-request script runs before Postman resolves
+      // {{variables}} in the address bar -- reading the resolved string here would sign the wrong path.
+      function fill(text) {
+          return String(text).replace(/\{\{([^}]+)\}\}/g, function (match, name) {
+              var value = pm.variables.get(name.trim());
+              return value === undefined || value === null ? match : value;
+          });
+      }
+      var segments = (pm.request.url.path || []).map(fill).filter(function (s) { return s.length > 0; });
+      var path = "/" + segments.join("/");
+
+      var body = "";
+      if (pm.request.body && pm.request.body.mode === "raw" && pm.request.body.raw) {
+          body = pm.request.body.raw;
+          // Substitute variables so the bytes signed are the bytes sent.
+          body = fill(body);
+      }
+
+      var signature = CryptoJS.HmacSHA256(ts + "." + method + "." + path + "." + body, secret).toString(CryptoJS.enc.Hex);
+
+      pm.request.headers.upsert({ key: "X-Copilot-Timestamp", value: ts });
+      pm.request.headers.upsert({ key: "X-Copilot-Signature", value: signature });
+      pm.request.headers.upsert({ key: "X-Correlation-Id", value: "postman-" + ts });
+    language: text/javascript

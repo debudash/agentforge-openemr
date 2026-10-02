@@ -1,0 +1,21 @@
+$kind: http-request
+description: Makes this patient active and returns their brief. Conversation memory for every other patient is cleared here, so nothing from one chart can reach another's answer. Run step 4 until the patient reads ready, or this returns status=generating with no brief.
+url: "{{baseUrl}}/session/{{sessionId}}/select"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "pid": 101
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("200", function () { pm.response.to.have.status(200); });
+      var b = pm.response.json().brief;
+      if (b) { console.log('state', b.state, '| claims', (b.sections||[]).reduce(function(n,s){return n+s.claims.length;},0)); }
+      pm.test("brief is ready", function () { pm.expect(pm.response.json().status).to.eql('ready'); });
+    language: text/javascript
+order: 5000

@@ -1,0 +1,12 @@
+$kind: http-request
+description: Ends the session and drops every chart and conversation held for it. Sessions also expire after an idle period, and nothing is ever written to disk.
+url: "{{baseUrl}}/session/{{sessionId}}/close"
+method: POST
+body:
+  type: json
+  content: "{}"
+scripts:
+  - type: afterResponse
+    code: pm.test("200", function () { pm.response.to.have.status(200); });
+    language: text/javascript
+order: 13000

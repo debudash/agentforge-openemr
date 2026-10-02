@@ -1,0 +1,11 @@
+$kind: http-request
+description: Is the process alive. Checks nothing else on purpose, so a dependency outage never gets a working service killed by an orchestrator. Always 200 while the process runs.
+url: "{{baseUrl}}/health"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("200", function () { pm.response.to.have.status(200); });
+      pm.test("reports uptime", function () { pm.expect(pm.response.json()).to.have.property('uptime_s'); });
+    language: text/javascript
+order: 1000

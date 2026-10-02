@@ -1,0 +1,20 @@
+$kind: http-request
+description: "Week 2. The supervisor graph for the session's patient with no unread documents: it hands straight to the evidence retriever and returns the brief with the routing. Run after request 3 has opened the session."
+url: "{{baseUrl}}/session/{{sessionId}}/supervise"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "pid": 101,
+      "documents": []
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("200", function () { pm.response.to.have.status(200); });
+      var d = pm.response.json();
+      pm.test("finished with a brief and logged handoffs", function () { pm.expect(d.phase).to.eql("done"); pm.expect(d.brief).to.be.an("object"); pm.expect(d.handoffs.length).to.be.above(1); d.handoffs.forEach(function (h) { pm.expect(h.reason).to.be.a("string").and.not.empty; }); });
+      console.log("routing", d.handoffs.map(function (h) { return h.from + " -> " + h.to; }).join(", "));
+    language: text/javascript
+order: 11000

@@ -1,0 +1,23 @@
+$kind: http-request
+description: "Week 2. Reads the fixture two-page lab report with the vision model and returns a LabDocument: every field with a page and quote citation, unsupported fields null with confidence 0. On the free tier this can answer 502 rate_limit; that is the provider's quota, said plainly, not a fault."
+url: "{{baseUrl}}/documents/extract"
+method: POST
+body:
+  type: json
+  content: |-
+    {
+      "pid": 101,
+      "doc_id": 412,
+      "doc_type": "lab_pdf",
+      "filename": "metro-labs-jane-doe.pdf",
+      "mime": "application/pdf",
+      "content_base64": "JVBERi0xLjQKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9Db3VyaWVyID4+CmVuZG9iagoyIDAgb2JqCjw8IC9MZW5ndGggNzAxID4+CnN0cmVhbQpCVAovRjEgMTAgVGYKNzIgNzQwIFRkCjEzIFRMCihNRVRSTyBDTElOSUNBTCBMQUJTKSBUaiBUKgooMTIwMCBIYXJib3IgU3RyZWV0LCBTcHJpbmdmaWVsZCkgVGogVCoKKExBQk9SQVRPUlkgUkVQT1JUKSBUaiBUKgooKSBUaiBUKgooUGF0aWVudDogSmFuZSBEb2UgICAgICAgIERPQjogMTk2Mi0wNC0wMyAgICAgICAgU2V4OiBGKSBUaiBUKgooT3JkZXJpbmcgcHJvdmlkZXI6IERhbmEgUmV5ZXMpIFRqIFQqCihDb2xsZWN0ZWQ6IDIwMjYtMDktMTcgMDg6MTAgICAgICAgIFJlcG9ydGVkOiAyMDI2LTA5LTE4IDE0OjIyKSBUaiBUKgooU3BlY2ltZW46IFNlcnVtICAgICAgICBBY2Nlc3Npb246IE1DTC0yNi0xMTgyMDQpIFRqIFQqCigpIFRqIFQqCihUZXN0ICAgICAgICAgICAgICAgICAgICBSZXN1bHQgICAgICBVbml0cyAgICAgIFJlZmVyZW5jZSBSYW5nZSAgICBGbGFnKSBUaiBUKgooUG90YXNzaXVtICAgICAgICAgICAgICAgNS40ICAgICAgICAgbW1vbC9MICAgICAzLjUtNS4wICAgICAgICAgICAgSCkgVGogVCoKKFNvZGl1bSAgICAgICAgICAgICAgICAgIDE0MCAgICAgICAgIG1tb2wvTCAgICAgMTM1LTE0NSkgVGogVCoKKENyZWF0aW5pbmUgICAgICAgICAgICAgIDEuMyAgICAgICAgIG1nL2RMICAgICAgMC42LTEuMiAgICAgICAgICAgIEgpIFRqIFQqCigpIFRqIFQqCihDb250aW51ZWQgb24gcGFnZSAyKSBUaiBUKgpFVAplbmRzdHJlYW0KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgMiAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA0OTggPj4Kc3RyZWFtCkJUCi9GMSAxMCBUZgo3MiA3NDAgVGQKMTMgVEwKKE1FVFJPIENMSU5JQ0FMIExBQlMgICAgICAgIEphbmUgRG9lICAgICAgICBBY2Nlc3Npb246IE1DTC0yNi0xMTgyMDQgICAgICAgIFBhZ2UgMikgVGogVCoKKCkgVGogVCoKKFRlc3QgICAgICAgICAgICAgICAgICAgIFJlc3VsdCAgICAgIFVuaXRzICAgICAgUmVmZXJlbmNlIFJhbmdlICAgIEZsYWcpIFRqIFQqCihHbHVjb3NlICAgICAgICAgICAgICAgICAxMTIgICAgICAgICBtZy9kTCAgICAgIDcwLTk5ICAgICAgICAgICAgICBIKSBUaiBUKgooSGVtb2dsb2JpbiBBMWMgICAgICAgICAgNy40ICAgICAgICAgJSAgICAgICAgICA0LjAtNS42ICAgICAgICAgICAgSCkgVGogVCoKKCkgVGogVCoKKENvbW1lbnQ6IEhlbW9seXNpcyBpbmRleCB3aXRoaW4gbGltaXRzLikgVGogVCoKKFJldmlld2VkIGJ5OiBNZXRybyBDbGluaWNhbCBMYWJzLCBDTElBIDk5RDk5OTk5OTkpIFRqIFQqCihFbmQgb2YgcmVwb3J0KSBUaiBUKgpFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCA2IDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvUmVzb3VyY2VzIDw8IC9Gb250IDw8IC9GMSAxIDAgUiA+PiA+PiAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjYgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUiA1IDAgUl0gL0NvdW50IDIgPj4KZW5kb2JqCjcgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDYgMCBSID4+CmVuZG9iagp4cmVmCjAgOAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA4MyAwMDAwMCBuIAowMDAwMDAwODM1IDAwMDAwIG4gCjAwMDAwMDA5NjEgMDAwMDAgbiAKMDAwMDAwMTUxMCAwMDAwMCBuIAowMDAwMDAxNjM2IDAwMDAwIG4gCjAwMDAwMDE2OTkgMDAwMDAgbiAKdHJhaWxlcgo8PCAvU2l6ZSA4IC9Sb290IDcgMCBSID4+CnN0YXJ0eHJlZgoxNzQ4CiUlRU9GCg=="
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("read, or refused with a named reason", function () { pm.expect([200, 502, 503]).to.include(pm.response.code); });
+      if (pm.response.code === 200) { var d = pm.response.json(); console.log("results", d.document.results.length, "unsupported", d.unsupported_fields);
+        pm.test("every supported value carries a page and quote", function () { d.document.results.forEach(function (r) { if (r.value.value !== null) { pm.expect(r.value.citation.page).to.be.a("number"); pm.expect(r.value.citation.quote).to.be.a("string"); } }); }); }
+    language: text/javascript
+order: 10000

@@ -1,0 +1,9 @@
+# Use this workspace to collaborate
+workspace:
+  id: ""
+
+localResources:
+  collections:
+    - ../api/OpenEMR Clinical Co-Pilot - agent service
+  specs:
+    - ../swagger/openemr-api.yaml

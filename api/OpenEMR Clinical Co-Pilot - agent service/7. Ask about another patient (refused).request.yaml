@@ -1,0 +1,20 @@
+$kind: http-request
+description: The patient boundary. A patient who is not the active, authorised one is refused with no content and no hint whether that patient exists, so the reply cannot be used to enumerate.
+url: "{{baseUrl}}/session/{{sessionId}}/ask"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "pid": 999,
+      "question": "Tell me about patient 999"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("refused", function () { pm.expect(pm.response.json().state).to.eql('access_denied'); });
+      pm.test("carries no claims", function () { pm.expect(pm.response.json().claims || []).to.eql([]); });
+    language: text/javascript
+order: 7000
