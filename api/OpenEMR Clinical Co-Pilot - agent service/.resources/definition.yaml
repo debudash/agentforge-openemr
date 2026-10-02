@@ -15,7 +15,7 @@ description: |-
 
   Week 2 requests (11-13) read the fixture lab report with the vision model, run the supervisor graph, and render a page with quote boxes. They sit before the close request so the session is still open.
 variables:
-  baseUrl: https://copilot-agent-production-1f21.up.railway.app
+  baseUrl: https://copilot-agent-v82-v82.up.railway.app
   sharedSecret: ""
   sessionId: postman-demo-session-0001
   lastRunId: ""
